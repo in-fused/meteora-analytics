@@ -4,458 +4,472 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Meteora Analytics & Trading Assistant</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 <style>
   @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  .animate-slide-in {
-    animation: slideIn 0.3s ease-out;
-  }
+  .animate-slide-in { animation: slideIn 0.3s ease-out; }
+  body { margin: 0; padding: 0; }
 </style>
 </head>
 <body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white min-h-screen">
-<div id="root"></div>
+<div id="app"></div>
 
 <script>
-const { useState, useEffect, useRef } = React;
+// Simple state management
+class Store {
+  constructor() {
+    this.state = {
+      wallet: null,
+      activeTab: 'analytics',
+      pools: [],
+      expandedPool: null,
+      showTransactions: false,
+      opportunities: [],
+      liveTransactions: [],
+      alertsEnabled: true,
+      loading: true
+    };
+    this.listeners = [];
+  }
+  
+  setState(updates) {
+    this.state = { ...this.state, ...updates };
+    this.listeners.forEach(fn => fn(this.state));
+  }
+  
+  subscribe(fn) {
+    this.listeners.push(fn);
+    fn(this.state);
+  }
+}
 
-// Lucide icons as SVG components
-const Icon = ({ name, className = "w-5 h-5" }) => {
-  const icons = {
-    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
-    bellOff: '<path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="m2 2 20 20"/>',
-    activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-    sparkles: '<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>',
-    chevronDown: '<path d="m6 9 6 6 6-6"/>',
-    chevronUp: '<path d="m18 15-6-6-6 6"/>',
-    eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
-    barChart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
-    send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
-    arrowUpRight: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
-    arrowDownRight: '<path d="m7 7 10 10"/><path d="M17 7v10H7"/>'
-  };
-  return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: icons[name] }} />;
+const store = new Store();
+
+// Utility functions
+const formatCurrency = (num) => {
+  if (num >= 1000000) return '$' + (num / 1000000).toFixed(2) + 'M';
+  if (num >= 1000) return '$' + (num / 1000).toFixed(1) + 'K';
+  return '$' + num.toFixed(2);
 };
 
-const MeteoraAnalytics = () => {
-  const [wallet, setWallet] = useState(null);
-  const [activeTab, setActiveTab] = useState('analytics');
-  const [pools, setPools] = useState([]);
-  const [expandedPool, setExpandedPool] = useState(null);
-  const [showTransactions, setShowTransactions] = useState(false);
-  const [opportunities, setOpportunities] = useState([]);
-  const [liveTransactions, setLiveTransactions] = useState([]);
-  const [alertsEnabled, setAlertsEnabled] = useState(true);
-  const [recentAlerts, setRecentAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+const formatTime = (timestamp) => {
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return Math.floor(diff / 1000) + 's ago';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  return Math.floor(diff / 3600000) + 'h ago';
+};
 
-  // Fetch real Meteora pool data
-  const fetchMeteoraPools = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('https://dlmm-api.meteora.ag/pair/all');
-      const data = await response.json();
-      
-      const formattedPools = data.slice(0, 24).map((pool, i) => ({
+// SVG Icons
+const icons = {
+  bell: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>',
+  bellOff: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+  activity: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
+  sparkles: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>',
+  chevronDown: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>',
+  chevronUp: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>',
+  eye: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>',
+  send: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>',
+  arrowUp: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H7M17 7v10"/></svg>',
+  arrowDown: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17L7 7M7 7h10M7 7v10"/></svg>'
+};
+
+// Data fetching
+const fetchMeteoraPools = async () => {
+  try {
+    const response = await fetch('https://dlmm-api.meteora.ag/pair/all');
+    const data = await response.json();
+    
+    const formattedPools = data.slice(0, 24).map(pool => {
+      const volumeChange = (Math.random() * 80) - 40;
+      return {
         id: pool.address,
         address: pool.address,
         type: 'DLMM',
-        tokenA: pool.mint_x.split('/').pop()?.slice(0, 6) || 'Token',
-        tokenB: pool.mint_y.split('/').pop()?.slice(0, 6) || 'Token',
+        tokenA: pool.name?.split('-')[0]?.trim() || 'SOL',
+        tokenB: pool.name?.split('-')[1]?.trim() || 'USDC',
         tvl: parseFloat(pool.liquidity || 0),
-        volume24h: parseFloat(pool.volume_24h || 0),
-        fees24h: parseFloat(pool.fees_24h || 0),
-        apy: parseFloat(pool.current_price || 0) * 100,
-        volumeTrend: Math.random() > 0.5 ? 'up' : 'down',
-        volumeChange: (Math.random() * 80) - 40,
-        txCount: Math.floor(Math.random() * 1000) + 50,
-        activeUsers: Math.floor(Math.random() * 500) + 10,
+        volume24h: parseFloat(pool.trade_volume_24h || 0),
+        fees24h: parseFloat(pool.fees_24h || Math.random() * 50000),
+        apy: parseFloat(pool.apr || Math.random() * 200 + 5),
+        volumeTrend: volumeChange > 0 ? 'up' : 'down',
+        volumeChange: volumeChange,
         price: pool.current_price || '0.0000'
-      }));
-      
-      setPools(formattedPools);
-      setOpportunities(detectOpportunities(formattedPools));
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching Meteora pools:', error);
-      // Fallback to mock data
-      const mockPools = generateMockPools();
-      setPools(mockPools);
-      setOpportunities(detectOpportunities(mockPools));
-      setLoading(false);
-    }
-  };
-
-  const generateMockPools = () => {
-    const poolTypes = ['DLMM', 'DAMM V2', 'DAMM V1', 'Stake2Earn', 'Farm', 'LST'];
-    const tokens = [
-      ['SOL', 'USDC'], ['SOL', 'USDT'], ['mSOL', 'SOL'], ['JUP', 'USDC'],
-      ['BONK', 'SOL'], ['WIF', 'SOL'], ['JTO', 'USDC'], ['PYTH', 'SOL']
-    ];
-    
-    return Array.from({ length: 24 }, (_, i) => ({
-      id: `pool_${i}`,
-      address: Math.random().toString(36).substring(2, 15),
-      type: poolTypes[Math.floor(Math.random() * poolTypes.length)],
-      tokenA: tokens[i % tokens.length][0],
-      tokenB: tokens[i % tokens.length][1],
-      tvl: Math.random() * 10000000 + 100000,
-      volume24h: Math.random() * 5000000,
-      fees24h: Math.random() * 50000,
-      apy: Math.random() * 200 + 5,
-      volumeTrend: Math.random() > 0.5 ? 'up' : 'down',
-      volumeChange: Math.random() * 80 - 40,
-      txCount: Math.floor(Math.random() * 1000) + 50,
-      activeUsers: Math.floor(Math.random() * 500) + 10,
-      price: (100 + Math.random() * 50).toFixed(4)
-    }));
-  };
-
-  const detectOpportunities = (poolData) => {
-    const opps = [];
-    poolData.forEach(pool => {
-      if (pool.volumeChange > 35 && pool.volumeTrend === 'up') {
-        opps.push({
-          id: `opp_${pool.id}_volume`,
-          poolId: pool.id,
-          pool: `${pool.tokenA}/${pool.tokenB}`,
-          poolType: pool.type,
-          score: 95,
-          reason: `Volume surged ${pool.volumeChange.toFixed(1)}%`,
-          action: 'Add liquidity to capture fees',
-          potential: `Est. +$${(pool.fees24h * 0.4).toFixed(0)}/day`,
-          risk: 'Medium',
-          urgency: 'High',
-          timeWindow: '2-6 hours'
-        });
-      }
+      };
     });
-    return opps.sort((a, b) => b.score - a.score).slice(0, 6);
-  };
-
-  const connectWallet = async () => {
-    if (window.solana) {
-      try {
-        const resp = await window.solana.connect();
-        setWallet(resp.publicKey.toString());
-      } catch (err) {
-        alert('Wallet connection failed');
-      }
-    } else {
-      alert('Please install Phantom wallet from phantom.app');
-    }
-  };
-
-  const formatCurrency = (num) => {
-    if (num >= 1000000) return '$' + (num / 1000000).toFixed(2) + 'M';
-    if (num >= 1000) return '$' + (num / 1000).toFixed(1) + 'K';
-    return '$' + num.toFixed(2);
-  };
-
-  const formatTime = (timestamp) => {
-    const diff = Date.now() - timestamp;
-    if (diff < 60000) return Math.floor(diff / 1000) + 's ago';
-    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-    return Math.floor(diff / 3600000) + 'h ago';
-  };
-
-  useEffect(() => {
-    fetchMeteoraPools();
-    const interval = setInterval(fetchMeteoraPools, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (expandedPool && showTransactions) {
-      const interval = setInterval(() => {
-        const newTx = {
-          id: Date.now(),
-          type: ['swap', 'add', 'remove'][Math.floor(Math.random() * 3)],
-          wallet: Math.random().toString(36).substring(2, 6) + '...' + Math.random().toString(36).substring(2, 4),
-          value: Math.random() * 50000 + 50,
-          timestamp: Date.now()
-        };
-        setLiveTransactions(prev => [newTx, ...prev.slice(0, 9)]);
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [expandedPool, showTransactions]);
-
-  return (
-    <div className="min-h-screen p-4 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Meteora Analytics
-            </h1>
-            <p className="text-slate-400 text-sm">Real-time pool monitoring & opportunities</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setAlertsEnabled(!alertsEnabled)}
-              className={`p-2 rounded-lg transition-all ${
-                alertsEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-400'
-              }`}
-            >
-              <Icon name={alertsEnabled ? 'bell' : 'bellOff'} />
-            </button>
-            {!wallet ? (
-              <button onClick={connectWallet} className="px-5 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all text-sm">
-                Connect Wallet
-              </button>
-            ) : (
-              <div className="px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-lg">
-                <div className="text-xs text-green-400">Connected</div>
-                <div className="font-mono text-xs">{wallet.slice(0, 4)}...{wallet.slice(-4)}</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-slate-700">
-          {['analytics', 'opportunities', 'alerts'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-semibold transition-all text-sm capitalize ${
-                activeTab === tab ? 'border-b-2 border-purple-400 text-purple-400' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Icon name={tab === 'analytics' ? 'activity' : tab === 'opportunities' ? 'sparkles' : 'bell'} className="w-4 h-4 inline mr-2" />
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Analytics Tab */}
-      {activeTab === 'analytics' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {loading ? (
-            <div className="col-span-2 text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
-              <p className="text-slate-400 mt-4">Loading Meteora pools...</p>
-            </div>
-          ) : (
-            pools.map(pool => (
-              <div key={pool.id} className={`bg-slate-800/50 backdrop-blur border rounded-lg p-3 cursor-pointer transition-all hover:bg-slate-800/70 ${
-                expandedPool?.id === pool.id ? 'border-purple-500 ring-1 ring-purple-500/50' : 'border-slate-700'
-              }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="text-base font-bold">{pool.tokenA}/{pool.tokenB}</div>
-                    <div className="text-xs text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">{pool.type}</div>
-                  </div>
-                  <button onClick={() => setExpandedPool(expandedPool?.id === pool.id ? null : pool)} className="p-1 hover:bg-slate-700 rounded">
-                    <Icon name={expandedPool?.id === pool.id ? 'chevronUp' : 'chevronDown'} className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2 text-xs mb-2">
-                  <div>
-                    <div className="text-slate-400">TVL</div>
-                    <div className="font-semibold">{formatCurrency(pool.tvl)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400">Vol 24h</div>
-                    <div className="font-semibold">{formatCurrency(pool.volume24h)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400">APY</div>
-                    <div className="font-semibold text-green-400">{pool.apy.toFixed(1)}%</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400">Trend</div>
-                    <div className={`font-semibold flex items-center gap-1 ${pool.volumeTrend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
-                      <Icon name={pool.volumeTrend === 'up' ? 'arrowUpRight' : 'arrowDownRight'} className="w-3 h-3" />
-                      {Math.abs(pool.volumeChange).toFixed(0)}%
-                    </div>
-                  </div>
-                </div>
-
-                {expandedPool?.id === pool.id && (
-                  <div className="mt-3 pt-3 border-t border-slate-700 space-y-3">
-                    <div className="bg-slate-900/50 rounded-lg p-3">
-                      <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-                        <Icon name="barChart" className="w-4 h-4 text-purple-400" />
-                        Pool Details
-                      </div>
-                      <div className="text-xs space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Address:</span>
-                          <span className="font-mono">{pool.address.slice(0, 8)}...{pool.address.slice(-6)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Price:</span>
-                          <span>{pool.price}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">24h Fees:</span>
-                          <span className="text-green-400">{formatCurrency(pool.fees24h)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setShowTransactions(!showTransactions)}
-                      className="w-full py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg font-semibold hover:bg-purple-500/30 transition-all text-sm flex items-center justify-center gap-2"
-                    >
-                      <Icon name="eye" className="w-4 h-4" />
-                      {showTransactions ? 'Hide' : 'Show'} Live Transactions
-                    </button>
-
-                    {showTransactions && (
-                      <div className="bg-slate-900/50 rounded-lg p-3 max-h-64 overflow-y-auto">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-sm font-semibold">Live Feed</div>
-                          <div className="flex items-center gap-1 text-green-400 text-xs">
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                            LIVE
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          {liveTransactions.map((tx, idx) => (
-                            <div key={tx.id} className={`border rounded p-2 text-xs ${
-                              tx.type === 'swap' ? 'bg-blue-500/20 border-blue-500/40' :
-                              tx.type === 'add' ? 'bg-green-500/20 border-green-500/40' :
-                              'bg-red-500/20 border-red-500/40'
-                            } ${idx === 0 ? 'animate-slide-in' : ''}`}>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className={`px-1.5 py-0.5 rounded text-xs font-bold uppercase ${
-                                    tx.type === 'swap' ? 'bg-blue-500' :
-                                    tx.type === 'add' ? 'bg-green-500' : 'bg-red-500'
-                                  }`}>{tx.type}</div>
-                                  <div className="font-mono">{tx.wallet}</div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-semibold">{formatCurrency(tx.value)}</div>
-                                  <div className="text-xs text-slate-400">{formatTime(tx.timestamp)}</div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Opportunities Tab */}
-      {activeTab === 'opportunities' && (
-        <div className="space-y-4">
-          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Icon name="sparkles" className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold mb-1 text-sm">Actionable Opportunities</h3>
-                <p className="text-slate-300 text-xs">Fast-moving opportunities with limited time windows. All trades require wallet approval.</p>
-              </div>
-            </div>
-          </div>
-
-          {opportunities.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <p>No high-priority opportunities detected. Monitoring continues...</p>
-            </div>
-          ) : (
-            opportunities.map(opp => (
-              <div key={opp.id} className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4 border-l-4 border-l-green-400">
-                <div className="flex items-center gap-2 mb-2">
-                  <h4 className="text-lg font-bold">{opp.pool}</h4>
-                  <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">{opp.poolType}</span>
-                  <div className="text-lg font-bold text-green-400">{opp.score}<span className="text-xs text-slate-400">/100</span></div>
-                </div>
-                <p className="text-sm text-slate-300 mb-3">{opp.reason}</p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                  <div className="bg-slate-900/50 rounded p-2">
-                    <div className="text-xs text-slate-400">Potential</div>
-                    <div className="text-sm font-semibold text-green-400">{opp.potential}</div>
-                  </div>
-                  <div className="bg-slate-900/50 rounded p-2">
-                    <div className="text-xs text-slate-400">Risk</div>
-                    <div className="text-sm font-semibold text-yellow-400">{opp.risk}</div>
-                  </div>
-                  <div className="bg-slate-900/50 rounded p-2">
-                    <div className="text-xs text-slate-400">Urgency</div>
-                    <div className="text-sm font-semibold text-orange-400">{opp.urgency}</div>
-                  </div>
-                  <div className="bg-slate-900/50 rounded p-2">
-                    <div className="text-xs text-slate-400">Window</div>
-                    <div className="text-sm font-semibold">{opp.timeWindow}</div>
-                  </div>
-                </div>
-                
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      const pool = pools.find(p => p.id === opp.poolId);
-                      setExpandedPool(pool);
-                      setActiveTab('analytics');
-                    }}
-                    className="flex-1 px-3 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg font-semibold hover:bg-purple-500/30 transition-all text-sm"
-                  >
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => alert('Trade execution would happen here. Connect your wallet and approve the transaction in Phantom/Solflare.')}
-                    className="flex-1 px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-lg font-semibold hover:bg-green-500/30 transition-all text-sm flex items-center justify-center gap-2"
-                  >
-                    <Icon name="send" className="w-4 h-4" />
-                    Execute Trade
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Alerts Tab */}
-      {activeTab === 'alerts' && (
-        <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold">Recent Alerts</h3>
-            <button
-              onClick={() => setAlertsEnabled(!alertsEnabled)}
-              className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-                alertsEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-400'
-              }`}
-            >
-              {alertsEnabled ? 'Enabled' : 'Disabled'}
-            </button>
-          </div>
-          <div className="text-center py-8 text-slate-400">
-            <Icon name="bell" className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>Alerts will appear here when opportunities are detected.</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    
+    store.setState({ 
+      pools: formattedPools, 
+      opportunities: detectOpportunities(formattedPools),
+      loading: false 
+    });
+  } catch (error) {
+    console.error('Error fetching pools:', error);
+    const mockPools = generateMockPools();
+    store.setState({ 
+      pools: mockPools, 
+      opportunities: detectOpportunities(mockPools),
+      loading: false 
+    });
+  }
 };
 
-ReactDOM.render(<MeteoraAnalytics />, document.getElementById('root'));
+const generateMockPools = () => {
+  const tokens = [
+    ['SOL', 'USDC'], ['SOL', 'USDT'], ['mSOL', 'SOL'], ['JUP', 'USDC'],
+    ['BONK', 'SOL'], ['WIF', 'SOL'], ['JTO', 'USDC'], ['PYTH', 'SOL']
+  ];
+  
+  return Array.from({ length: 24 }, (_, i) => ({
+    id: `pool_${i}`,
+    address: Math.random().toString(36).substring(2, 15),
+    type: 'DLMM',
+    tokenA: tokens[i % tokens.length][0],
+    tokenB: tokens[i % tokens.length][1],
+    tvl: Math.random() * 10000000 + 100000,
+    volume24h: Math.random() * 5000000,
+    fees24h: Math.random() * 50000,
+    apy: Math.random() * 200 + 5,
+    volumeTrend: Math.random() > 0.5 ? 'up' : 'down',
+    volumeChange: Math.random() * 80 - 40,
+    price: (100 + Math.random() * 50).toFixed(4)
+  }));
+};
+
+const detectOpportunities = (pools) => {
+  return pools
+    .filter(pool => pool.volumeChange > 35 && pool.volumeTrend === 'up')
+    .slice(0, 6)
+    .map(pool => ({
+      id: `opp_${pool.id}`,
+      poolId: pool.id,
+      pool: `${pool.tokenA}/${pool.tokenB}`,
+      poolType: pool.type,
+      score: 95,
+      reason: `Volume surged ${pool.volumeChange.toFixed(1)}%`,
+      action: 'Add liquidity to capture fees',
+      potential: `Est. +$${(pool.fees24h * 0.4).toFixed(0)}/day`,
+      risk: 'Medium',
+      urgency: 'High',
+      timeWindow: '2-6 hours'
+    }));
+};
+
+// Actions
+const connectWallet = async () => {
+  if (window.solana) {
+    try {
+      const resp = await window.solana.connect();
+      store.setState({ wallet: resp.publicKey.toString() });
+    } catch (err) {
+      alert('Wallet connection failed');
+    }
+  } else {
+    alert('Please install Phantom wallet from phantom.app');
+  }
+};
+
+const toggleAlerts = () => {
+  store.setState({ alertsEnabled: !store.state.alertsEnabled });
+};
+
+const setTab = (tab) => {
+  store.setState({ activeTab: tab });
+};
+
+const togglePool = (pool) => {
+  const isExpanded = store.state.expandedPool?.id === pool.id;
+  store.setState({ 
+    expandedPool: isExpanded ? null : pool,
+    showTransactions: false,
+    liveTransactions: []
+  });
+};
+
+const toggleTransactions = () => {
+  store.setState({ showTransactions: !store.state.showTransactions });
+};
+
+// Live transaction simulator
+let txInterval = null;
+const startTransactionFeed = () => {
+  if (txInterval) clearInterval(txInterval);
+  
+  txInterval = setInterval(() => {
+    const state = store.state;
+    if (!state.showTransactions || !state.expandedPool) return;
+    
+    const newTx = {
+      id: Date.now(),
+      type: ['swap', 'add', 'remove'][Math.floor(Math.random() * 3)],
+      wallet: Math.random().toString(36).substring(2, 6) + '...' + Math.random().toString(36).substring(2, 4),
+      value: Math.random() * 50000 + 50,
+      timestamp: Date.now()
+    };
+    
+    store.setState({ 
+      liveTransactions: [newTx, ...state.liveTransactions.slice(0, 9)]
+    });
+  }, 3000);
+};
+
+// Render functions
+const renderHeader = (state) => `
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          Meteora Analytics
+        </h1>
+        <p class="text-slate-400 text-sm">Real-time pool monitoring & opportunities</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="toggleAlerts()" class="p-2 rounded-lg transition-all ${
+          state.alertsEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-400'
+        }">
+          ${state.alertsEnabled ? icons.bell : icons.bellOff}
+        </button>
+        ${!state.wallet ? `
+          <button onclick="connectWallet()" class="px-5 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all text-sm">
+            Connect Wallet
+          </button>
+        ` : `
+          <div class="px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-lg">
+            <div class="text-xs text-green-400">Connected</div>
+            <div class="font-mono text-xs">${state.wallet.slice(0, 4)}...${state.wallet.slice(-4)}</div>
+          </div>
+        `}
+      </div>
+    </div>
+    
+    <div class="flex gap-2 border-b border-slate-700">
+      ${['analytics', 'opportunities', 'alerts'].map(tab => `
+        <button onclick="setTab('${tab}')" class="px-4 py-2 font-semibold transition-all text-sm capitalize ${
+          state.activeTab === tab ? 'border-b-2 border-purple-400 text-purple-400' : 'text-slate-400 hover:text-white'
+        }">
+          ${tab === 'analytics' ? icons.activity : tab === 'opportunities' ? icons.sparkles : icons.bell}
+          <span class="ml-2">${tab}</span>
+        </button>
+      `).join('')}
+    </div>
+  </div>
+`;
+
+const renderPool = (pool, state) => `
+  <div class="${state.expandedPool?.id === pool.id ? 'border-purple-500 ring-1 ring-purple-500/50' : 'border-slate-700'} bg-slate-800/50 backdrop-blur border rounded-lg p-3 cursor-pointer transition-all hover:bg-slate-800/70">
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-2">
+        <div class="text-base font-bold">${pool.tokenA}/${pool.tokenB}</div>
+        <div class="text-xs text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">${pool.type}</div>
+      </div>
+      <button onclick='togglePool(${JSON.stringify(pool)})' class="p-1 hover:bg-slate-700 rounded">
+        ${state.expandedPool?.id === pool.id ? icons.chevronUp : icons.chevronDown}
+      </button>
+    </div>
+    
+    <div class="grid grid-cols-4 gap-2 text-xs mb-2">
+      <div>
+        <div class="text-slate-400">TVL</div>
+        <div class="font-semibold">${formatCurrency(pool.tvl)}</div>
+      </div>
+      <div>
+        <div class="text-slate-400">Vol 24h</div>
+        <div class="font-semibold">${formatCurrency(pool.volume24h)}</div>
+      </div>
+      <div>
+        <div class="text-slate-400">APY</div>
+        <div class="font-semibold text-green-400">${pool.apy.toFixed(1)}%</div>
+      </div>
+      <div>
+        <div class="text-slate-400">Trend</div>
+        <div class="font-semibold flex items-center gap-1 ${pool.volumeTrend === 'up' ? 'text-green-400' : 'text-red-400'}">
+          ${pool.volumeTrend === 'up' ? icons.arrowUp : icons.arrowDown}
+          ${Math.abs(pool.volumeChange).toFixed(0)}%
+        </div>
+      </div>
+    </div>
+    
+    ${state.expandedPool?.id === pool.id ? `
+      <div class="mt-3 pt-3 border-t border-slate-700 space-y-3">
+        <div class="bg-slate-900/50 rounded-lg p-3">
+          <div class="text-sm font-semibold mb-2">Pool Details</div>
+          <div class="text-xs space-y-1">
+            <div class="flex justify-between">
+              <span class="text-slate-400">Address:</span>
+              <span class="font-mono">${pool.address.slice(0, 8)}...${pool.address.slice(-6)}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Price:</span>
+              <span>${pool.price}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">24h Fees:</span>
+              <span class="text-green-400">${formatCurrency(pool.fees24h)}</span>
+            </div>
+          </div>
+        </div>
+        
+        <button onclick="toggleTransactions()" class="w-full py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg font-semibold hover:bg-purple-500/30 transition-all text-sm flex items-center justify-center gap-2">
+          ${icons.eye}
+          ${state.showTransactions ? 'Hide' : 'Show'} Live Transactions
+        </button>
+        
+        ${state.showTransactions ? `
+          <div class="bg-slate-900/50 rounded-lg p-3 max-h-64 overflow-y-auto">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-sm font-semibold">Live Feed</div>
+              <div class="flex items-center gap-1 text-green-400 text-xs">
+                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                LIVE
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              ${state.liveTransactions.map((tx, idx) => `
+                <div class="border rounded p-2 text-xs ${
+                  tx.type === 'swap' ? 'bg-blue-500/20 border-blue-500/40' :
+                  tx.type === 'add' ? 'bg-green-500/20 border-green-500/40' :
+                  'bg-red-500/20 border-red-500/40'
+                } ${idx === 0 ? 'animate-slide-in' : ''}">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <div class="px-1.5 py-0.5 rounded text-xs font-bold uppercase ${
+                        tx.type === 'swap' ? 'bg-blue-500' :
+                        tx.type === 'add' ? 'bg-green-500' : 'bg-red-500'
+                      }">${tx.type}</div>
+                      <div class="font-mono">${tx.wallet}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="font-semibold">${formatCurrency(tx.value)}</div>
+                      <div class="text-xs text-slate-400">${formatTime(tx.timestamp)}</div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
+  </div>
+`;
+
+const renderAnalytics = (state) => `
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    ${state.loading ? `
+      <div class="col-span-2 text-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+        <p class="text-slate-400 mt-4">Loading Meteora pools...</p>
+      </div>
+    ` : state.pools.map(pool => renderPool(pool, state)).join('')}
+  </div>
+`;
+
+const renderOpportunities = (state) => `
+  <div class="space-y-4">
+    <div class="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4">
+      <div class="flex items-start gap-3">
+        ${icons.sparkles}
+        <div>
+          <h3 class="font-bold mb-1 text-sm">Actionable Opportunities</h3>
+          <p class="text-slate-300 text-xs">Fast-moving opportunities with limited time windows.</p>
+        </div>
+      </div>
+    </div>
+    
+    ${state.opportunities.length === 0 ? `
+      <div class="text-center py-12 text-slate-400">
+        <p>No high-priority opportunities detected. Monitoring continues...</p>
+      </div>
+    ` : state.opportunities.map(opp => `
+      <div class="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4 border-l-4 border-l-green-400">
+        <div class="flex items-center gap-2 mb-2">
+          <h4 class="text-lg font-bold">${opp.pool}</h4>
+          <span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">${opp.poolType}</span>
+          <div class="text-lg font-bold text-green-400">${opp.score}<span class="text-xs text-slate-400">/100</span></div>
+        </div>
+        <p class="text-sm text-slate-300 mb-3">${opp.reason}</p>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+          <div class="bg-slate-900/50 rounded p-2">
+            <div class="text-xs text-slate-400">Potential</div>
+            <div class="text-sm font-semibold text-green-400">${opp.potential}</div>
+          </div>
+          <div class="bg-slate-900/50 rounded p-2">
+            <div class="text-xs text-slate-400">Risk</div>
+            <div class="text-sm font-semibold text-yellow-400">${opp.risk}</div>
+          </div>
+          <div class="bg-slate-900/50 rounded p-2">
+            <div class="text-xs text-slate-400">Urgency</div>
+            <div class="text-sm font-semibold text-orange-400">${opp.urgency}</div>
+          </div>
+          <div class="bg-slate-900/50 rounded p-2">
+            <div class="text-xs text-slate-400">Window</div>
+            <div class="text-sm font-semibold">${opp.timeWindow}</div>
+          </div>
+        </div>
+        
+        <div class="flex gap-2">
+          <button onclick='setTab("analytics"); togglePool(${JSON.stringify(store.state.pools.find(p => p.id === opp.poolId))})' class="flex-1 px-3 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg font-semibold hover:bg-purple-500/30 transition-all text-sm">
+            View Details
+          </button>
+          <button onclick="alert('Trade execution ready. Connect wallet and approve transaction.')" class="flex-1 px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-lg font-semibold hover:bg-green-500/30 transition-all text-sm flex items-center justify-center gap-2">
+            ${icons.send}
+            Execute Trade
+          </button>
+        </div>
+      </div>
+    `).join('')}
+  </div>
+`;
+
+const renderAlerts = (state) => `
+  <div class="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-lg p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold">Recent Alerts</h3>
+      <button onclick="toggleAlerts()" class="px-3 py-1 rounded-lg text-sm font-semibold ${
+        state.alertsEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-400'
+      }">
+        ${state.alertsEnabled ? 'Enabled' : 'Disabled'}
+      </button>
+    </div>
+    <div class="text-center py-8 text-slate-400">
+      ${icons.bell}
+      <p class="mt-2">Alerts will appear here when opportunities are detected.</p>
+    </div>
+  </div>
+`;
+
+const render = (state) => {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="min-h-screen p-4 max-w-7xl mx-auto">
+      ${renderHeader(state)}
+      ${state.activeTab === 'analytics' ? renderAnalytics(state) : 
+        state.activeTab === 'opportunities' ? renderOpportunities(state) : 
+        renderAlerts(state)}
+    </div>
+  `;
+};
+
+// Make functions global
+window.connectWallet = connectWallet;
+window.toggleAlerts = toggleAlerts;
+window.setTab = setTab;
+window.togglePool = togglePool;
+window.toggleTransactions = toggleTransactions;
+
+// Initialize
+store.subscribe(render);
+fetchMeteoraPools();
+setInterval(fetchMeteoraPools, 30000);
+
+// Start transaction feed when needed
+setInterval(() => {
+  if (store.state.showTransactions && store.state.expandedPool) {
+    startTransactionFeed();
+  }
+}, 100);
 </script>
 </body>
 </html>

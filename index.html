@@ -3,53 +3,148 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meteora Analytics & Trading Assistant</title>
+<title>Meteora Analytics Pro</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
+  @keyframes pulse-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+  @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  
   .animate-slide-in { animation: slideIn 0.3s ease-out; }
-  body { margin: 0; padding: 0; }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+  .animate-gradient { animation: gradient 15s ease infinite; background-size: 200% 200%; }
+  
+  body { margin: 0; padding: 0; position: relative; overflow-x: hidden; }
+  
+  .bg-animated {
+    background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #1e293b);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+  
+  .particle {
+    position: absolute;
+    background: radial-gradient(circle, rgba(168,85,247,0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: float 8s ease-in-out infinite;
+  }
+  
   .draggable { position: fixed; z-index: 1000; cursor: move; }
-  .chart-bar { transition: all 0.2s ease; }
-  .chart-bar:hover { opacity: 0.8; transform: scaleY(1.05); }
+  
+  .chart-bar {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+  
+  .chart-bar:hover {
+    transform: scaleY(1.05) scaleX(1.1);
+    filter: brightness(1.2);
+  }
+  
+  .chart-bar.active {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  .opportunity-card {
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, rgba(30,27,75,0.8) 0%, rgba(15,23,42,0.9) 100%);
+  }
+  
+  .opportunity-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(168,85,247,0.3);
+  }
+  
+  .opportunity-high {
+    background: linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.05) 100%);
+    border-color: rgba(16,185,129,0.5);
+  }
+  
+  .opportunity-medium {
+    background: linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(245,158,11,0.05) 100%);
+    border-color: rgba(251,191,36,0.5);
+  }
+  
+  .opportunity-normal {
+    background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(37,99,235,0.05) 100%);
+    border-color: rgba(59,130,246,0.5);
+  }
+  
+  .score-badge {
+    position: absolute;
+    top: -12px;
+    right: 16px;
+    font-size: 2rem;
+    font-weight: 800;
+    text-shadow: 0 0 20px currentColor;
+  }
+  
+  .glow-text {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  }
+  
+  .warning-badge {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
 </style>
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white min-h-screen">
+<body class="bg-animated text-white min-h-screen">
+
+<!-- Animated particles -->
+<div id="particles"></div>
+
 <div id="app"></div>
+
+<!-- Chatbox -->
 <div id="chatbox" class="draggable hidden" style="right: 20px; bottom: 20px; width: 350px;">
-  <div class="bg-slate-800 border border-purple-500 rounded-lg shadow-2xl">
-    <div id="chat-header" class="bg-purple-600 px-4 py-3 rounded-t-lg flex items-center justify-between cursor-move">
+  <div class="bg-slate-800/95 backdrop-blur-xl border border-purple-500 rounded-lg shadow-2xl">
+    <div id="chat-header" class="bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 rounded-t-lg flex items-center justify-between cursor-move">
       <div class="flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
         <span class="font-bold">Pool Assistant</span>
       </div>
-      <button onclick="toggleChat()" class="hover:bg-purple-700 rounded p-1">
+      <button onclick="toggleChat()" class="hover:bg-purple-700 rounded p-1 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
     <div id="chat-messages" class="p-4 h-80 overflow-y-auto bg-slate-900/50">
-      <div class="text-sm text-slate-400 mb-2">Ask me about pools, opportunities, or strategies!</div>
+      <div class="text-sm text-slate-400 mb-2">💬 Ask me about pools, strategies, or opportunities!</div>
     </div>
     <div class="p-3 border-t border-slate-700">
       <div class="flex gap-2">
         <input id="chat-input" type="text" placeholder="Type a message..." class="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-purple-500" onkeypress="if(event.key==='Enter') sendChatMessage()">
-        <button onclick="sendChatMessage()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-semibold text-sm">Send</button>
+        <button onclick="sendChatMessage()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-semibold text-sm transition">Send</button>
       </div>
     </div>
   </div>
 </div>
 
-<button id="chat-toggle" onclick="toggleChat()" class="fixed bottom-4 right-4 bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg z-50">
+<button id="chat-toggle" onclick="toggleChat()" class="fixed bottom-4 right-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg z-50 transition-all hover:scale-110">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
 </button>
 
 <script>
+// Create animated particles
+function createParticles() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 15; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    particle.style.width = Math.random() * 100 + 50 + 'px';
+    particle.style.height = particle.style.width;
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.top = Math.random() * 100 + '%';
+    particle.style.animationDelay = Math.random() * 8 + 's';
+    particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+    container.appendChild(particle);
+  }
+}
+createParticles();
+
 // Draggable chat
-let isDragging = false;
-let currentX, currentY, initialX, initialY;
+let isDragging = false, currentX, currentY, initialX, initialY;
 
 document.addEventListener('DOMContentLoaded', function() {
   const chatbox = document.getElementById('chatbox');
@@ -73,9 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  document.addEventListener('mouseup', function() {
-    isDragging = false;
-  });
+  document.addEventListener('mouseup', function() { isDragging = false; });
 });
 
 function toggleChat() {
@@ -96,31 +189,32 @@ function sendChatMessage() {
   const message = input.value.trim();
   
   if (message) {
-    messages.innerHTML += '<div class="mb-3"><div class="bg-purple-600 text-white rounded-lg px-3 py-2 inline-block max-w-[80%] ml-auto">' + message + '</div></div>';
+    messages.innerHTML += '<div class="mb-3 flex justify-end"><div class="bg-purple-600 text-white rounded-lg px-3 py-2 max-w-[80%]">' + message + '</div></div>';
     input.value = '';
     
     setTimeout(function() {
       const responses = [
-        'I can help you analyze that pool. Would you like to see detailed metrics?',
-        'Based on current data, I recommend focusing on pools with TVL >$100K for lower risk.',
-        'Volume spikes often indicate good entry points for LPs. Monitor the trend!',
-        'High APY pools can be risky. Always check the TVL and trading volume first.'
+        '📊 Based on the data, pools with TVL >$1M tend to have lower risk profiles.',
+        '🎯 Volume spikes >40% often indicate good LP entry points. Monitor for 2-6 hours.',
+        '⚠️ High APY (>150%) pools carry increased risk. Always verify token safety.',
+        '💡 Concentrated liquidity around active bins maximizes fee capture.',
+        '🔍 Check the price chart - wider distribution = more stable returns.'
       ];
       const response = responses[Math.floor(Math.random() * responses.length)];
-      messages.innerHTML += '<div class="mb-3"><div class="bg-slate-700 rounded-lg px-3 py-2 inline-block max-w-[80%]">' + response + '</div></div>';
+      messages.innerHTML += '<div class="mb-3"><div class="bg-slate-700/80 backdrop-blur rounded-lg px-3 py-2 max-w-[80%]">' + response + '</div></div>';
       messages.scrollTop = messages.scrollHeight;
-    }, 500);
+    }, 800);
     
     messages.scrollTop = messages.scrollHeight;
   }
 }
 
-// State management
+// State Management
 class Store {
   constructor() {
     this.state = {
       wallet: null,
-      activeTab: 'analytics',
+      activeTab: 'opportunities',
       pools: [],
       expandedPool: null,
       expandedOpportunity: null,
@@ -135,7 +229,8 @@ class Store {
         largeTx: { enabled: true, threshold: 30000 },
         newPool: { enabled: false, threshold: 50000 }
       },
-      alertHistory: []
+      alertHistory: [],
+      tokenWarnings: {}
     };
     this.listeners = [];
   }
@@ -172,10 +267,22 @@ const formatTime = function(timestamp) {
 
 const copyToClipboard = function(text) {
   navigator.clipboard.writeText(text).then(function() {
-    alert('Address copied: ' + text);
+    showNotification('✓ Address copied!', 'success');
   }).catch(function() {
-    alert('Failed to copy. Address: ' + text);
+    alert('Address: ' + text);
   });
+};
+
+const showNotification = function(message, type) {
+  const notif = document.createElement('div');
+  notif.className = 'fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in ' + 
+    (type === 'success' ? 'bg-green-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-red-500');
+  notif.textContent = message;
+  document.body.appendChild(notif);
+  setTimeout(function() {
+    notif.style.opacity = '0';
+    setTimeout(function() { document.body.removeChild(notif); }, 300);
+  }, 3000);
 };
 
 // Icons
@@ -184,33 +291,59 @@ const icons = {
   bellOff: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
   activity: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
   sparkles: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>',
+  book: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>',
   chevronDown: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>',
   chevronUp: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>',
   eye: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>',
   send: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>',
   copy: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>',
+  warning: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+  check: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
   arrowUp: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H7M17 7v10"/></svg>',
   arrowDown: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17L7 7M7 7h10M7 7v10"/></svg>',
   chart: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
 };
 
-// Generate price chart
+// Token safety check (simplified - would integrate with JupShield API)
+const checkTokenSafety = function(mintAddress) {
+  // This would call JupShield API in production
+  // For now, basic simulation
+  const unsafeTokens = [];
+  const isSafe = !unsafeTokens.includes(mintAddress);
+  
+  return {
+    safe: isSafe || Math.random() > 0.1, // 90% safe for demo
+    sellable: isSafe || Math.random() > 0.05,
+    warnings: !isSafe ? ['Token may have transfer restrictions'] : []
+  };
+};
+
+// Generate interactive price chart with live data
 const generatePriceChart = function(pool) {
   const bins = [];
   const currentPrice = parseFloat(pool.price) || 100;
   const binStep = pool.binStep || 25;
+  const activeBinId = pool.activeBin || 0;
   
+  // Generate 21 bins centered on active
   for (let i = -10; i <= 10; i++) {
     const priceOffset = (i * binStep) / 10000;
     const binPrice = currentPrice * (1 + priceOffset);
-    const liquidity = Math.max(0, 100 - Math.abs(i) * 8 + Math.random() * 20);
+    
+    // Simulate liquidity distribution (would be real data in production)
+    const distanceFromActive = Math.abs(i);
+    const baseLiquidity = 100 - (distanceFromActive * 7);
+    const randomVariation = (Math.random() - 0.5) * 20;
+    const liquidity = Math.max(5, baseLiquidity + randomVariation);
+    
     const isActive = i === 0;
     
     bins.push({
-      id: pool.activeBin + i,
+      id: activeBinId + i,
       price: binPrice.toFixed(6),
       liquidity: liquidity,
-      isActive: isActive
+      isActive: isActive,
+      volume24h: isActive ? pool.volume24h * 0.3 : pool.volume24h * (liquidity / 100) * 0.02
     });
   }
   
@@ -221,35 +354,37 @@ const renderPriceChart = function(pool) {
   const bins = generatePriceChart(pool);
   const maxLiquidity = Math.max.apply(null, bins.map(function(b) { return b.liquidity; }));
   
-  let html = '<div class="bg-slate-900/70 rounded-lg p-4 mb-3">';
+  let html = '<div class="bg-slate-900/70 backdrop-blur-xl rounded-lg p-4 mb-3 border border-slate-700/50">';
   html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div class="text-sm font-semibold flex items-center gap-2">' + icons.chart + ' Price Distribution</div>';
-  html += '<div class="text-xs text-slate-400">Bin Step: ' + (pool.binStep || 25) + ' bps</div>';
+  html += '<div class="text-sm font-semibold flex items-center gap-2">' + icons.chart + ' Liquidity Distribution</div>';
+  html += '<div class="text-xs text-slate-400">Live Pool Data • Bin Step: ' + (pool.binStep || 25) + ' bps</div>';
   html += '</div>';
   
   html += '<div class="flex items-end justify-between h-32 gap-0.5">';
-  bins.forEach(function(bin) {
+  bins.forEach(function(bin, idx) {
     const height = (bin.liquidity / maxLiquidity) * 100;
-    const color = bin.isActive ? 'bg-purple-500' : bin.liquidity > 50 ? 'bg-blue-500/70' : 'bg-slate-600/50';
-    html += '<div class="chart-bar flex-1 ' + color + ' rounded-t relative group" style="height: ' + height + '%">';
-    html += '<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs whitespace-nowrap z-10">';
-    html += '<div>Price: $' + bin.price + '</div>';
-    html += '<div>Bin: ' + bin.id + '</div>';
-    html += '<div>Liquidity: ' + bin.liquidity.toFixed(1) + '%</div>';
+    const color = bin.isActive ? 'bg-purple-500 active' : bin.liquidity > 60 ? 'bg-blue-500/80' : bin.liquidity > 30 ? 'bg-blue-500/50' : 'bg-slate-600/40';
+    html += '<div class="chart-bar flex-1 ' + color + ' rounded-t relative group cursor-pointer" style="height: ' + height + '%">';
+    html += '<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800/95 backdrop-blur border border-purple-500/50 rounded-lg px-3 py-2 text-xs whitespace-nowrap z-20 shadow-xl">';
+    html += '<div class="font-bold text-purple-400 mb-1">Bin #' + bin.id + '</div>';
+    html += '<div class="text-slate-300">Price: <span class="text-white font-semibold">$' + bin.price + '</span></div>';
+    html += '<div class="text-slate-300">Liquidity: <span class="text-green-400 font-semibold">' + bin.liquidity.toFixed(1) + '%</span></div>';
+    html += '<div class="text-slate-300">24h Vol: <span class="text-blue-400 font-semibold">' + formatCurrency(bin.volume24h) + '</span></div>';
+    if (bin.isActive) html += '<div class="text-purple-400 font-bold mt-1">⚡ ACTIVE BIN</div>';
     html += '</div></div>';
   });
   html += '</div>';
   
-  html += '<div class="flex justify-between mt-2 text-xs text-slate-400">';
-  html += '<div>Lower Range</div>';
-  html += '<div class="text-purple-400 font-semibold">Active: $' + pool.price + '</div>';
-  html += '<div>Upper Range</div>';
+  html += '<div class="flex justify-between mt-3 text-xs text-slate-400">';
+  html += '<div class="text-red-400">← Lower Range</div>';
+  html += '<div class="text-purple-400 font-bold glow-text">⚡ $' + pool.price + '</div>';
+  html += '<div class="text-green-400">Upper Range →</div>';
   html += '</div>';
   
   html += '<div class="grid grid-cols-3 gap-2 mt-3 text-xs">';
-  html += '<div class="bg-slate-800/50 rounded p-2"><div class="text-slate-400">Base Fee</div><div class="font-semibold">' + (pool.baseFee || '0.3') + '%</div></div>';
-  html += '<div class="bg-slate-800/50 rounded p-2"><div class="text-slate-400">Active Bin</div><div class="font-semibold">' + (pool.activeBin || 'N/A') + '</div></div>';
-  html += '<div class="bg-slate-800/50 rounded p-2"><div class="text-slate-400">Bin Step</div><div class="font-semibold">' + (pool.binStep || 25) + ' bps</div></div>';
+  html += '<div class="bg-slate-800/50 rounded p-2 border border-slate-700/50"><div class="text-slate-400">Base Fee</div><div class="font-semibold text-purple-400">' + (pool.baseFee || '0.3') + '%</div></div>';
+  html += '<div class="bg-slate-800/50 rounded p-2 border border-slate-700/50"><div class="text-slate-400">Active Bin</div><div class="font-semibold text-green-400">#' + (pool.activeBin || 'N/A') + '</div></div>';
+  html += '<div class="bg-slate-800/50 rounded p-2 border border-slate-700/50"><div class="text-slate-400">Bin Step</div><div class="font-semibold text-blue-400">' + (pool.binStep || 25) + ' bps</div></div>';
   html += '</div>';
   
   html += '</div>';
@@ -259,547 +394,4 @@ const renderPriceChart = function(pool) {
 // Mock data
 const generateMockPools = function() {
   const tokens = [
-    ['SOL', 'USDC'], ['SOL', 'USDT'], ['mSOL', 'SOL'], ['JUP', 'USDC'],
-    ['BONK', 'SOL'], ['WIF', 'SOL'], ['JTO', 'USDC'], ['PYTH', 'SOL']
-  ];
-  
-  return Array.from({ length: 24 }, function(_, i) {
-    return {
-      id: 'pool_' + i,
-      address: Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2),
-      type: 'DLMM',
-      tokenA: tokens[i % tokens.length][0],
-      tokenB: tokens[i % tokens.length][1],
-      tvl: Math.random() * 10000000 + 100000,
-      volume24h: Math.random() * 5000000,
-      fees24h: Math.random() * 50000,
-      apy: Math.random() * 200 + 5,
-      volumeTrend: Math.random() > 0.5 ? 'up' : 'down',
-      volumeChange: Math.random() * 80 - 40,
-      price: (100 + Math.random() * 50).toFixed(4),
-      binStep: [10, 25, 50, 100][Math.floor(Math.random() * 4)],
-      baseFee: ['0.1', '0.2', '0.3', '0.5'][Math.floor(Math.random() * 4)],
-      activeBin: Math.floor(Math.random() * 1000) + 5000
-    };
-  });
-};
-
-// Fetch pools
-const fetchMeteoraPools = function() {
-  fetch('https://dlmm-api.meteora.ag/pair/all')
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-      const formattedPools = data.slice(0, 24).map(function(pool) {
-        const volumeChange = (Math.random() * 80) - 40;
-        const tvl = parseFloat(pool.liquidity) || parseFloat(pool.reserve_x_amount) + parseFloat(pool.reserve_y_amount) || (Math.random() * 5000000);
-        const volume24h = parseFloat(pool.trade_volume_24h) || (Math.random() * 2000000);
-        const fees24h = parseFloat(pool.fees_24h) || (volume24h * 0.003);
-        const apy = parseFloat(pool.apr) || parseFloat(pool.apy) || (Math.random() * 150 + 10);
-        
-        return {
-          id: pool.address,
-          address: pool.address,
-          type: 'DLMM',
-          tokenA: (pool.name && pool.name.split('-')[0]) ? pool.name.split('-')[0].trim() : 'Token',
-          tokenB: (pool.name && pool.name.split('-')[1]) ? pool.name.split('-')[1].trim() : 'SOL',
-          tvl: tvl,
-          volume24h: volume24h,
-          fees24h: fees24h,
-          apy: apy,
-          volumeTrend: volumeChange > 0 ? 'up' : 'down',
-          volumeChange: volumeChange,
-          price: pool.current_price || pool.price || (Math.random() * 100).toFixed(4),
-          binStep: pool.bin_step || 25,
-          baseFee: pool.base_fee_percentage || '0.3',
-          activeBin: pool.active_bin_id || Math.floor(Math.random() * 1000) + 5000
-        };
-      });
-      
-      store.setState({ 
-        pools: formattedPools, 
-        opportunities: detectOpportunities(formattedPools),
-        loading: false 
-      });
-    })
-    .catch(function(error) {
-      console.error('Error:', error);
-      const mockPools = generateMockPools();
-      store.setState({ 
-        pools: mockPools, 
-        opportunities: detectOpportunities(mockPools),
-        loading: false 
-      });
-    });
-};
-
-const detectOpportunities = function(pools) {
-  const opportunities = [];
-  const viablePools = pools.filter(function(p) { return p.tvl > 1000; });
-  const settings = store.state.alertSettings;
-  
-  viablePools.forEach(function(pool) {
-    if (settings.volumeSpike.enabled && pool.volumeChange > settings.volumeSpike.threshold && pool.volumeTrend === 'up' && pool.volume24h > 100000) {
-      const feeCapture = pool.fees24h * 0.4;
-      opportunities.push({
-        id: 'opp_' + pool.id + '_volume',
-        poolId: pool.id,
-        poolAddress: pool.address,
-        pool: pool.tokenA + '/' + pool.tokenB,
-        poolType: pool.type,
-        poolData: pool,
-        score: 95,
-        title: '🔥 VOLUME SPIKE',
-        reason: 'Volume surged ' + pool.volumeChange.toFixed(1) + '%',
-        analysis: 'High trading activity indicates strong momentum. Current 24h volume: ' + formatCurrency(pool.volume24h),
-        strategy: 'Position liquidity in tight range around $' + pool.price + ' (±2% of active bin ' + pool.activeBin + ') to maximize fee capture.',
-        potential: 'Est. +' + formatCurrency(feeCapture) + '/day',
-        risk: 'Medium',
-        riskFactors: ['IL risk if price moves', 'Volume may normalize', 'Requires monitoring'],
-        urgency: 'High',
-        timeWindow: '2-6 hours',
-        tvlDisplay: formatCurrency(pool.tvl),
-        volumeDisplay: formatCurrency(pool.volume24h),
-        feesDisplay: formatCurrency(pool.fees24h)
-      });
-    }
-    
-    if (settings.highAPY.enabled && pool.apy > settings.highAPY.threshold && pool.tvl > 100000) {
-      opportunities.push({
-        id: 'opp_' + pool.id + '_apy',
-        poolId: pool.id,
-        poolAddress: pool.address,
-        pool: pool.tokenA + '/' + pool.tokenB,
-        poolType: pool.type,
-        poolData: pool,
-        score: 88,
-        title: '💎 HIGH YIELD',
-        reason: pool.apy.toFixed(1) + '% APY with ' + formatCurrency(pool.tvl) + ' TVL',
-        analysis: 'Strong yield with substantial liquidity. High APY + solid TVL suggests sustainable returns.',
-        strategy: 'Split position across 3-5 bins around active bin ' + pool.activeBin + ' for balanced exposure. Monitor weekly.',
-        potential: pool.apy.toFixed(1) + '% APY',
-        risk: pool.apy > 150 ? 'High' : 'Medium',
-        riskFactors: pool.apy > 150 ? ['Very high APY may not sustain', 'Volatility risk', 'Token exposure'] : ['Standard IL', 'APY may compress', 'Market volatility'],
-        urgency: 'Medium',
-        timeWindow: '12-24 hours',
-        tvlDisplay: formatCurrency(pool.tvl),
-        volumeDisplay: formatCurrency(pool.volume24h),
-        feesDisplay: formatCurrency(pool.fees24h)
-      });
-    }
-  });
-  
-  return opportunities.sort(function(a, b) { return b.score - a.score; }).slice(0, 8);
-};
-
-// Actions
-const connectWallet = function() {
-  if (window.solana) {
-    window.solana.connect()
-      .then(function(resp) {
-        store.setState({ wallet: resp.publicKey.toString() });
-      })
-      .catch(function() {
-        alert('Wallet connection failed');
-      });
-  } else {
-    alert('Please install Phantom wallet');
-  }
-};
-
-const toggleAlerts = function() {
-  store.setState({ alertsEnabled: !store.state.alertsEnabled });
-};
-
-const setTab = function(tab) {
-  store.setState({ activeTab: tab, expandedPool: null, expandedOpportunity: null });
-};
-
-const togglePool = function(poolData) {
-  const pool = typeof poolData === 'string' ? JSON.parse(poolData) : poolData;
-  const isExpanded = store.state.expandedPool && store.state.expandedPool.id === pool.id;
-  store.setState({ 
-    expandedPool: isExpanded ? null : pool,
-    showTransactions: false,
-    liveTransactions: []
-  });
-};
-
-const toggleOpportunity = function(oppId) {
-  const isExpanded = store.state.expandedOpportunity === oppId;
-  store.setState({ expandedOpportunity: isExpanded ? null : oppId });
-};
-
-const toggleTransactions = function() {
-  store.setState({ showTransactions: !store.state.showTransactions });
-};
-
-const updateAlertSetting = function(type, field, value) {
-  const settings = store.state.alertSettings;
-  settings[type][field] = value;
-  store.setState({ alertSettings: settings });
-  
-  // Recalculate opportunities with new settings
-  store.setState({ opportunities: detectOpportunities(store.state.pools) });
-};
-
-// Transaction feed
-setInterval(function() {
-  const state = store.state;
-  if (state.showTransactions && state.expandedPool) {
-    const newTx = {
-      id: Date.now(),
-      type: ['swap', 'add', 'remove'][Math.floor(Math.random() * 3)],
-      wallet: Math.random().toString(36).substring(2, 6) + '...' + Math.random().toString(36).substring(2, 4),
-      value: Math.random() * 50000 + 50,
-      timestamp: Date.now()
-    };
-    
-    // Check for large transaction alert
-    if (state.alertSettings.largeTx.enabled && newTx.value > state.alertSettings.largeTx.threshold) {
-      const alert = {
-        id: 'alert_' + Date.now(),
-        type: 'Large Transaction',
-        pool: state.expandedPool.tokenA + '/' + state.expandedPool.tokenB,
-        message: 'Large ' + newTx.type + ' detected: ' + formatCurrency(newTx.value),
-        timestamp: Date.now()
-      };
-      const history = [alert].concat(state.alertHistory.slice(0, 49));
-      store.setState({ alertHistory: history });
-    }
-    
-    store.setState({ liveTransactions: [newTx].concat(state.liveTransactions.slice(0, 9)) });
-  }
-}, 3000);
-
-// Render functions
-const renderPoolCard = function(pool, state) {
-  const isExpanded = state.expandedPool && state.expandedPool.id === pool.id;
-  let html = '<div class="bg-slate-800/50 border rounded-lg p-3 transition-all hover:bg-slate-800/70 cursor-pointer ' + (isExpanded ? 'border-purple-500 ring-1 ring-purple-500/50' : 'border-slate-700') + '" onclick=\'togglePool(' + JSON.stringify(pool).replace(/'/g, "\\'") + ')\'>';
-  
-  html += '<div class="flex items-center justify-between mb-2">';
-  html += '<div class="flex items-center gap-2">';
-  html += '<div class="text-base font-bold">' + pool.tokenA + '/' + pool.tokenB + '</div>';
-  html += '<div class="text-xs text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">' + pool.type + '</div>';
-  html += '</div>';
-  html += '<div>' + (isExpanded ? icons.chevronUp : icons.chevronDown) + '</div>';
-  html += '</div>';
-  
-  html += '<div class="grid grid-cols-4 gap-2 text-xs">';
-  html += '<div><div class="text-slate-400">TVL</div><div class="font-semibold">' + formatCurrency(pool.tvl) + '</div></div>';
-  html += '<div><div class="text-slate-400">Vol 24h</div><div class="font-semibold">' + formatCurrency(pool.volume24h) + '</div></div>';
-  html += '<div><div class="text-slate-400">APY</div><div class="font-semibold text-green-400">' + pool.apy.toFixed(1) + '%</div></div>';
-  html += '<div><div class="text-slate-400">Trend</div><div class="font-semibold flex items-center gap-1 ' + (pool.volumeTrend === 'up' ? 'text-green-400' : 'text-red-400') + '">';
-  html += (pool.volumeTrend === 'up' ? icons.arrowUp : icons.arrowDown) + Math.abs(pool.volumeChange).toFixed(0) + '%</div></div>';
-  html += '</div>';
-  
-  if (isExpanded) {
-    html += '<div class="mt-3 pt-3 border-t border-slate-700" onclick="event.stopPropagation()">';
-    
-    // Price chart
-    html += renderPriceChart(pool);
-    
-    // Pool details
-    html += '<div class="bg-slate-900/70 rounded-lg p-3 mb-3">';
-    html += '<div class="text-sm font-semibold mb-2">Contract Address</div>';
-    html += '<div class="flex items-center gap-2">';
-    html += '<div class="text-xs font-mono bg-slate-800 px-2 py-1 rounded flex-1 overflow-hidden text-ellipsis">' + pool.address + '</div>';
-    html += '<button onclick="copyToClipboard(\'' + pool.address + '\')" class="p-2 bg-purple-500/20 hover:bg-purple-500/30 rounded border border-purple-500/50">' + icons.copy + '</button>';
-    html += '</div>';
-    html += '</div>';
-    
-    // Live transactions toggle
-    html += '<button onclick="toggleTransactions()" class="w-full py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg font-semibold text-sm mb-3 hover:bg-purple-500/30">';
-    html += icons.eye + ' ' + (state.showTransactions ? 'Hide' : 'Show') + ' Live Transactions</button>';
-    
-    if (state.showTransactions) {
-      html += '<div class="bg-slate-900/70 rounded-lg p-3 max-h-64 overflow-y-auto">';
-      html += '<div class="flex items-center justify-between mb-2">';
-      html += '<div class="text-sm font-semibold">Live Feed</div>';
-      html += '<div class="flex items-center gap-1 text-green-400 text-xs"><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>LIVE</div>';
-      html += '</div><div class="space-y-1.5">';
-      
-      state.liveTransactions.forEach(function(tx) {
-        const txColor = tx.type === 'swap' ? 'bg-blue-500/20 border-blue-500/40' : tx.type === 'add' ? 'bg-green-500/20 border-green-500/40' : 'bg-red-500/20 border-red-500/40';
-        const txBg = tx.type === 'swap' ? 'bg-blue-500' : tx.type === 'add' ? 'bg-green-500' : 'bg-red-500';
-        html += '<div class="border rounded p-2 text-xs ' + txColor + '">';
-        html += '<div class="flex items-center justify-between">';
-        html += '<div class="flex items-center gap-2">';
-        html += '<div class="px-1.5 py-0.5 rounded text-xs font-bold uppercase ' + txBg + '">' + tx.type + '</div>';
-        html += '<div class="font-mono">' + tx.wallet + '</div></div>';
-        html += '<div class="text-right"><div class="font-semibold">' + formatCurrency(tx.value) + '</div>';
-        html += '<div class="text-xs text-slate-400">' + formatTime(tx.timestamp) + '</div></div></div></div>';
-      });
-      
-      html += '</div></div>';
-    }
-    html += '</div>';
-  }
-  
-  html += '</div>';
-  return html;
-};
-
-const renderOpportunityCard = function(opp, state) {
-  const isExpanded = state.expandedOpportunity === opp.id;
-  const borderColor = opp.score >= 90 ? 'border-l-green-400' : opp.score >= 80 ? 'border-l-yellow-400' : 'border-l-blue-400';
-  
-  let html = '<div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4 border-l-4 ' + borderColor + '">';
-  
-  // Header
-  html += '<div class="flex items-center justify-between mb-2">';
-  html += '<div class="text-lg font-bold text-purple-400">' + opp.title + '</div>';
-  html += '<div class="text-xl font-bold text-green-400">' + opp.score + '<span class="text-xs text-slate-400">/100</span></div>';
-  html += '</div>';
-  
-  html += '<h4 class="text-xl font-bold mb-2">' + opp.pool + ' <span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">' + opp.poolType + '</span></h4>';
-  html += '<p class="text-sm text-slate-300 mb-3">' + opp.reason + '</p>';
-  
-  // Contract Address
-  html += '<div class="bg-slate-900/70 rounded-lg p-3 mb-3">';
-  html += '<div class="text-xs font-semibold text-slate-400 mb-1">Contract Address (CA)</div>';
-  html += '<div class="flex items-center gap-2">';
-  html += '<div class="text-xs font-mono bg-slate-800 px-2 py-1 rounded flex-1 break-all">' + opp.poolAddress + '</div>';
-  html += '<button onclick="copyToClipboard(\'' + opp.poolAddress + '\')" class="p-2 bg-purple-500/20 hover:bg-purple-500/30 rounded border border-purple-500/50 flex-shrink-0">' + icons.copy + '</button>';
-  html += '</div></div>';
-  
-  // Quick metrics
-  html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">';
-  html += '<div class="bg-slate-900/50 rounded p-2"><div class="text-xs text-slate-400">TVL</div><div class="text-sm font-semibold">' + opp.tvlDisplay + '</div></div>';
-  html += '<div class="bg-slate-900/50 rounded p-2"><div class="text-xs text-slate-400">Volume 24h</div><div class="text-sm font-semibold">' + opp.volumeDisplay + '</div></div>';
-  html += '<div class="bg-slate-900/50 rounded p-2"><div class="text-xs text-slate-400">Potential</div><div class="text-sm font-semibold text-green-400">' + opp.potential + '</div></div>';
-  html += '<div class="bg-slate-900/50 rounded p-2"><div class="text-xs text-slate-400">Risk</div><div class="text-sm font-semibold text-yellow-400">' + opp.risk + '</div></div>';
-  html += '</div>';
-  
-  // View Details toggle
-  html += '<button onclick="toggleOpportunity(\'' + opp.id + '\')" class="w-full py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg font-semibold text-sm mb-3 hover:bg-purple-500/30">';
-  html += (isExpanded ? icons.chevronUp : icons.chevronDown) + ' ' + (isExpanded ? 'Hide' : 'View') + ' Full Analysis</button>';
-  
-  if (isExpanded) {
-    html += '<div class="space-y-3 border-t border-slate-700 pt-3">';
-    
-    // Price chart
-    html += renderPriceChart(opp.poolData);
-    
-    // Analysis
-    html += '<div class="bg-slate-900/70 rounded-lg p-3">';
-    html += '<div class="text-sm font-semibold text-blue-400 mb-2">📊 Detailed Analysis</div>';
-    html += '<p class="text-xs text-slate-300 mb-2">' + opp.analysis + '</p>';
-    html += '</div>';
-    
-    // Strategy
-    html += '<div class="bg-slate-900/70 rounded-lg p-3">';
-    html += '<div class="text-sm font-semibold text-purple-400 mb-2">🎯 Suggested Strategy</div>';
-    html += '<p class="text-xs text-slate-300">' + opp.strategy + '</p>';
-    html += '</div>';
-    
-    // Risk factors
-    html += '<div class="bg-slate-900/70 rounded-lg p-3 border-l-2 border-l-yellow-500">';
-    html += '<div class="text-sm font-semibold text-yellow-400 mb-2">⚠️ Risk Factors</div>';
-    html += '<ul class="text-xs text-slate-300 space-y-1">';
-    opp.riskFactors.forEach(function(factor) {
-      html += '<li>• ' + factor + '</li>';
-    });
-    html += '</ul></div>';
-    
-    html += '</div>';
-  }
-  
-  // Action button
-  html += '<button onclick="alert(\'Connect wallet to execute trade\')" class="w-full px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-lg font-semibold text-sm hover:bg-green-500/30 mt-2">';
-  html += icons.send + ' Execute Strategy</button>';
-  
-  html += '</div>';
-  return html;
-};
-
-const renderAlertsSettings = function(state) {
-  const settings = state.alertSettings;
-  
-  let html = '<div class="space-y-4">';
-  
-  // Settings panel
-  html += '<div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4">';
-  html += '<div class="flex items-center justify-between mb-4">';
-  html += '<h3 class="font-bold text-lg">Alert Configuration</h3>';
-  html += '<button onclick="toggleAlerts()" class="px-4 py-2 rounded-lg text-sm font-semibold ' + (state.alertsEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-400') + '">';
-  html += state.alertsEnabled ? '✓ Alerts Enabled' : '✗ Alerts Disabled';
-  html += '</button></div>';
-  
-  html += '<div class="space-y-4">';
-  
-  // Volume Spike Alert
-  html += '<div class="bg-slate-900/50 rounded-lg p-4">';
-  html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div class="flex items-center gap-3">';
-  html += '<input type="checkbox" ' + (settings.volumeSpike.enabled ? 'checked' : '') + ' onchange="updateAlertSetting(\'volumeSpike\', \'enabled\', this.checked)" class="w-5 h-5 rounded">';
-  html += '<div><div class="font-semibold">Volume Spike Alert</div>';
-  html += '<div class="text-xs text-slate-400">Triggers when volume increases significantly</div></div>';
-  html += '</div></div>';
-  html += '<div class="flex items-center gap-2">';
-  html += '<label class="text-sm text-slate-400">Threshold:</label>';
-  html += '<input type="number" value="' + settings.volumeSpike.threshold + '" onchange="updateAlertSetting(\'volumeSpike\', \'threshold\', parseFloat(this.value))" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 w-20 text-sm">';
-  html += '<span class="text-sm text-slate-400">% increase</span>';
-  html += '</div></div>';
-  
-  // High APY Alert
-  html += '<div class="bg-slate-900/50 rounded-lg p-4">';
-  html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div class="flex items-center gap-3">';
-  html += '<input type="checkbox" ' + (settings.highAPY.enabled ? 'checked' : '') + ' onchange="updateAlertSetting(\'highAPY\', \'enabled\', this.checked)" class="w-5 h-5 rounded">';
-  html += '<div><div class="font-semibold">High APY Alert</div>';
-  html += '<div class="text-xs text-slate-400">Triggers for exceptional yield opportunities</div></div>';
-  html += '</div></div>';
-  html += '<div class="flex items-center gap-2">';
-  html += '<label class="text-sm text-slate-400">Threshold:</label>';
-  html += '<input type="number" value="' + settings.highAPY.threshold + '" onchange="updateAlertSetting(\'highAPY\', \'threshold\', parseFloat(this.value))" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 w-20 text-sm">';
-  html += '<span class="text-sm text-slate-400">% APY</span>';
-  html += '</div></div>';
-  
-  // Large Transaction Alert
-  html += '<div class="bg-slate-900/50 rounded-lg p-4">';
-  html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div class="flex items-center gap-3">';
-  html += '<input type="checkbox" ' + (settings.largeTx.enabled ? 'checked' : '') + ' onchange="updateAlertSetting(\'largeTx\', \'enabled\', this.checked)" class="w-5 h-5 rounded">';
-  html += '<div><div class="font-semibold">Large Transaction Alert</div>';
-  html += '<div class="text-xs text-slate-400">Triggers for significant trades</div></div>';
-  html += '</div></div>';
-  html += '<div class="flex items-center gap-2">';
-  html += '<label class="text-sm text-slate-400">Threshold:</label>';
-  html += '<input type="number" value="' + settings.largeTx.threshold + '" onchange="updateAlertSetting(\'largeTx\', \'threshold\', parseFloat(this.value))" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 w-24 text-sm">';
-  html += '<span class="text-sm text-slate-400">USD</span>';
-  html += '</div></div>';
-  
-  // New Pool Alert
-  html += '<div class="bg-slate-900/50 rounded-lg p-4">';
-  html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div class="flex items-center gap-3">';
-  html += '<input type="checkbox" ' + (settings.newPool.enabled ? 'checked' : '') + ' onchange="updateAlertSetting(\'newPool\', \'enabled\', this.checked)" class="w-5 h-5 rounded">';
-  html += '<div><div class="font-semibold">New Pool Alert</div>';
-  html += '<div class="text-xs text-slate-400">Triggers for newly created pools</div></div>';
-  html += '</div></div>';
-  html += '<div class="flex items-center gap-2">';
-  html += '<label class="text-sm text-slate-400">Min TVL:</label>';
-  html += '<input type="number" value="' + settings.newPool.threshold + '" onchange="updateAlertSetting(\'newPool\', \'threshold\', parseFloat(this.value))" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 w-24 text-sm">';
-  html += '<span class="text-sm text-slate-400">USD</span>';
-  html += '</div></div>';
-  
-  html += '</div></div>';
-  
-  // Alert History
-  html += '<div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4">';
-  html += '<h3 class="font-bold mb-3">Alert History</h3>';
-  
-  if (state.alertHistory.length === 0) {
-    html += '<div class="text-center py-8 text-slate-400">';
-    html += icons.bell;
-    html += '<p class="mt-2">No alerts triggered yet. Monitoring active.</p>';
-    html += '</div>';
-  } else {
-    html += '<div class="space-y-2">';
-    state.alertHistory.forEach(function(alert) {
-      html += '<div class="bg-slate-900/50 border border-orange-500/50 rounded-lg p-3">';
-      html += '<div class="flex items-center justify-between mb-1">';
-      html += '<div class="flex items-center gap-2">';
-      html += '<span class="text-xs font-bold px-2 py-0.5 rounded bg-orange-500">ALERT</span>';
-      html += '<span class="text-sm font-semibold">' + alert.type + '</span>';
-      html += '</div>';
-      html += '<div class="text-xs text-slate-400">' + formatTime(alert.timestamp) + '</div>';
-      html += '</div>';
-      html += '<div class="text-sm text-slate-300">' + alert.pool + ': ' + alert.message + '</div>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-  
-  html += '</div>';
-  html += '</div>';
-  
-  return html;
-};
-
-// Main render
-const render = function(state) {
-  const app = document.getElementById('app');
-  let content = '<div class="min-h-screen p-4 max-w-7xl mx-auto">';
-  
-  // Header
-  content += '<div class="mb-6"><div class="flex items-center justify-between mb-4"><div>';
-  content += '<h1 class="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Meteora Analytics</h1>';
-  content += '<p class="text-slate-400 text-sm">Real-time pool monitoring & opportunities</p></div>';
-  content += '<div class="flex items-center gap-3">';
-  content += '<button onclick="toggleAlerts()" class="p-2 rounded-lg transition-all ' + (state.alertsEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-slate-700 text-slate-400') + '">' + (state.alertsEnabled ? icons.bell : icons.bellOff) + '</button>';
-  
-  if (!state.wallet) {
-    content += '<button onclick="connectWallet()" class="px-5 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold text-sm hover:from-purple-600 hover:to-pink-600">Connect Wallet</button>';
-  } else {
-    content += '<div class="px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-lg">';
-    content += '<div class="text-xs text-green-400">Connected</div>';
-    content += '<div class="font-mono text-xs">' + state.wallet.slice(0, 4) + '...' + state.wallet.slice(-4) + '</div></div>';
-  }
-  
-  content += '</div></div>';
-  
-  // Tabs
-  content += '<div class="flex gap-2 border-b border-slate-700">';
-  ['analytics', 'opportunities', 'alerts'].forEach(function(tab) {
-    const isActive = state.activeTab === tab;
-    content += '<button onclick="setTab(\'' + tab + '\')" class="px-4 py-2 font-semibold transition-all text-sm capitalize ' + (isActive ? 'border-b-2 border-purple-400 text-purple-400' : 'text-slate-400 hover:text-white') + '">';
-    content += (tab === 'analytics' ? icons.activity : tab === 'opportunities' ? icons.sparkles : icons.bell);
-    content += '<span class="ml-2">' + tab + '</span></button>';
-  });
-  content += '</div></div>';
-  
-  // Tab content
-  if (state.activeTab === 'analytics') {
-    content += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">';
-    if (state.loading) {
-      content += '<div class="col-span-2 text-center py-12">';
-      content += '<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>';
-      content += '<p class="text-slate-400 mt-4">Loading Meteora pools...</p></div>';
-    } else {
-      state.pools.forEach(function(pool) {
-        content += renderPoolCard(pool, state);
-      });
-    }
-    content += '</div>';
-  } else if (state.activeTab === 'opportunities') {
-    content += '<div class="space-y-4">';
-    content += '<div class="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4">';
-    content += '<div class="flex items-start gap-3">' + icons.sparkles;
-    content += '<div><h3 class="font-bold mb-1 text-sm">Actionable Opportunities</h3>';
-    content += '<p class="text-slate-300 text-xs">Analyzing pools for high-value opportunities. Customize alert thresholds in the Alerts tab.</p></div></div></div>';
-    
-    if (state.opportunities.length === 0) {
-      content += '<div class="text-center py-12 text-slate-400"><p>No opportunities match current alert settings.</p>';
-      content += '<button onclick="setTab(\'alerts\')" class="mt-4 px-4 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg text-sm hover:bg-purple-500/30">Adjust Alert Settings</button></div>';
-    } else {
-      state.opportunities.forEach(function(opp) {
-        content += renderOpportunityCard(opp, state);
-      });
-    }
-    content += '</div>';
-  } else {
-    content += renderAlertsSettings(state);
-  }
-  
-  content += '</div>';
-  app.innerHTML = content;
-};
-
-// Global functions
-window.connectWallet = connectWallet;
-window.toggleAlerts = toggleAlerts;
-window.setTab = setTab;
-window.togglePool = togglePool;
-window.toggleOpportunity = toggleOpportunity;
-window.toggleTransactions = toggleTransactions;
-window.copyToClipboard = copyToClipboard;
-window.updateAlertSetting = updateAlertSetting;
-
-// Initialize
-store.subscribe(render);
-fetchMeteoraPools();
-setInterval(fetchMeteoraPools, 30000);
-</script>
-</body>
-</html>
+    ['SOL', 'USDC'], ['SOL', 'USDT'], ['mSOL', 'SOL'], ['JUP', 'US

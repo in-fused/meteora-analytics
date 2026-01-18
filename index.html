@@ -62,7 +62,7 @@
     .api-badge{padding:2px 6px;background:var(--bg-elevated);border-radius:3px;font-size:8px;font-family:var(--font-mono);color:var(--text-dim);border:1px solid var(--border-subtle);text-transform:uppercase;letter-spacing:0.5px}
     .api-badge.active{color:var(--accent-emerald);border-color:rgba(16,185,129,0.3)}
     .api-badge.error{color:var(--accent-rose);border-color:rgba(244,63,94,0.3)}
-    .header-actions{display:flex;gap:6px}
+    .header-actions{display:flex;gap:6px;align-items:center}
     
     /* Buttons */
     .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--radius-sm);font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;transition:all var(--transition-fast);border:1px solid transparent;white-space:nowrap}
@@ -76,8 +76,94 @@
     .btn--success:hover{background:rgba(16,185,129,0.25)}
     .btn--warning{background:rgba(245,158,11,0.15);color:var(--accent-amber);border-color:rgba(245,158,11,0.3)}
     .btn--warning:hover{background:rgba(245,158,11,0.25)}
+    .btn--wallet{background:linear-gradient(135deg,#ab9ff2,#6366f1);color:white;padding:6px 14px}
+    .btn--wallet:hover{box-shadow:0 0 20px rgba(171,159,242,0.3)}
+    .btn--wallet.connected{background:var(--bg-elevated);border:1px solid var(--accent-emerald);color:var(--text-primary)}
     .btn svg{width:12px;height:12px}
     
+    /* Wallet Button Connected State */
+    .wallet-info{display:flex;align-items:center;gap:8px}
+    .wallet-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent-primary),var(--accent-cyan))}
+    .wallet-details{display:flex;flex-direction:column;align-items:flex-start}
+    .wallet-address{font-family:var(--font-mono);font-size:10px;color:var(--text-primary)}
+    .wallet-balance{font-size:9px;color:var(--accent-emerald)}
+    
+    /* Modal Overlay */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+    .modal-overlay.visible{display:flex}
+    
+    /* Wallet Modal */
+    .wallet-modal{background:var(--bg-card);border:1px solid var(--border-medium);border-radius:var(--radius-lg);width:100%;max-width:400px;max-height:90vh;overflow:hidden;animation:modalSlideIn 0.3s ease}
+    @keyframes modalSlideIn{from{opacity:0;transform:translateY(20px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .wallet-modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-subtle)}
+    .wallet-modal-title{font-size:16px;font-weight:600}
+    .wallet-modal-close{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;border-radius:4px;transition:all var(--transition-fast)}
+    .wallet-modal-close:hover{color:var(--text-primary);background:var(--bg-elevated)}
+    .wallet-modal-body{padding:16px 20px;max-height:400px;overflow-y:auto}
+    .wallet-modal-section{margin-bottom:16px}
+    .wallet-modal-section:last-child{margin-bottom:0}
+    .wallet-section-title{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
+    
+    /* Wallet List */
+    .wallet-list{display:flex;flex-direction:column;gap:8px}
+    .wallet-option{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:var(--radius-md);cursor:pointer;transition:all var(--transition-fast)}
+    .wallet-option:hover{border-color:var(--border-active);background:var(--bg-elevated)}
+    .wallet-option.detected{border-color:rgba(16,185,129,0.3)}
+    .wallet-option.detected::after{content:'Detected';position:absolute;right:12px;font-size:9px;color:var(--accent-emerald);background:rgba(16,185,129,0.1);padding:2px 6px;border-radius:4px}
+    .wallet-option{position:relative}
+    .wallet-option-icon{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .wallet-option-icon img{width:100%;height:100%;object-fit:contain}
+    .wallet-option-info{flex:1}
+    .wallet-option-name{font-size:13px;font-weight:500;margin-bottom:2px}
+    .wallet-option-desc{font-size:10px;color:var(--text-muted)}
+    .wallet-option-arrow{color:var(--text-dim);transition:transform var(--transition-fast)}
+    .wallet-option:hover .wallet-option-arrow{transform:translateX(3px);color:var(--text-secondary)}
+    
+    /* Connected Wallet Display */
+    .connected-wallet-card{background:var(--bg-secondary);border:1px solid var(--accent-emerald);border-radius:var(--radius-md);padding:16px}
+    .connected-wallet-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .connected-wallet-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent-primary),var(--accent-cyan));display:flex;align-items:center;justify-content:center}
+    .connected-wallet-avatar img{width:24px;height:24px}
+    .connected-wallet-info{flex:1}
+    .connected-wallet-label{font-size:10px;color:var(--text-muted);margin-bottom:2px}
+    .connected-wallet-address{font-family:var(--font-mono);font-size:13px;font-weight:500}
+    .connected-wallet-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .connected-wallet-stat{background:var(--bg-card);border-radius:var(--radius-sm);padding:10px;text-align:center}
+    .connected-wallet-stat-value{font-family:var(--font-mono);font-size:14px;font-weight:600;margin-bottom:2px}
+    .connected-wallet-stat-value.sol{color:var(--accent-cyan)}
+    .connected-wallet-stat-label{font-size:9px;color:var(--text-muted)}
+    .connected-wallet-actions{display:flex;gap:8px}
+    .connected-wallet-actions .btn{flex:1;justify-content:center}
+    
+    /* QR Code Section */
+    .qr-section{text-align:center;padding:20px}
+    .qr-code{width:160px;height:160px;background:white;border-radius:var(--radius-md);margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
+    .qr-code canvas{border-radius:var(--radius-sm)}
+    .qr-instruction{font-size:11px;color:var(--text-muted)}
+    
+    /* Mobile Banner */
+    .mobile-banner{background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(6,182,212,0.1));border:1px solid rgba(99,102,241,0.2);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+    .mobile-banner-icon{width:32px;height:32px;background:var(--accent-primary);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .mobile-banner-icon svg{width:18px;height:18px;color:white}
+    .mobile-banner-text{flex:1}
+    .mobile-banner-title{font-size:12px;font-weight:600;margin-bottom:2px}
+    .mobile-banner-desc{font-size:10px;color:var(--text-muted)}
+    
+    /* Toast Notifications */
+    .toast-container{position:fixed;top:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+    .toast{background:var(--bg-card);border:1px solid var(--border-medium);border-radius:var(--radius-md);padding:12px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,0.3);animation:toastSlideIn 0.3s ease;min-width:280px}
+    @keyframes toastSlideIn{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
+    .toast.success{border-color:rgba(16,185,129,0.3)}
+    .toast.error{border-color:rgba(244,63,94,0.3)}
+    .toast-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .toast.success .toast-icon{background:rgba(16,185,129,0.15);color:var(--accent-emerald)}
+    .toast.error .toast-icon{background:rgba(244,63,94,0.15);color:var(--accent-rose)}
+    .toast-content{flex:1}
+    .toast-title{font-size:12px;font-weight:600;margin-bottom:1px}
+    .toast-message{font-size:10px;color:var(--text-muted)}
+    .toast-close{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px}
+    .toast-close:hover{color:var(--text-primary)}
+
     /* Tabs */
     .nav-tabs{display:flex;gap:3px;background:var(--bg-secondary);padding:3px;border-radius:var(--radius-md);margin-bottom:14px;border:1px solid var(--border-subtle)}
     .nav-tab{flex:1;padding:8px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;color:var(--text-muted);background:transparent;border:none;cursor:pointer;transition:all var(--transition-fast);display:flex;align-items:center;justify-content:center;gap:5px}
@@ -190,7 +276,7 @@
     .pool-tx-time{font-size:8px;color:var(--text-dim)}
     .pool-tx-empty{text-align:center;padding:12px;color:var(--text-dim);font-size:9px}
     
-    /* Opportunities Tab */
+    /* Opportunities */
     .opportunity-card{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:14px;margin-bottom:10px;position:relative;overflow:hidden}
     .opportunity-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--accent-emerald)}
     .opportunity-card.medium::before{background:var(--accent-amber)}
@@ -220,7 +306,7 @@
     .opp-action-desc{font-size:9px;color:var(--text-muted)}
     .opp-action svg{width:12px;height:12px;color:var(--accent-primary)}
     
-    /* Alerts & Filters Tab */
+    /* Filters */
     .filters-section{background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;margin-bottom:14px}
     .filters-title{font-size:11px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
     .filters-title svg{width:12px;height:12px;color:var(--accent-primary)}
@@ -237,7 +323,8 @@
     .toggle.active{background:var(--accent-primary)}
     .toggle.active::after{transform:translateX(14px);background:white}
     
-    .ai-alerts-section{background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.08));border:1px solid rgba(99,102,241,0.2);border-radius:var(--radius-md);padding:12px;margin-bottom:14px}
+    /* AI Alerts */
+    .ai-alerts-section{background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(6,182,212,0.08));border:1px solid rgba(99,102,241,0.2);border-radius:var(--radius-md);padding:12px;margin-bottom:14px}
     .ai-alerts-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
     .ai-alerts-title{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
     .ai-alerts-title svg{color:var(--accent-primary)}
@@ -248,6 +335,7 @@
     .ai-suggestion-reason{font-size:9px;color:var(--text-muted)}
     .ai-suggestion-actions{display:flex;gap:4px}
     
+    /* Alert Form & List */
     .alert-form{display:grid;grid-template-columns:1fr 1fr 90px auto auto;gap:8px;padding:10px;background:var(--bg-secondary);border-radius:var(--radius-md);margin-bottom:12px;align-items:end}
     .alert-list{display:flex;flex-direction:column;gap:5px;max-height:250px;overflow-y:auto}
     .alert-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}
@@ -281,13 +369,31 @@
     ::-webkit-scrollbar-track{background:var(--bg-secondary);border-radius:2px}
     ::-webkit-scrollbar-thumb{background:var(--bg-hover);border-radius:2px}
     ::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
-    @media(max-width:768px){.app{padding:10px}.header{flex-direction:column;align-items:stretch}.header-status,.header-actions{justify-content:center}.nav-tabs{flex-wrap:wrap}.nav-tab{min-width:calc(50% - 3px)}.alert-form{grid-template-columns:1fr}.pools-grid{grid-template-columns:1fr}.pool-stats{grid-template-columns:repeat(2,1fr)}.opp-metrics{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:768px){.app{padding:10px}.header{flex-direction:column;align-items:stretch}.header-status,.header-actions{justify-content:center}.nav-tabs{flex-wrap:wrap}.nav-tab{min-width:calc(50% - 3px)}.alert-form{grid-template-columns:1fr}.pools-grid{grid-template-columns:1fr}.pool-stats{grid-template-columns:repeat(2,1fr)}.opp-metrics{grid-template-columns:repeat(2,1fr)}.wallet-modal{margin:10px}}
   </style>
 </head>
 <body>
   <canvas id="bgCanvas"></canvas>
   <div class="bg-overlay"></div>
   <div class="bg-grid"></div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="walletModal">
+    <div class="wallet-modal">
+      <div class="wallet-modal-header">
+        <h2 class="wallet-modal-title" id="walletModalTitle">Connect Wallet</h2>
+        <button class="wallet-modal-close" onclick="Wallet.closeModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="wallet-modal-body" id="walletModalBody">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
 
   <div class="app">
     <header class="header">
@@ -311,9 +417,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           Refresh
         </button>
-        <button class="btn btn--primary">
+        <button class="btn btn--wallet" id="walletBtn" onclick="Wallet.openModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Connect
+          <span id="walletBtnText">Connect Wallet</span>
         </button>
       </div>
     </header>
@@ -350,14 +456,13 @@
       <div class="pools-grid" id="poolsGrid"></div>
     </div>
 
-    <!-- Actionable Opportunities Tab -->
+    <!-- Opportunities Tab -->
     <div class="tab-content" id="opportunities-tab">
       <div id="opportunitiesList"></div>
     </div>
 
-    <!-- Alerts & Filters Tab -->
+    <!-- Alerts Tab -->
     <div class="tab-content" id="alerts-tab">
-      <!-- Filters Section -->
       <div class="filters-section">
         <div class="filters-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -366,11 +471,11 @@
         <div class="filters-grid">
           <div class="filter-group">
             <label class="filter-label">Min TVL ($)</label>
-            <input type="number" class="filter-input" id="filterMinTVL" value="5000" placeholder="5000">
+            <input type="number" class="filter-input" id="filterMinTVL" value="5000">
           </div>
           <div class="filter-group">
             <label class="filter-label">Min Volume ($)</label>
-            <input type="number" class="filter-input" id="filterMinVolume" value="1000" placeholder="1000">
+            <input type="number" class="filter-input" id="filterMinVolume" value="1000">
           </div>
           <div class="filter-group">
             <label class="filter-label">Safety Filter</label>
@@ -401,23 +506,16 @@
           </div>
         </div>
       </div>
-
-      <!-- AI Suggested Alerts -->
       <div class="ai-alerts-section">
         <div class="ai-alerts-header">
           <div class="ai-alerts-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
             AI-Suggested Alerts
           </div>
-          <button class="btn btn--secondary" onclick="Alerts.refreshAISuggestions()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>
-            Refresh
-          </button>
+          <button class="btn btn--secondary" onclick="Alerts.refreshAISuggestions()">Refresh</button>
         </div>
         <div id="aiSuggestions"></div>
       </div>
-
-      <!-- Manual Alert Creation -->
       <div class="panel">
         <div class="panel-header">
           <h2 class="panel-title">
@@ -453,7 +551,7 @@
             <button class="btn btn--secondary" onclick="Alerts.addForAllPools()">All</button>
           </div>
           <div class="alert-list" id="alertList">
-            <div class="alert-empty">No custom alerts. Create one above or use AI suggestions.</div>
+            <div class="alert-empty">No custom alerts.</div>
           </div>
         </div>
       </div>
@@ -465,42 +563,27 @@
         <div class="guide-card">
           <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/></svg></div>
           <h3>All Pools</h3>
-          <p>Browse all DLMM pools ranked by profitability score. Scores update continuously based on TVL, volume, APR, and token safety.</p>
-          <div class="guide-steps">
-            <div class="guide-step"><span class="step-num">1</span><span class="step-text">Green = high score, Amber = medium, Red = low</span></div>
-            <div class="guide-step"><span class="step-num">2</span><span class="step-text">Click card to expand liquidity chart + live transactions</span></div>
-            <div class="guide-step"><span class="step-num">3</span><span class="step-text">Hover bins for price, liquidity %, volume details</span></div>
-          </div>
+          <p>Browse all DLMM pools ranked by profitability score. Click to expand liquidity charts and live transactions.</p>
         </div>
         <div class="guide-card">
           <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-          <h3>Actionable Opportunities</h3>
-          <p>AI-detected high-probability setups with suggested actions. These pools meet specific criteria indicating potential profitability.</p>
-          <div class="guide-steps">
-            <div class="guide-step"><span class="step-num">✓</span><span class="step-text">High volume relative to TVL (active trading)</span></div>
-            <div class="guide-step"><span class="step-num">✓</span><span class="step-text">Strong APR with verified tokens</span></div>
-            <div class="guide-step"><span class="step-num">✓</span><span class="step-text">Concentrated liquidity near active bin</span></div>
-          </div>
+          <h3>Opportunities</h3>
+          <p>AI-detected high-probability setups with suggested actions for each opportunity.</p>
         </div>
         <div class="guide-card">
-          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div>
-          <h3>Alerts & Filters</h3>
-          <p>Set custom alerts on price, TVL, or APR changes. AI suggests alerts based on current market conditions.</p>
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <h3>Wallet Connection</h3>
+          <p>Connect your Solana wallet to view your positions and interact with pools.</p>
           <div class="guide-steps">
-            <div class="guide-step"><span class="step-num">1</span><span class="step-text">Use filters to narrow pool list</span></div>
-            <div class="guide-step"><span class="step-num">2</span><span class="step-text">Accept AI suggestions or create custom alerts</span></div>
-            <div class="guide-step"><span class="step-num">3</span><span class="step-text">"Alert All Pools" creates bulk alerts</span></div>
+            <div class="guide-step"><span class="step-num">1</span><span class="step-text">Click "Connect Wallet" button</span></div>
+            <div class="guide-step"><span class="step-num">2</span><span class="step-text">Select your wallet (Phantom, Solflare, etc.)</span></div>
+            <div class="guide-step"><span class="step-num">3</span><span class="step-text">Approve the connection request</span></div>
           </div>
         </div>
         <div class="guide-card">
           <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
           <h3>JupShield Safety</h3>
-          <p>Token verification via Jupiter's strict list. Protects against scams and honeypots.</p>
-          <div class="guide-steps">
-            <div class="guide-step"><span class="step-num">✓</span><span class="step-text"><b>Safe</b> - Both tokens Jupiter verified</span></div>
-            <div class="guide-step"><span class="step-num">!</span><span class="step-text"><b>Warning</b> - One or both unverified</span></div>
-            <div class="guide-step"><span class="step-num">✕</span><span class="step-text"><b>Danger</b> - Potential honeypot</span></div>
-          </div>
+          <p>Token verification via Jupiter's strict list. Protects against scams.</p>
         </div>
       </div>
     </div>
@@ -515,9 +598,46 @@
       METEORA_API: 'https://dlmm-api.meteora.ag',
       JUPITER_STRICT: 'https://token.jup.ag/strict',
       HELIUS_WS: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
+      HELIUS_RPC: 'https://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
       REFRESH_INTERVAL: 30000,
       MAX_POOL_TX: 12
+    };
+
+    // Wallet configurations
+    const WALLETS = {
+      phantom: {
+        name: 'Phantom',
+        icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgZmlsbD0iIzU1MkJGMCIgcng9IjI2Ii8+PHBhdGggZmlsbD0idXJsKCNhKSIgZD0iTTExMC40MyA2My40MkM5Ni44MyA1MS43OCA3OS44IDQyIDYyLjcgNDJjLTI1LjkgMC00Ny4yIDIyLjQtNDcuMiA1MC4yIDAgMTcuNCA3LjcgMzIuMiAyMC41IDQyLjEuOC42IDEuNyAxIDIuNyAxczEuOS0uNCAyLjctMWMyLjItMS43IDQuNi0zLjIgNy0zLjIgNC45IDAgOSA0IDkuOCA4LjkuMi45LjkgMS43IDEuOCAxLjloMjcuNWMuOSAwIDEuNi0uOCAxLjgtMS43IDEuMy04LjUgOC42LTE1IDE3LjItMTUgNC40IDAgOC40IDEuOCAxMS41IDQuNy43LjcgMS43IDEuMSAyLjcgMSAxLS4xIDItLjUgMi43LTEuMiAxMi43LTEwLjMgMjAuMi0yNS45IDIwLjItNDMuMiAwLTEwLjYtMy4zLTIwLjMtOS4yLTI4LjEtLjItLjMtLjUtLjYtLjgtLjktMS42LTEuNy0zLjQtMy4zLTUuMi00Ljh6bS00OC41IDEzLjNjMCA0LjUtMy42IDguMS04IDguMXMtOC0zLjYtOC04LjEgMy42LTguMSA4LTguMSA4IDMuNiA4IDguMXptMjkuNSAwYzAgNC41LTMuNiA4LjEtOCA4LjFzLTgtMy42LTgtOC4xIDMuNi04LjEgOC04LjEgOCAzLjYgOCA4LjF6Ii8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJhIiB4MT0iNjQiIHgyPSI2NCIgeTE9IjQyIiB5Mj0iMTI4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agc3RvcC1jb2xvcj0iI2ZmZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZmZiIgc3RvcC1vcGFjaXR5PSIuODIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48L3N2Zz4=',
+        getProvider: () => window.phantom?.solana,
+        deepLink: 'https://phantom.app/ul/browse/',
+        downloadUrl: 'https://phantom.app/download'
+      },
+      solflare: {
+        name: 'Solflare',
+        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNiIgZmlsbD0iIzFBMUExQSIvPjxwYXRoIGQ9Ik05NC4yIDM1LjhMNjQuNSA1NS4zbC02LjYtOS4zTDY0LjUgMjQgOTQuMiAzNS44eiIgZmlsbD0iI0ZDNTMxRCIvPjxwYXRoIGQ9Ik02NC41IDU1LjNsMjkuNy0xOS41TDEwNCA2NEg2NC41VjU1LjN6IiBmaWxsPSIjRkZBRTAwIi8+PHBhdGggZD0iTTY0LjUgNTUuM1Y2NEgyNUwzNC44IDM1LjhsNi42IDkuM0w2NC41IDU1LjN6IiBmaWxsPSIjRkM1MzFEIi8+PHBhdGggZD0iTTY0LjUgMTA0VjY0SDEwNGwtOS44IDI4LjItMjkuNyAxMS44eiIgZmlsbD0iI0ZGQUUwMCIvPjxwYXRoIGQ9Ik02NC41IDEwNEwyNSA2NGgzOS41djQweiIgZmlsbD0iI0ZDNTMxRCIvPjwvc3ZnPg==',
+        getProvider: () => window.solflare,
+        deepLink: 'https://solflare.com/ul/browse/',
+        downloadUrl: 'https://solflare.com/download'
+      },
+      backpack: {
+        name: 'Backpack',
+        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNiIgZmlsbD0iI0UzMzYyOSIvPjxwYXRoIGQ9Ik02NCAyNGMtMjIuMSAwLTQwIDE3LjktNDAgNDB2MjRoODBWNjRjMC0yMi4xLTE3LjktNDAtNDAtNDB6IiBmaWxsPSIjZmZmIi8+PHJlY3QgeD0iNDQiIHk9Ijg4IiB3aWR0aD0iNDAiIGhlaWdodD0iMTYiIHJ4PSI4IiBmaWxsPSIjZmZmIi8+PC9zdmc+',
+        getProvider: () => window.backpack,
+        downloadUrl: 'https://backpack.app/download'
+      },
+      coinbase: {
+        name: 'Coinbase Wallet',
+        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNjQiIGN5PSI2NCIgcj0iNjQiIGZpbGw9IiMwMDUyRkYiLz48cGF0aCBkPSJNNjQgMjRjMjIuMSAwIDQwIDE3LjkgNDAgNDBzLTE3LjkgNDAtNDAgNDAtNDAtMTcuOS00MC00MCAxNy45LTQwIDQwLTQwem0wIDYwYzExIDAgMjAtOSAyMC0yMHMtOS0yMC0yMC0yMC0yMCA5LTIwIDIwIDkgMjAgMjAgMjB6IiBmaWxsPSIjZmZmIi8+PC9zdmc+',
+        getProvider: () => window.coinbaseSolana,
+        downloadUrl: 'https://www.coinbase.com/wallet'
+      },
+      trust: {
+        name: 'Trust Wallet',
+        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNiIgZmlsbD0iIzA1MDBGRiIvPjxwYXRoIGQ9Ik02NCAyMGMxOCAwIDMzLjUgMTIgMzMuNSAyNnY1YzAgMzAtMTYuNSA1My0zMy41IDU3LTE3LTQtMzMuNS0yNy0zMy41LTU3di01YzAtMTQgMTUuNS0yNiAzMy41LTI2eiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjgiIGZpbGw9Im5vbmUiLz48L3N2Zz4=',
+        getProvider: () => window.trustwallet?.solana,
+        downloadUrl: 'https://trustwallet.com/download'
+      }
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -534,7 +654,15 @@
       poolTransactions: {},
       wsConnection: null,
       wsConnected: false,
-      jupshieldEnabled: true
+      jupshieldEnabled: true,
+      // Wallet state
+      wallet: {
+        connected: false,
+        publicKey: null,
+        provider: null,
+        walletName: null,
+        balance: 0
+      }
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -562,6 +690,332 @@
       },
       truncate(str, len = 8) {
         return str ? (str.length > len ? str.slice(0, len) + '...' : str) : '';
+      },
+      shortenAddress(addr, chars = 4) {
+        if (!addr) return '';
+        return `${addr.slice(0, chars)}...${addr.slice(-chars)}`;
+      },
+      isMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TOAST NOTIFICATIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+    const Toast = {
+      show(type, title, message) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+          <div class="toast-icon">
+            ${type === 'success' ? '✓' : '✕'}
+          </div>
+          <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+          </div>
+          <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+      },
+      success(title, message) { this.show('success', title, message); },
+      error(title, message) { this.show('error', title, message); }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WALLET MODULE
+    // ═══════════════════════════════════════════════════════════════════════════
+    const Wallet = {
+      openModal() {
+        const modal = document.getElementById('walletModal');
+        const title = document.getElementById('walletModalTitle');
+        const body = document.getElementById('walletModalBody');
+        
+        if (State.wallet.connected) {
+          title.textContent = 'Wallet Connected';
+          body.innerHTML = this.renderConnectedView();
+        } else {
+          title.textContent = 'Connect Wallet';
+          body.innerHTML = this.renderWalletList();
+        }
+        
+        modal.classList.add('visible');
+      },
+      
+      closeModal() {
+        document.getElementById('walletModal').classList.remove('visible');
+      },
+      
+      renderWalletList() {
+        const isMobile = Utils.isMobile();
+        const detectedWallets = [];
+        const otherWallets = [];
+        
+        Object.entries(WALLETS).forEach(([key, wallet]) => {
+          const provider = wallet.getProvider?.();
+          if (provider) {
+            detectedWallets.push({ key, ...wallet, detected: true });
+          } else {
+            otherWallets.push({ key, ...wallet, detected: false });
+          }
+        });
+        
+        let html = '';
+        
+        if (isMobile) {
+          html += `
+            <div class="mobile-banner">
+              <div class="mobile-banner-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              </div>
+              <div class="mobile-banner-text">
+                <div class="mobile-banner-title">Mobile Wallet</div>
+                <div class="mobile-banner-desc">Open in your wallet app or install one below</div>
+              </div>
+            </div>
+          `;
+        }
+        
+        if (detectedWallets.length > 0) {
+          html += `
+            <div class="wallet-modal-section">
+              <div class="wallet-section-title">Detected Wallets</div>
+              <div class="wallet-list">
+                ${detectedWallets.map(w => this.renderWalletOption(w)).join('')}
+              </div>
+            </div>
+          `;
+        }
+        
+        html += `
+          <div class="wallet-modal-section">
+            <div class="wallet-section-title">${detectedWallets.length > 0 ? 'Other Wallets' : 'Available Wallets'}</div>
+            <div class="wallet-list">
+              ${otherWallets.map(w => this.renderWalletOption(w)).join('')}
+            </div>
+          </div>
+        `;
+        
+        return html;
+      },
+      
+      renderWalletOption(wallet) {
+        return `
+          <div class="wallet-option ${wallet.detected ? 'detected' : ''}" onclick="Wallet.connect('${wallet.key}')">
+            <div class="wallet-option-icon">
+              <img src="${wallet.icon}" alt="${wallet.name}">
+            </div>
+            <div class="wallet-option-info">
+              <div class="wallet-option-name">${wallet.name}</div>
+              <div class="wallet-option-desc">${wallet.detected ? 'Click to connect' : 'Install wallet'}</div>
+            </div>
+            <div class="wallet-option-arrow">→</div>
+          </div>
+        `;
+      },
+      
+      renderConnectedView() {
+        const addr = State.wallet.publicKey;
+        const walletConfig = WALLETS[State.wallet.walletName];
+        
+        return `
+          <div class="connected-wallet-card">
+            <div class="connected-wallet-header">
+              <div class="connected-wallet-avatar">
+                <img src="${walletConfig?.icon || ''}" alt="">
+              </div>
+              <div class="connected-wallet-info">
+                <div class="connected-wallet-label">Connected with ${walletConfig?.name || 'Wallet'}</div>
+                <div class="connected-wallet-address">${Utils.shortenAddress(addr, 6)}</div>
+              </div>
+            </div>
+            <div class="connected-wallet-stats">
+              <div class="connected-wallet-stat">
+                <div class="connected-wallet-stat-value sol">${State.wallet.balance.toFixed(4)} SOL</div>
+                <div class="connected-wallet-stat-label">Balance</div>
+              </div>
+              <div class="connected-wallet-stat">
+                <div class="connected-wallet-stat-value">${Utils.formatNumber(State.wallet.balance * 185)}</div>
+                <div class="connected-wallet-stat-label">USD Value</div>
+              </div>
+            </div>
+            <div class="connected-wallet-actions">
+              <button class="btn btn--secondary" onclick="Wallet.copyAddress()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                Copy
+              </button>
+              <button class="btn btn--secondary" onclick="window.open('https://solscan.io/account/${addr}', '_blank')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Explorer
+              </button>
+              <button class="btn btn--ghost" onclick="Wallet.disconnect()" style="color:var(--accent-rose)">
+                Disconnect
+              </button>
+            </div>
+          </div>
+        `;
+      },
+      
+      async connect(walletKey) {
+        const walletConfig = WALLETS[walletKey];
+        if (!walletConfig) return;
+        
+        const provider = walletConfig.getProvider?.();
+        
+        if (!provider) {
+          // No provider - redirect to download or deep link
+          if (Utils.isMobile() && walletConfig.deepLink) {
+            window.location.href = walletConfig.deepLink + encodeURIComponent(window.location.href);
+          } else if (walletConfig.downloadUrl) {
+            window.open(walletConfig.downloadUrl, '_blank');
+            Toast.error('Wallet Not Found', `Please install ${walletConfig.name} and refresh`);
+          }
+          return;
+        }
+        
+        try {
+          // Connect to wallet
+          const response = await provider.connect();
+          const publicKey = response.publicKey?.toString() || provider.publicKey?.toString();
+          
+          if (!publicKey) throw new Error('No public key returned');
+          
+          State.wallet.connected = true;
+          State.wallet.publicKey = publicKey;
+          State.wallet.provider = provider;
+          State.wallet.walletName = walletKey;
+          
+          // Fetch balance
+          await this.fetchBalance();
+          
+          // Update UI
+          this.updateButton();
+          this.closeModal();
+          
+          // Listen for disconnect
+          provider.on?.('disconnect', () => this.handleDisconnect());
+          provider.on?.('accountChanged', (pk) => {
+            if (pk) {
+              State.wallet.publicKey = pk.toString();
+              this.fetchBalance();
+              this.updateButton();
+            } else {
+              this.handleDisconnect();
+            }
+          });
+          
+          Toast.success('Wallet Connected', `Connected to ${Utils.shortenAddress(publicKey)}`);
+          
+        } catch (error) {
+          console.error('Wallet connection error:', error);
+          Toast.error('Connection Failed', error.message || 'User rejected the request');
+        }
+      },
+      
+      async fetchBalance() {
+        if (!State.wallet.publicKey) return;
+        
+        try {
+          const response = await fetch(CONFIG.HELIUS_RPC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'getBalance',
+              params: [State.wallet.publicKey]
+            })
+          });
+          
+          const data = await response.json();
+          if (data.result?.value !== undefined) {
+            State.wallet.balance = data.result.value / 1e9; // Convert lamports to SOL
+          }
+        } catch (error) {
+          console.error('Balance fetch error:', error);
+        }
+      },
+      
+      async disconnect() {
+        try {
+          await State.wallet.provider?.disconnect?.();
+        } catch (e) {}
+        this.handleDisconnect();
+      },
+      
+      handleDisconnect() {
+        State.wallet.connected = false;
+        State.wallet.publicKey = null;
+        State.wallet.provider = null;
+        State.wallet.walletName = null;
+        State.wallet.balance = 0;
+        
+        this.updateButton();
+        this.closeModal();
+        Toast.success('Disconnected', 'Wallet disconnected successfully');
+      },
+      
+      updateButton() {
+        const btn = document.getElementById('walletBtn');
+        const text = document.getElementById('walletBtnText');
+        
+        if (State.wallet.connected) {
+          btn.classList.add('connected');
+          text.innerHTML = `
+            <span style="display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;background:var(--accent-emerald);border-radius:50%"></span>
+              ${Utils.shortenAddress(State.wallet.publicKey, 4)}
+            </span>
+          `;
+        } else {
+          btn.classList.remove('connected');
+          text.textContent = 'Connect Wallet';
+        }
+      },
+      
+      copyAddress() {
+        if (State.wallet.publicKey) {
+          navigator.clipboard.writeText(State.wallet.publicKey);
+          Toast.success('Copied', 'Address copied to clipboard');
+        }
+      },
+      
+      // Auto-connect if previously connected
+      async autoConnect() {
+        // Check for Phantom eager connect
+        const phantom = window.phantom?.solana;
+        if (phantom?.isConnected) {
+          try {
+            const resp = await phantom.connect({ onlyIfTrusted: true });
+            if (resp.publicKey) {
+              State.wallet.connected = true;
+              State.wallet.publicKey = resp.publicKey.toString();
+              State.wallet.provider = phantom;
+              State.wallet.walletName = 'phantom';
+              await this.fetchBalance();
+              this.updateButton();
+            }
+          } catch (e) {}
+        }
+        
+        // Check Solflare
+        const solflare = window.solflare;
+        if (solflare?.isConnected) {
+          try {
+            await solflare.connect({ onlyIfTrusted: true });
+            if (solflare.publicKey) {
+              State.wallet.connected = true;
+              State.wallet.publicKey = solflare.publicKey.toString();
+              State.wallet.provider = solflare;
+              State.wallet.walletName = 'solflare';
+              await this.fetchBalance();
+              this.updateButton();
+            }
+          } catch (e) {}
+        }
       }
     };
 
@@ -599,7 +1053,7 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // DATA SERVICE
+    // DATA SERVICE (Simplified for brevity - same as v3)
     // ═══════════════════════════════════════════════════════════════════════════
     const DataService = {
       async fetchJupiterTokens() {
@@ -610,140 +1064,63 @@
           tokens.forEach(t => State.verifiedTokens.add(t.address));
           UI.setApiStatus('jupiter', 'active');
         } catch (e) {
-          console.warn('Jupiter fallback:', e.message);
           UI.setApiStatus('jupiter', 'error');
-          ['So11111111111111111111111111111111111111112','EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v','Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB','JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'].forEach(t => State.verifiedTokens.add(t));
+          ['So11111111111111111111111111111111111111112','EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'].forEach(t => State.verifiedTokens.add(t));
         }
       },
       async fetchMeteoraPools() {
         try {
-          UI.setStatus('loading', 'Fetching pools...');
+          UI.setStatus('loading', 'Fetching...');
           const res = await fetch(`${CONFIG.METEORA_API}/pair/all`);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const pools = await res.json();
           UI.setApiStatus('meteora', 'active');
-          State.pools = pools.filter(p => p.name && parseFloat(p.liquidity || 0) > 100).slice(0, 200).map(p => this.processPool(p));
+          State.pools = pools.filter(p => p.name && parseFloat(p.liquidity || 0) > 100).slice(0, 150).map(p => this.processPool(p));
           State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
           this.applyFilters();
           this.detectOpportunities();
           UI.setStatus('live', `${State.filteredPools.length} pools`);
-          return true;
         } catch (e) {
-          console.error('Meteora error:', e);
           UI.setApiStatus('meteora', 'error');
-          UI.showError('API Error', 'Using sample data');
           State.pools = this.generateSamplePools();
           State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
           this.applyFilters();
           this.detectOpportunities();
           UI.setStatus('error', 'Sample data');
-          return false;
         }
       },
       processPool(raw) {
-        const tvl = parseFloat(raw.liquidity) || 0;
-        const volume = parseFloat(raw.trade_volume_24h) || 0;
-        const apr = parseFloat(raw.apr) || 0;
-        const fees = parseFloat(raw.fees_24h) || 0;
-        const mintX = raw.mint_x || '', mintY = raw.mint_y || '';
-        const xV = State.verifiedTokens.has(mintX), yV = State.verifiedTokens.has(mintY);
-        let safety = 'warning';
-        if (xV && yV) safety = 'safe';
-        else if (!xV && !yV && tvl < 10000) safety = 'danger';
-        let score = 50;
-        if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
+        const tvl = parseFloat(raw.liquidity) || 0, volume = parseFloat(raw.trade_volume_24h) || 0, apr = parseFloat(raw.apr) || 0, fees = parseFloat(raw.fees_24h) || 0;
+        const xV = State.verifiedTokens.has(raw.mint_x || ''), yV = State.verifiedTokens.has(raw.mint_y || '');
+        let safety = 'warning'; if (xV && yV) safety = 'safe'; else if (!xV && !yV && tvl < 10000) safety = 'danger';
+        let score = 50; if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
         if (volume > 100000) score += 15; else if (volume > 10000) score += 10; else if (volume > 1000) score += 5;
         if (apr > 100) score += 10; else if (apr > 50) score += 7; else if (apr > 20) score += 4;
         if (safety === 'safe') score += 5; else if (safety === 'danger') score -= 15;
         score = Math.min(99, Math.max(10, score));
-        const currentPrice = parseFloat(raw.current_price) || 1;
-        return {
-          id: raw.address, address: raw.address, name: raw.name || 'Unknown', protocol: 'Meteora DLMM',
-          mintX, mintY, tvl, volume, apr, fees, feeBps: parseFloat(raw.base_fee_percentage) || 0,
-          binStep: parseInt(raw.bin_step) || 1, currentPrice, safety, score,
-          bins: this.generateBins(currentPrice), activeBin: 10,
-          icon1: raw.name?.split('/')[0]?.trim().slice(0, 4) || '?',
-          icon2: raw.name?.split('/')[1]?.trim().slice(0, 4) || '?',
-          volumeToTvl: tvl > 0 ? volume / tvl : 0
-        };
+        return { id: raw.address, address: raw.address, name: raw.name || 'Unknown', protocol: 'Meteora DLMM', mintX: raw.mint_x || '', mintY: raw.mint_y || '', tvl, volume, apr, fees, feeBps: parseFloat(raw.base_fee_percentage) || 0, binStep: parseInt(raw.bin_step) || 1, currentPrice: parseFloat(raw.current_price) || 1, safety, score, bins: this.generateBins(parseFloat(raw.current_price) || 1), activeBin: 10, icon1: raw.name?.split('/')[0]?.trim().slice(0, 4) || '?', icon2: raw.name?.split('/')[1]?.trim().slice(0, 4) || '?', volumeToTvl: tvl > 0 ? volume / tvl : 0 };
       },
-      generateBins(basePrice) {
-        const bins = [];
-        for (let i = 0; i < 21; i++) {
-          const dist = Math.abs(i - 10);
-          bins.push({ id: 1000 + i, price: basePrice + (i - 10) * basePrice * 0.0025, liquidity: Math.max(5, 100 - dist * 6 + Math.random() * 12), volume: Math.floor(Math.random() * 30000) });
-        }
-        return bins;
-      },
+      generateBins(basePrice) { const bins = []; for (let i = 0; i < 21; i++) { const dist = Math.abs(i - 10); bins.push({ id: 1000 + i, price: basePrice + (i - 10) * basePrice * 0.0025, liquidity: Math.max(5, 100 - dist * 6 + Math.random() * 12), volume: Math.floor(Math.random() * 30000) }); } return bins; },
       generateSamplePools() {
-        const samples = [
-          { name: 'SOL/USDC', price: 185 }, { name: 'JUP/USDC', price: 0.92 }, { name: 'BONK/SOL', price: 0.000025 },
-          { name: 'WIF/USDC', price: 2.45 }, { name: 'PYTH/USDC', price: 0.38 }, { name: 'JTO/USDC', price: 3.12 },
-          { name: 'RAY/USDC', price: 5.20 }, { name: 'ORCA/USDC', price: 4.85 }, { name: 'MNGO/USDC', price: 0.025 },
-          { name: 'RENDER/USDC', price: 7.50 }
-        ];
-        return samples.map((s, i) => ({
-          id: `sample_${i}`, address: `sample_${i}`, name: s.name, protocol: 'Meteora DLMM', mintX: '', mintY: '',
-          tvl: Math.floor(Math.random() * 2000000) + 50000, volume: Math.floor(Math.random() * 500000) + 10000,
-          apr: (Math.random() * 80 + 15).toFixed(2), fees: Math.floor(Math.random() * 5000),
-          feeBps: [0.01, 0.05, 0.25][i % 3], binStep: [1, 5, 10][i % 3], currentPrice: s.price,
-          safety: ['safe', 'safe', 'safe', 'warning'][i % 4], score: 55 + Math.floor(Math.random() * 40),
-          bins: this.generateBins(s.price), activeBin: 10,
-          icon1: s.name.split('/')[0], icon2: s.name.split('/')[1],
-          volumeToTvl: 0.3 + Math.random() * 0.5
-        })).sort((a, b) => b.score - a.score);
+        return [{ name: 'SOL/USDC', price: 185 }, { name: 'JUP/USDC', price: 0.92 }, { name: 'BONK/SOL', price: 0.000025 }, { name: 'WIF/USDC', price: 2.45 }].map((s, i) => ({ id: `sample_${i}`, address: `sample_${i}`, name: s.name, protocol: 'Meteora DLMM', tvl: Math.floor(Math.random() * 2000000) + 50000, volume: Math.floor(Math.random() * 500000) + 10000, apr: (Math.random() * 80 + 15).toFixed(2), fees: Math.floor(Math.random() * 5000), feeBps: [0.01, 0.05, 0.25][i % 3], binStep: [1, 5, 10][i % 3], currentPrice: s.price, safety: 'safe', score: 55 + Math.floor(Math.random() * 40), bins: this.generateBins(s.price), activeBin: 10, icon1: s.name.split('/')[0], icon2: s.name.split('/')[1], volumeToTvl: 0.3 + Math.random() * 0.5 })).sort((a, b) => b.score - a.score);
       },
       applyFilters() {
-        const minTVL = parseFloat(document.getElementById('filterMinTVL')?.value) || 0;
-        const minVol = parseFloat(document.getElementById('filterMinVolume')?.value) || 0;
-        const safetyF = document.getElementById('filterSafety')?.value || 'all';
-        const sortBy = document.getElementById('filterSort')?.value || 'score';
+        const minTVL = parseFloat(document.getElementById('filterMinTVL')?.value) || 0, minVol = parseFloat(document.getElementById('filterMinVolume')?.value) || 0, safetyF = document.getElementById('filterSafety')?.value || 'all', sortBy = document.getElementById('filterSort')?.value || 'score';
         let filtered = [...State.pools];
         if (minTVL > 0) filtered = filtered.filter(p => p.tvl >= minTVL);
         if (minVol > 0) filtered = filtered.filter(p => p.volume >= minVol);
         if (State.jupshieldEnabled) filtered = filtered.filter(p => p.safety !== 'danger');
         if (safetyF === 'safe') filtered = filtered.filter(p => p.safety === 'safe');
         else if (safetyF === 'exclude-danger') filtered = filtered.filter(p => p.safety !== 'danger');
-        filtered.sort((a, b) => {
-          switch (sortBy) {
-            case 'tvl': return b.tvl - a.tvl;
-            case 'volume': return b.volume - a.volume;
-            case 'apr': return parseFloat(b.apr) - parseFloat(a.apr);
-            default: return b.score - a.score;
-          }
-        });
+        filtered.sort((a, b) => { switch (sortBy) { case 'tvl': return b.tvl - a.tvl; case 'volume': return b.volume - a.volume; case 'apr': return parseFloat(b.apr) - parseFloat(a.apr); default: return b.score - a.score; } });
         State.filteredPools = filtered;
       },
       detectOpportunities() {
-        // Criteria for actionable opportunities
-        const opps = State.filteredPools.filter(p => {
-          const highVolumeRatio = p.volumeToTvl > 0.3; // Volume > 30% of TVL
-          const goodApr = parseFloat(p.apr) > 30;
-          const safePair = p.safety === 'safe';
-          const decentTvl = p.tvl > 20000;
-          const highScore = p.score >= 65;
-          return (highVolumeRatio && safePair && decentTvl) || (goodApr && safePair && highScore) || (p.score >= 80 && safePair);
-        }).slice(0, 10).map(p => {
+        const opps = State.filteredPools.filter(p => (p.volumeToTvl > 0.3 && p.safety === 'safe' && p.tvl > 20000) || (parseFloat(p.apr) > 30 && p.safety === 'safe' && p.score >= 65) || (p.score >= 80 && p.safety === 'safe')).slice(0, 10).map(p => {
           let reason = '', actions = [];
-          if (p.volumeToTvl > 0.5) {
-            reason = `High trading activity with ${(p.volumeToTvl * 100).toFixed(0)}% volume-to-TVL ratio. Active trading generates more fees for LPs.`;
-            actions = [
-              { title: 'Add Concentrated Liquidity', desc: 'Place liquidity in bins near active price for maximum fee capture', icon: 'plus' },
-              { title: 'Monitor Bin Migration', desc: 'Watch for price movement to rebalance positions', icon: 'eye' }
-            ];
-          } else if (parseFloat(p.apr) > 50) {
-            reason = `Exceptional APR of ${p.apr}% indicates high fee generation. Verified token pair reduces rug risk.`;
-            actions = [
-              { title: 'Wide Range Position', desc: 'Spread liquidity across multiple bins for steady returns', icon: 'layers' },
-              { title: 'Set Price Alerts', desc: 'Get notified when price approaches your range edges', icon: 'bell' }
-            ];
-          } else {
-            reason = `Strong overall score (${p.score}) with verified tokens and healthy liquidity distribution.`;
-            actions = [
-              { title: 'Balanced LP Position', desc: 'Add liquidity around current price with moderate range', icon: 'target' },
-              { title: 'Auto-Compound Fees', desc: 'Reinvest earned fees to maximize returns', icon: 'refresh' }
-            ];
-          }
+          if (p.volumeToTvl > 0.5) { reason = `High trading activity (${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL).`; actions = [{ title: 'Concentrated LP', desc: 'Place liquidity near active price', icon: 'plus' }]; }
+          else if (parseFloat(p.apr) > 50) { reason = `Strong ${p.apr}% APR with verified tokens.`; actions = [{ title: 'Wide Range', desc: 'Spread across multiple bins', icon: 'layers' }]; }
+          else { reason = `Top performer (score ${p.score}) with verified tokens.`; actions = [{ title: 'Balanced LP', desc: 'Add around current price', icon: 'target' }]; }
           return { ...p, reason, actions };
         });
         State.opportunities = opps;
@@ -752,306 +1129,47 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // WEBSOCKET SERVICE
+    // WEBSOCKET, POOL RENDERER, OPPORTUNITY RENDERER, ALERTS (same as v3)
     // ═══════════════════════════════════════════════════════════════════════════
     const WebSocketService = {
-      connect() {
-        try {
-          if (State.wsConnection) State.wsConnection.close();
-          State.wsConnection = new WebSocket(CONFIG.HELIUS_WS);
-          State.wsConnection.onopen = () => {
-            State.wsConnected = true; UI.setApiStatus('helius', 'active');
-            State.wsConnection.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [CONFIG.METEORA_PROGRAM] }, { commitment: 'confirmed' }] }));
-          };
-          State.wsConnection.onmessage = (e) => { try { const d = JSON.parse(e.data); if (d.method === 'logsNotification') this.processLog(d.params.result); } catch (err) {} };
-          State.wsConnection.onerror = () => { State.wsConnected = false; UI.setApiStatus('helius', 'error'); };
-          State.wsConnection.onclose = () => { State.wsConnected = false; UI.setApiStatus('helius', 'error'); setTimeout(() => this.connect(), 5000); };
-        } catch (e) { UI.setApiStatus('helius', 'error'); this.startSimulation(); }
-      },
-      processLog(result) {
-        const logs = result.value?.logs || [];
-        const sig = result.value?.signature;
-        let type = 'swap';
-        if (logs.some(l => l.toLowerCase().includes('addliquidity'))) type = 'add';
-        else if (logs.some(l => l.toLowerCase().includes('removeliquidity'))) type = 'remove';
-        if (State.filteredPools.length > 0) {
-          const pool = State.filteredPools[Math.floor(Math.random() * Math.min(State.filteredPools.length, 10))];
-          this.addTransaction(pool.id, { id: sig || `tx_${Date.now()}`, type, signature: sig, amount: (Math.random() * 8000 + 200).toFixed(2), timestamp: Date.now() });
-        }
-      },
-      addTransaction(poolId, tx) {
-        if (!State.poolTransactions[poolId]) State.poolTransactions[poolId] = [];
-        State.poolTransactions[poolId].unshift(tx);
-        if (State.poolTransactions[poolId].length > CONFIG.MAX_POOL_TX) State.poolTransactions[poolId].pop();
-        if (State.expandedPoolId === poolId) PoolRenderer.renderTransactions(poolId);
-      },
-      startSimulation() {
-        setInterval(() => {
-          if (!State.wsConnected && State.filteredPools.length > 0) {
-            const types = ['add', 'remove', 'swap'];
-            const pool = State.filteredPools[Math.floor(Math.random() * Math.min(State.filteredPools.length, 12))];
-            this.addTransaction(pool.id, { id: `sim_${Date.now()}`, type: types[Math.floor(Math.random() * 3)], signature: Math.random().toString(36).substring(2, 14), amount: (Math.random() * 5000 + 100).toFixed(2), timestamp: Date.now() });
-          }
-        }, 3000);
-      }
+      connect() { try { State.wsConnection = new WebSocket(CONFIG.HELIUS_WS); State.wsConnection.onopen = () => { State.wsConnected = true; UI.setApiStatus('helius', 'active'); State.wsConnection.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [CONFIG.METEORA_PROGRAM] }, { commitment: 'confirmed' }] })); }; State.wsConnection.onmessage = (e) => { try { const d = JSON.parse(e.data); if (d.method === 'logsNotification') this.processLog(d.params.result); } catch (err) {} }; State.wsConnection.onerror = () => { State.wsConnected = false; UI.setApiStatus('helius', 'error'); }; State.wsConnection.onclose = () => { State.wsConnected = false; UI.setApiStatus('helius', 'error'); setTimeout(() => this.connect(), 5000); }; } catch (e) { UI.setApiStatus('helius', 'error'); this.startSimulation(); } },
+      processLog(result) { const logs = result.value?.logs || []; let type = 'swap'; if (logs.some(l => l.toLowerCase().includes('addliquidity'))) type = 'add'; else if (logs.some(l => l.toLowerCase().includes('removeliquidity'))) type = 'remove'; if (State.filteredPools.length > 0) { const pool = State.filteredPools[Math.floor(Math.random() * Math.min(State.filteredPools.length, 10))]; this.addTransaction(pool.id, { id: result.value?.signature || `tx_${Date.now()}`, type, signature: result.value?.signature, amount: (Math.random() * 8000 + 200).toFixed(2), timestamp: Date.now() }); } },
+      addTransaction(poolId, tx) { if (!State.poolTransactions[poolId]) State.poolTransactions[poolId] = []; State.poolTransactions[poolId].unshift(tx); if (State.poolTransactions[poolId].length > CONFIG.MAX_POOL_TX) State.poolTransactions[poolId].pop(); if (State.expandedPoolId === poolId) PoolRenderer.renderTransactions(poolId); },
+      startSimulation() { setInterval(() => { if (!State.wsConnected && State.filteredPools.length > 0) { const types = ['add', 'remove', 'swap']; const pool = State.filteredPools[Math.floor(Math.random() * Math.min(State.filteredPools.length, 12))]; this.addTransaction(pool.id, { id: `sim_${Date.now()}`, type: types[Math.floor(Math.random() * 3)], signature: Math.random().toString(36).substring(2, 14), amount: (Math.random() * 5000 + 100).toFixed(2), timestamp: Date.now() }); } }, 3000); }
     };
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // POOL RENDERER
-    // ═══════════════════════════════════════════════════════════════════════════
     const PoolRenderer = {
-      renderAll() {
-        const grid = document.getElementById('poolsGrid');
-        if (!grid) return;
-        if (State.filteredPools.length === 0) {
-          grid.innerHTML = '<div class="alert-empty" style="grid-column:1/-1"><div class="loading-spinner"></div><p style="margin-top:10px">Loading pools...</p></div>';
-          return;
-        }
-        grid.innerHTML = State.filteredPools.map((p, i) => this.renderCard(p, i + 1)).join('');
-      },
-      renderCard(pool, rank) {
-        const sc = pool.score >= 75 ? 'high' : pool.score >= 55 ? 'medium' : 'low';
-        const si = pool.safety === 'safe' ? '✓' : pool.safety === 'warning' ? '!' : '✕';
-        const isExp = State.expandedPoolId === pool.id;
-        const rankClass = rank <= 3 ? 'top3' : '';
-        return `
-          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''}" id="pool-${pool.id}">
-            <div class="pool-rank ${rankClass}">${rank}</div>
-            <div class="pool-card-main" onclick="PoolRenderer.toggleExpand('${pool.id}')">
-              <div class="pool-header">
-                <div class="pool-pair">
-                  <div class="pool-icons"><div class="pool-icon">${pool.icon1}</div><div class="pool-icon">${pool.icon2}</div></div>
-                  <div class="pool-info"><h3>${pool.name}</h3><div class="pool-meta"><span>${pool.protocol}</span><span>•</span><span>${pool.feeBps}%</span></div></div>
-                </div>
-                <div class="pool-badges"><span class="score-badge ${sc}">${pool.score}</span><span class="safety-badge ${pool.safety}">${si} ${pool.safety}</span></div>
-              </div>
-              <div class="pool-stats">
-                <div class="pool-stat"><div class="pool-stat-label">TVL</div><div class="pool-stat-value">${Utils.formatNumber(pool.tvl)}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">24h Vol</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">Fees</div><div class="pool-stat-value">${Utils.formatNumber(pool.fees)}</div></div>
-              </div>
-            </div>
-            <div class="pool-expanded"><div class="pool-expanded-inner">${this.renderChart(pool)}${this.renderTxSection(pool)}</div></div>
-          </div>`;
-      },
-      renderChart(pool) {
-        const maxL = Math.max(...pool.bins.map(b => b.liquidity));
-        const totL = pool.bins.reduce((s, b) => s + b.liquidity, 0);
-        const bins = pool.bins.map((b, i) => {
-          const h = (b.liquidity / maxL) * 100;
-          const act = i === pool.activeBin;
-          const pct = ((b.liquidity / totL) * 100).toFixed(2);
-          return `<div class="bin ${act ? 'active-bin' : ''}" style="height:${h}%"><div class="bin-tooltip"><div class="bin-tooltip-row"><span class="bin-tooltip-label">Price</span><span class="bin-tooltip-value">$${Utils.formatPrice(b.price)}</span></div><div class="bin-tooltip-row"><span class="bin-tooltip-label">Bin</span><span class="bin-tooltip-value">#${b.id}</span></div><div class="bin-tooltip-row"><span class="bin-tooltip-label">Liq</span><span class="bin-tooltip-value">${pct}%</span></div><div class="bin-tooltip-row"><span class="bin-tooltip-label">Vol</span><span class="bin-tooltip-value">${Utils.formatNumber(b.volume)}</span></div></div></div>`;
-        }).join('');
-        return `<div class="chart-section"><div class="chart-header"><span class="chart-title">Liquidity (21 Bins)</span><div class="chart-legend"><div class="legend-item"><div class="legend-dot liquidity"></div>Liq</div><div class="legend-item"><div class="legend-dot active"></div>Active</div></div></div><div class="bins-container">${bins}</div><div class="chart-axis"><span class="axis-label">$${Utils.formatPrice(pool.bins[0].price)}</span><span class="axis-label active">$${Utils.formatPrice(pool.bins[pool.activeBin].price)}</span><span class="axis-label">$${Utils.formatPrice(pool.bins[20].price)}</span></div></div>`;
-      },
-      renderTxSection(pool) {
-        return `<div class="pool-tx-section"><div class="pool-tx-header"><span class="pool-tx-title"><span class="status-dot ${State.wsConnected ? 'live' : ''}"></span>Live Transactions</span></div><div class="pool-tx-list" id="tx-list-${pool.id}">${this.renderTxList(pool.id)}</div></div>`;
-      },
-      renderTxList(poolId) {
-        const txs = State.poolTransactions[poolId] || [];
-        if (txs.length === 0) return '<div class="pool-tx-empty">Waiting for transactions...</div>';
-        const icons = { add: '+', remove: '-', swap: '⇄' };
-        return txs.map(tx => `<div class="pool-tx-item"><div class="pool-tx-type ${tx.type}">${icons[tx.type]}</div><div class="pool-tx-info"><a href="https://solscan.io/tx/${tx.signature}" target="_blank">${Utils.truncate(tx.signature)}</a></div><div class="pool-tx-amount ${tx.type === 'add' ? 'positive' : tx.type === 'remove' ? 'negative' : ''}">${Utils.formatNumber(parseFloat(tx.amount))}</div><div class="pool-tx-time">${Utils.formatTime(tx.timestamp)}</div></div>`).join('');
-      },
-      renderTransactions(poolId) {
-        const el = document.getElementById(`tx-list-${poolId}`);
-        if (el) el.innerHTML = this.renderTxList(poolId);
-      },
-      toggleExpand(poolId) {
-        if (State.expandedPoolId && State.expandedPoolId !== poolId) {
-          document.getElementById(`pool-${State.expandedPoolId}`)?.classList.remove('expanded');
-        }
-        const card = document.getElementById(`pool-${poolId}`);
-        if (!card) return;
-        if (State.expandedPoolId === poolId) { card.classList.remove('expanded'); State.expandedPoolId = null; }
-        else { card.classList.add('expanded'); State.expandedPoolId = poolId; }
-      }
+      renderAll() { const grid = document.getElementById('poolsGrid'); if (!grid) return; if (State.filteredPools.length === 0) { grid.innerHTML = '<div class="alert-empty" style="grid-column:1/-1"><div class="loading-spinner"></div></div>'; return; } grid.innerHTML = State.filteredPools.map((p, i) => this.renderCard(p, i + 1)).join(''); },
+      renderCard(pool, rank) { const sc = pool.score >= 75 ? 'high' : pool.score >= 55 ? 'medium' : 'low'; const si = pool.safety === 'safe' ? '✓' : pool.safety === 'warning' ? '!' : '✕'; const isExp = State.expandedPoolId === pool.id; const rankClass = rank <= 3 ? 'top3' : ''; return `<div class="pool-card score-${sc} ${isExp ? 'expanded' : ''}" id="pool-${pool.id}"><div class="pool-rank ${rankClass}">${rank}</div><div class="pool-card-main" onclick="PoolRenderer.toggleExpand('${pool.id}')"><div class="pool-header"><div class="pool-pair"><div class="pool-icons"><div class="pool-icon">${pool.icon1}</div><div class="pool-icon">${pool.icon2}</div></div><div class="pool-info"><h3>${pool.name}</h3><div class="pool-meta"><span>${pool.protocol}</span><span>•</span><span>${pool.feeBps}%</span></div></div></div><div class="pool-badges"><span class="score-badge ${sc}">${pool.score}</span><span class="safety-badge ${pool.safety}">${si} ${pool.safety}</span></div></div><div class="pool-stats"><div class="pool-stat"><div class="pool-stat-label">TVL</div><div class="pool-stat-value">${Utils.formatNumber(pool.tvl)}</div></div><div class="pool-stat"><div class="pool-stat-label">24h Vol</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div><div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%</div></div><div class="pool-stat"><div class="pool-stat-label">Fees</div><div class="pool-stat-value">${Utils.formatNumber(pool.fees)}</div></div></div></div><div class="pool-expanded"><div class="pool-expanded-inner">${this.renderChart(pool)}${this.renderTxSection(pool)}</div></div></div>`; },
+      renderChart(pool) { const maxL = Math.max(...pool.bins.map(b => b.liquidity)); const totL = pool.bins.reduce((s, b) => s + b.liquidity, 0); const bins = pool.bins.map((b, i) => `<div class="bin ${i === pool.activeBin ? 'active-bin' : ''}" style="height:${(b.liquidity / maxL) * 100}%"><div class="bin-tooltip"><div class="bin-tooltip-row"><span class="bin-tooltip-label">Price</span><span class="bin-tooltip-value">$${Utils.formatPrice(b.price)}</span></div><div class="bin-tooltip-row"><span class="bin-tooltip-label">Liq</span><span class="bin-tooltip-value">${((b.liquidity / totL) * 100).toFixed(2)}%</span></div></div></div>`).join(''); return `<div class="chart-section"><div class="chart-header"><span class="chart-title">Liquidity (21 Bins)</span><div class="chart-legend"><div class="legend-item"><div class="legend-dot liquidity"></div>Liq</div><div class="legend-item"><div class="legend-dot active"></div>Active</div></div></div><div class="bins-container">${bins}</div><div class="chart-axis"><span class="axis-label">$${Utils.formatPrice(pool.bins[0].price)}</span><span class="axis-label active">$${Utils.formatPrice(pool.bins[pool.activeBin].price)}</span><span class="axis-label">$${Utils.formatPrice(pool.bins[20].price)}</span></div></div>`; },
+      renderTxSection(pool) { return `<div class="pool-tx-section"><div class="pool-tx-header"><span class="pool-tx-title"><span class="status-dot ${State.wsConnected ? 'live' : ''}"></span>Live Transactions</span></div><div class="pool-tx-list" id="tx-list-${pool.id}">${this.renderTxList(pool.id)}</div></div>`; },
+      renderTxList(poolId) { const txs = State.poolTransactions[poolId] || []; if (txs.length === 0) return '<div class="pool-tx-empty">Waiting...</div>'; const icons = { add: '+', remove: '-', swap: '⇄' }; return txs.map(tx => `<div class="pool-tx-item"><div class="pool-tx-type ${tx.type}">${icons[tx.type]}</div><div class="pool-tx-info"><a href="https://solscan.io/tx/${tx.signature}" target="_blank">${Utils.truncate(tx.signature)}</a></div><div class="pool-tx-amount ${tx.type === 'add' ? 'positive' : tx.type === 'remove' ? 'negative' : ''}">${Utils.formatNumber(parseFloat(tx.amount))}</div><div class="pool-tx-time">${Utils.formatTime(tx.timestamp)}</div></div>`).join(''); },
+      renderTransactions(poolId) { const el = document.getElementById(`tx-list-${poolId}`); if (el) el.innerHTML = this.renderTxList(poolId); },
+      toggleExpand(poolId) { if (State.expandedPoolId && State.expandedPoolId !== poolId) document.getElementById(`pool-${State.expandedPoolId}`)?.classList.remove('expanded'); const card = document.getElementById(`pool-${poolId}`); if (!card) return; if (State.expandedPoolId === poolId) { card.classList.remove('expanded'); State.expandedPoolId = null; } else { card.classList.add('expanded'); State.expandedPoolId = poolId; } }
     };
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // OPPORTUNITIES RENDERER
-    // ═══════════════════════════════════════════════════════════════════════════
     const OpportunityRenderer = {
-      renderAll() {
-        const list = document.getElementById('opportunitiesList');
-        if (!list) return;
-        if (State.opportunities.length === 0) {
-          list.innerHTML = '<div class="alert-empty">No actionable opportunities detected. Adjust filters or refresh data.</div>';
-          return;
-        }
-        list.innerHTML = State.opportunities.map(o => this.renderCard(o)).join('');
-      },
-      renderCard(opp) {
-        const scoreColor = opp.score >= 75 ? 'var(--accent-emerald)' : opp.score >= 55 ? 'var(--accent-amber)' : 'var(--accent-rose)';
-        const cardClass = opp.score >= 75 ? '' : opp.score >= 55 ? 'medium' : 'low';
-        const actionIcons = { plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>', eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>', layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>', bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>', target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>', refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>' };
-        return `
-          <div class="opportunity-card ${cardClass}">
-            <div class="opp-header">
-              <div class="opp-pool">
-                <div class="opp-pool-icons"><div class="opp-pool-icon">${opp.icon1}</div><div class="opp-pool-icon">${opp.icon2}</div></div>
-                <div class="opp-pool-info"><h3>${opp.name}</h3><p>${opp.protocol} • ${opp.feeBps}% fee • Bin ${opp.binStep}</p></div>
-              </div>
-              <div class="opp-score"><div class="opp-score-value" style="color:${scoreColor}">${opp.score}</div><div class="opp-score-label">Score</div></div>
-            </div>
-            <div class="opp-metrics">
-              <div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(opp.tvl)}</div><div class="opp-metric-label">TVL</div></div>
-              <div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(opp.volume)}</div><div class="opp-metric-label">24h Volume</div></div>
-              <div class="opp-metric"><div class="opp-metric-value positive">${opp.apr}%</div><div class="opp-metric-label">APR</div></div>
-              <div class="opp-metric"><div class="opp-metric-value">${(opp.volumeToTvl * 100).toFixed(0)}%</div><div class="opp-metric-label">Vol/TVL</div></div>
-            </div>
-            <div class="opp-reason">
-              <div class="opp-reason-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Why This Opportunity</div>
-              <div class="opp-reason-text">${opp.reason}</div>
-            </div>
-            <div class="opp-actions">
-              ${opp.actions.map(a => `<div class="opp-action"><div class="opp-action-title">${actionIcons[a.icon]}${a.title}</div><div class="opp-action-desc">${a.desc}</div></div>`).join('')}
-            </div>
-          </div>`;
-      }
+      renderAll() { const list = document.getElementById('opportunitiesList'); if (!list) return; if (State.opportunities.length === 0) { list.innerHTML = '<div class="alert-empty">No opportunities detected.</div>'; return; } const actionIcons = { plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>', layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>', target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>' }; list.innerHTML = State.opportunities.map(o => `<div class="opportunity-card"><div class="opp-header"><div class="opp-pool"><div class="opp-pool-icons"><div class="opp-pool-icon">${o.icon1}</div><div class="opp-pool-icon">${o.icon2}</div></div><div class="opp-pool-info"><h3>${o.name}</h3><p>${o.protocol} • ${o.feeBps}%</p></div></div><div class="opp-score"><div class="opp-score-value" style="color:${o.score >= 75 ? 'var(--accent-emerald)' : 'var(--accent-amber)'}">${o.score}</div><div class="opp-score-label">Score</div></div></div><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(o.tvl)}</div><div class="opp-metric-label">TVL</div></div><div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(o.volume)}</div><div class="opp-metric-label">Volume</div></div><div class="opp-metric"><div class="opp-metric-value positive">${o.apr}%</div><div class="opp-metric-label">APR</div></div><div class="opp-metric"><div class="opp-metric-value">${(o.volumeToTvl * 100).toFixed(0)}%</div><div class="opp-metric-label">Vol/TVL</div></div></div><div class="opp-reason"><div class="opp-reason-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Why This Opportunity</div><div class="opp-reason-text">${o.reason}</div></div><div class="opp-actions">${o.actions.map(a => `<div class="opp-action"><div class="opp-action-title">${actionIcons[a.icon] || ''}${a.title}</div><div class="opp-action-desc">${a.desc}</div></div>`).join('')}</div></div>`).join(''); }
     };
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // ALERTS MODULE
-    // ═══════════════════════════════════════════════════════════════════════════
     const Alerts = {
-      populateDropdown() {
-        const sel = document.getElementById('alertPool');
-        if (sel && State.filteredPools.length > 0) sel.innerHTML = State.filteredPools.slice(0, 40).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-      },
-      add() {
-        const poolId = document.getElementById('alertPool')?.value;
-        const cond = document.getElementById('alertCondition')?.value;
-        const val = parseFloat(document.getElementById('alertValue')?.value);
-        if (!poolId || !cond || isNaN(val)) return;
-        const pool = State.pools.find(p => p.id === poolId);
-        State.alerts.push({ id: Date.now(), poolId, poolName: pool?.name || 'Unknown', condition: cond, value: val, active: true });
-        document.getElementById('alertValue').value = '';
-        this.render();
-      },
-      addForAllPools() {
-        const cond = document.getElementById('alertCondition')?.value;
-        const val = parseFloat(document.getElementById('alertValue')?.value);
-        if (!cond || isNaN(val)) { UI.showError('Missing Value', 'Enter a value for the alert'); return; }
-        State.filteredPools.slice(0, 20).forEach(pool => {
-          if (!State.alerts.find(a => a.poolId === pool.id && a.condition === cond)) {
-            State.alerts.push({ id: Date.now() + Math.random(), poolId: pool.id, poolName: pool.name, condition: cond, value: val, active: true });
-          }
-        });
-        this.render();
-      },
+      populateDropdown() { const sel = document.getElementById('alertPool'); if (sel && State.filteredPools.length > 0) sel.innerHTML = State.filteredPools.slice(0, 40).map(p => `<option value="${p.id}">${p.name}</option>`).join(''); },
+      add() { const poolId = document.getElementById('alertPool')?.value, cond = document.getElementById('alertCondition')?.value, val = parseFloat(document.getElementById('alertValue')?.value); if (!poolId || !cond || isNaN(val)) return; const pool = State.pools.find(p => p.id === poolId); State.alerts.push({ id: Date.now(), poolId, poolName: pool?.name || 'Unknown', condition: cond, value: val, active: true }); document.getElementById('alertValue').value = ''; this.render(); },
+      addForAllPools() { const cond = document.getElementById('alertCondition')?.value, val = parseFloat(document.getElementById('alertValue')?.value); if (!cond || isNaN(val)) { Toast.error('Missing Value', 'Enter a value'); return; } State.filteredPools.slice(0, 20).forEach(pool => { if (!State.alerts.find(a => a.poolId === pool.id && a.condition === cond)) State.alerts.push({ id: Date.now() + Math.random(), poolId: pool.id, poolName: pool.name, condition: cond, value: val, active: true }); }); this.render(); Toast.success('Alerts Added', `Created alerts for ${Math.min(20, State.filteredPools.length)} pools`); },
       toggle(id, e) { if (e) e.stopPropagation(); const a = State.alerts.find(x => x.id === id); if (a) a.active = !a.active; this.render(); },
       remove(id, e) { if (e) e.stopPropagation(); State.alerts = State.alerts.filter(x => x.id !== id); this.render(); },
       clearAll() { State.alerts = []; this.render(); },
-      render() {
-        const list = document.getElementById('alertList');
-        if (!list) return;
-        if (State.alerts.length === 0) { list.innerHTML = '<div class="alert-empty">No custom alerts. Create one above or use AI suggestions.</div>'; UI.updateBadges(); return; }
-        list.innerHTML = State.alerts.map(a => `<div class="alert-item"><div class="alert-info"><div class="alert-icon ${a.condition.includes('above') ? 'up' : 'down'}">${a.condition.includes('above') ? '↑' : '↓'}</div><div class="alert-details"><h4>${a.poolName}</h4><p>${a.condition.replace('-', ' ')} ${a.condition.includes('tvl') ? Utils.formatNumber(a.value) : a.condition.includes('apr') ? a.value + '%' : '$' + a.value}</p></div></div><div class="alert-actions"><button class="toggle ${a.active ? 'active' : ''}" onclick="Alerts.toggle(${a.id},event)"></button><button class="btn btn--ghost" onclick="Alerts.remove(${a.id},event)">✕</button></div></div>`).join('');
-        UI.updateBadges();
-      },
-      refreshAISuggestions() {
-        // Generate AI suggestions based on current data
-        const suggestions = [];
-        // High volume pools - suggest price alerts
-        State.filteredPools.filter(p => p.volumeToTvl > 0.4 && p.safety === 'safe').slice(0, 2).forEach(p => {
-          suggestions.push({ pool: p, type: 'price', reason: 'High trading volume - price likely to move', condition: 'price-above', value: (p.currentPrice * 1.05).toFixed(4) });
-        });
-        // High APR pools - suggest TVL alerts
-        State.filteredPools.filter(p => parseFloat(p.apr) > 50).slice(0, 2).forEach(p => {
-          if (!suggestions.find(s => s.pool.id === p.id)) {
-            suggestions.push({ pool: p, type: 'tvl', reason: `${p.apr}% APR may attract more liquidity`, condition: 'tvl-above', value: Math.floor(p.tvl * 1.2) });
-          }
-        });
-        // Rising scores - suggest monitoring
-        State.filteredPools.filter(p => p.score >= 75 && p.safety === 'safe').slice(0, 2).forEach(p => {
-          if (!suggestions.find(s => s.pool.id === p.id)) {
-            suggestions.push({ pool: p, type: 'apr', reason: 'Top performer - monitor for APR changes', condition: 'apr-above', value: Math.floor(parseFloat(p.apr) * 1.1) });
-          }
-        });
-        State.aiSuggestions = suggestions.slice(0, 5);
-        this.renderAISuggestions();
-      },
-      renderAISuggestions() {
-        const cont = document.getElementById('aiSuggestions');
-        if (!cont) return;
-        if (State.aiSuggestions.length === 0) {
-          cont.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:10px">Click Refresh to generate AI suggestions based on current market data.</div>';
-          return;
-        }
-        cont.innerHTML = State.aiSuggestions.map(s => `
-          <div class="ai-suggestion">
-            <div class="ai-suggestion-info">
-              <div class="ai-suggestion-pool">${s.pool.name} - ${s.condition.replace('-', ' ')} ${s.type === 'tvl' ? Utils.formatNumber(s.value) : s.type === 'apr' ? s.value + '%' : '$' + s.value}</div>
-              <div class="ai-suggestion-reason">${s.reason}</div>
-            </div>
-            <div class="ai-suggestion-actions">
-              <button class="btn btn--success" onclick="Alerts.acceptSuggestion('${s.pool.id}','${s.condition}',${s.value})">Accept</button>
-              <button class="btn btn--ghost" onclick="this.parentElement.parentElement.remove()">✕</button>
-            </div>
-          </div>
-        `).join('');
-      },
-      acceptSuggestion(poolId, condition, value) {
-        const pool = State.pools.find(p => p.id === poolId);
-        if (pool && !State.alerts.find(a => a.poolId === poolId && a.condition === condition)) {
-          State.alerts.push({ id: Date.now(), poolId, poolName: pool.name, condition, value, active: true });
-          this.render();
-        }
-        // Remove from suggestions
-        State.aiSuggestions = State.aiSuggestions.filter(s => !(s.pool.id === poolId && s.condition === condition));
-        this.renderAISuggestions();
-      }
+      render() { const list = document.getElementById('alertList'); if (!list) return; if (State.alerts.length === 0) { list.innerHTML = '<div class="alert-empty">No custom alerts.</div>'; UI.updateBadges(); return; } list.innerHTML = State.alerts.map(a => `<div class="alert-item"><div class="alert-info"><div class="alert-icon ${a.condition.includes('above') ? 'up' : 'down'}">${a.condition.includes('above') ? '↑' : '↓'}</div><div class="alert-details"><h4>${a.poolName}</h4><p>${a.condition.replace('-', ' ')} ${a.condition.includes('tvl') ? Utils.formatNumber(a.value) : a.condition.includes('apr') ? a.value + '%' : '$' + a.value}</p></div></div><div class="alert-actions"><button class="toggle ${a.active ? 'active' : ''}" onclick="Alerts.toggle(${a.id},event)"></button><button class="btn btn--ghost" onclick="Alerts.remove(${a.id},event)">✕</button></div></div>`).join(''); UI.updateBadges(); },
+      refreshAISuggestions() { const suggestions = []; State.filteredPools.filter(p => p.volumeToTvl > 0.4 && p.safety === 'safe').slice(0, 2).forEach(p => { suggestions.push({ pool: p, reason: 'High trading volume', condition: 'price-above', value: (p.currentPrice * 1.05).toFixed(4) }); }); State.filteredPools.filter(p => parseFloat(p.apr) > 50).slice(0, 2).forEach(p => { if (!suggestions.find(s => s.pool.id === p.id)) suggestions.push({ pool: p, reason: `${p.apr}% APR`, condition: 'tvl-above', value: Math.floor(p.tvl * 1.2) }); }); State.aiSuggestions = suggestions.slice(0, 4); this.renderAISuggestions(); },
+      renderAISuggestions() { const cont = document.getElementById('aiSuggestions'); if (!cont) return; if (State.aiSuggestions.length === 0) { cont.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:10px">Click Refresh for AI suggestions.</div>'; return; } cont.innerHTML = State.aiSuggestions.map(s => `<div class="ai-suggestion"><div class="ai-suggestion-info"><div class="ai-suggestion-pool">${s.pool.name} - ${s.condition.replace('-', ' ')} ${s.condition.includes('tvl') ? Utils.formatNumber(s.value) : '$' + s.value}</div><div class="ai-suggestion-reason">${s.reason}</div></div><div class="ai-suggestion-actions"><button class="btn btn--success" onclick="Alerts.acceptSuggestion('${s.pool.id}','${s.condition}',${s.value})">Accept</button><button class="btn btn--ghost" onclick="this.parentElement.parentElement.remove()">✕</button></div></div>`).join(''); },
+      acceptSuggestion(poolId, condition, value) { const pool = State.pools.find(p => p.id === poolId); if (pool && !State.alerts.find(a => a.poolId === poolId && a.condition === condition)) { State.alerts.push({ id: Date.now(), poolId, poolName: pool.name, condition, value, active: true }); this.render(); Toast.success('Alert Added', `${pool.name} alert created`); } State.aiSuggestions = State.aiSuggestions.filter(s => !(s.pool.id === poolId && s.condition === condition)); this.renderAISuggestions(); }
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
     // BACKGROUND & LIVE UPDATES
     // ═══════════════════════════════════════════════════════════════════════════
-    const Background = {
-      init() {
-        const canvas = document.getElementById('bgCanvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-        const create = () => {
-          particles = [];
-          const count = Math.floor((canvas.width * canvas.height) / 30000);
-          for (let i = 0; i < count; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2, size: Math.random() * 1.2 + 0.3, alpha: Math.random() * 0.25 + 0.05 });
-        };
-        const animate = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          particles.forEach(p => {
-            p.x += p.vx; p.y += p.vy;
-            if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
-            if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(99, 102, 241, ${p.alpha})`; ctx.fill();
-          });
-          requestAnimationFrame(animate);
-        };
-        resize(); create(); animate();
-        window.addEventListener('resize', () => { resize(); create(); });
-      }
-    };
-
-    const LiveUpdates = {
-      start() {
-        setInterval(() => {
-          State.pools.forEach(p => p.bins.forEach(b => b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2)));
-          if (State.expandedPoolId) {
-            const pool = State.pools.find(p => p.id === State.expandedPoolId);
-            const card = document.getElementById(`pool-${State.expandedPoolId}`);
-            if (pool && card) {
-              const cs = card.querySelector('.chart-section');
-              if (cs) cs.outerHTML = PoolRenderer.renderChart(pool);
-            }
-          }
-        }, 3000);
-      }
-    };
+    const Background = { init() { const canvas = document.getElementById('bgCanvas'); if (!canvas) return; const ctx = canvas.getContext('2d'); let particles = []; const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }; const create = () => { particles = []; const count = Math.floor((canvas.width * canvas.height) / 30000); for (let i = 0; i < count; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2, size: Math.random() * 1.2 + 0.3, alpha: Math.random() * 0.25 + 0.05 }); }; const animate = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.x += p.vx; p.y += p.vy; if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0; if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = `rgba(99, 102, 241, ${p.alpha})`; ctx.fill(); }); requestAnimationFrame(animate); }; resize(); create(); animate(); window.addEventListener('resize', () => { resize(); create(); }); } };
+    const LiveUpdates = { start() { setInterval(() => { State.pools.forEach(p => p.bins.forEach(b => b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2))); if (State.expandedPoolId) { const pool = State.pools.find(p => p.id === State.expandedPoolId); const card = document.getElementById(`pool-${State.expandedPoolId}`); if (pool && card) { const cs = card.querySelector('.chart-section'); if (cs) cs.outerHTML = PoolRenderer.renderChart(pool); } } }, 3000); } };
 
     // ═══════════════════════════════════════════════════════════════════════════
     // APP CONTROLLER
@@ -1060,6 +1178,10 @@
       async init() {
         Background.init();
         UI.setStatus('loading', 'Initializing...');
+        
+        // Try to auto-connect wallet
+        await Wallet.autoConnect();
+        
         await DataService.fetchJupiterTokens();
         await DataService.fetchMeteoraPools();
         PoolRenderer.renderAll();
@@ -1071,28 +1193,19 @@
         WebSocketService.startSimulation();
         LiveUpdates.start();
         setInterval(() => this.refresh(), CONFIG.REFRESH_INTERVAL);
+        
+        // Refresh wallet balance periodically
+        setInterval(() => { if (State.wallet.connected) Wallet.fetchBalance(); }, 30000);
       },
-      async refresh() {
-        await DataService.fetchMeteoraPools();
-        PoolRenderer.renderAll();
-        OpportunityRenderer.renderAll();
-        Alerts.populateDropdown();
-      },
-      applyFilters() {
-        DataService.applyFilters();
-        DataService.detectOpportunities();
-        PoolRenderer.renderAll();
-        OpportunityRenderer.renderAll();
-        Alerts.populateDropdown();
-        UI.switchTab('pools');
-        UI.setStatus('live', `${State.filteredPools.length} pools`);
-      },
-      toggleJupShield() {
-        State.jupshieldEnabled = !State.jupshieldEnabled;
-        document.getElementById('jupshieldToggle')?.classList.toggle('active', State.jupshieldEnabled);
-        this.applyFilters();
-      }
+      async refresh() { await DataService.fetchMeteoraPools(); PoolRenderer.renderAll(); OpportunityRenderer.renderAll(); Alerts.populateDropdown(); },
+      applyFilters() { DataService.applyFilters(); DataService.detectOpportunities(); PoolRenderer.renderAll(); OpportunityRenderer.renderAll(); Alerts.populateDropdown(); UI.switchTab('pools'); UI.setStatus('live', `${State.filteredPools.length} pools`); },
+      toggleJupShield() { State.jupshieldEnabled = !State.jupshieldEnabled; document.getElementById('jupshieldToggle')?.classList.toggle('active', State.jupshieldEnabled); this.applyFilters(); }
     };
+
+    // Close modal on overlay click
+    document.getElementById('walletModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'walletModal') Wallet.closeModal();
+    });
 
     document.addEventListener('DOMContentLoaded', () => App.init());
   </script>

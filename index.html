@@ -444,7 +444,44 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="btn btn--secondary" onclick="App.refresh()">
+        <button class="btn btn--secondary" onclick="App.refresh(async refresh() {
+  console.log("Refresh clicked");
+
+  try {
+    // 1. Fetch live pools (simple version first)
+    const res = await fetch("https://api.meteora.ag/pools");
+    const pools = await res.json();
+
+    // 2. Store pools
+    State.pools = pools;
+    State.filteredPools = pools;
+
+    // 3. Create VERY SIMPLE opportunities (for now)
+    const opps = pools
+      .filter(p => p.tvl > 100000)
+      .map(p => ({
+        id: p.address,
+        pool: p,
+        score: 0.8,
+        reason: "High TVL pool",
+        actions: [
+          { type: "VIEW_POOL" }
+        ]
+      }));
+
+    State.opportunities = opps;
+
+    // 4. Re-render UI
+    PoolsUI.render(State.filteredPools);
+    OpportunitiesUI.render(State.opportunities);
+
+    console.log("Refresh complete");
+
+  } catch (err) {
+    console.error("Refresh failed", err);
+  }
+}
+)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>
           Refresh
         </button>
@@ -537,7 +574,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>
             AI-Suggested Alerts
           </div>
-          <button class="btn btn--secondary" onclick="AlertsUI.refreshAI()">Refresh</button>
+          <button class="btn btn--secondary" onclick="AlertsUI.AI()"></button>
         </div>
         <div id="aiSuggestions"></div>
       </div>
@@ -630,7 +667,7 @@
       BIRDEYE_KEY: 'd6394c73bb9848caae1de19f7aebda0a',
       BIRDEYE_API: 'https://public-api.birdeye.so',
       
-      // Refresh intervals
+      //  intervals
       REFRESH_INTERVAL: 30000,
       WS_RECONNECT_DELAY: 5000
     };

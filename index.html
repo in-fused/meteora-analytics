@@ -672,6 +672,7 @@
       poolTransactions: {},
       wsConnection: null,
       wsConnected: false,
+      currentWsSource: null,
       jupshieldEnabled: true,
       wallet: { connected: false, publicKey: null, provider: null, name: null, balance: 0 },
       apiStatus: { meteora: false, jupiter: false, helius: false, birdeye: false }
@@ -1138,13 +1139,97 @@
           console.error('Meteora fetch error:', e);
           StatusUI.setApi('meteora', false);
           
-          // Fallback to sample data
-          State.pools = this.generateSamplePools();
-          State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
-          this.applyFilters();
-          this.detectOpportunities();
-          StatusUI.set('error', 'Using sample data');
+          // Try DexScreener as fallback
+          try {
+            const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
+            if (dxr.ok) {
+              const dxData = await dxr.json();
+              if (dxData.pairs?.length > 0) {
+                State.pools = dxData.pairs.filter(p => p.dexId === 'meteora' && p.liquidity?.usd > 100).slice(0, 150).map(p => this.processDexScreener(p));
+                State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
+                this.applyFilters();
+                this.detectOpportunities();
+                StatusUI.set('live', `${State.filteredPools.length} pools (DexScreener)`);
+                console.log(`Loaded ${State.pools.length} pools from DexScreener`);
+                return;
+              }
+            }
+          } catch (dx) { console.warn('DexScreener fallback failed:', dx); }
+          
+          // Try GeckoTerminal as second fallback
+          try {
+            const gtr = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/dexes/meteora-dlmm/pools?page=1');
+            if (gtr.ok) {
+              const gtData = await gtr.json();
+              if (gtData.data?.length > 0) {
+                State.pools = gtData.data.filter(p => parseFloat(p.attributes?.reserve_in_usd || 0) > 100).slice(0, 150).map(p => this.processGeckoTerminal(p));
+                State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
+                this.applyFilters();
+                this.detectOpportunities();
+                StatusUI.set('live', `${State.filteredPools.length} pools (GeckoTerminal)`);
+                console.log(`Loaded ${State.pools.length} pools from GeckoTerminal`);
+                return;
+              }
+            }
+          } catch (gt) { console.warn('GeckoTerminal fallback failed:', gt); }
+          
+          StatusUI.set('error', 'All sources failed - retrying in 30s');
         }
+      },
+      
+      processDexScreener(p) {
+        const xV = State.verifiedTokens.has(p.baseToken?.address || '');
+        const yV = State.verifiedTokens.has(p.quoteToken?.address || '');
+        let safety = 'warning';
+        if (xV && yV) safety = 'safe';
+        else if (!xV && !yV && (p.liquidity?.usd || 0) < 10000) safety = 'danger';
+        let score = 50;
+        const tvl = p.liquidity?.usd || 0, vol = p.volume?.h24 || 0;
+        if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
+        if (vol > 100000) score += 15; else if (vol > 10000) score += 10; else if (vol > 1000) score += 5;
+        const apr = tvl > 0 ? (vol / tvl * 365 * 0.003 * 100) : 0;
+        if (apr > 100) score += 10; else if (apr > 50) score += 7; else if (apr > 20) score += 4;
+        if (safety === 'safe') score += 5; else if (safety === 'danger') score -= 15;
+        score = Math.min(99, Math.max(10, Math.round(score)));
+        return {
+          id: p.pairAddress, address: p.pairAddress,
+          name: `${p.baseToken?.symbol || '?'}/${p.quoteToken?.symbol || '?'}`,
+          protocol: 'Meteora', mintX: p.baseToken?.address, mintY: p.quoteToken?.address,
+          tvl, volume: vol, apr: apr.toFixed(2), fees: vol * 0.003, feeBps: 0.3, binStep: 1,
+          currentPrice: parseFloat(p.priceUsd) || 1, safety, score,
+          bins: this.generateBins(parseFloat(p.priceUsd) || 1), activeBin: 10,
+          icon1: (p.baseToken?.symbol || '?').slice(0, 4), icon2: (p.quoteToken?.symbol || '?').slice(0, 4),
+          icon1Url: p.baseToken?.info?.imageUrl, icon2Url: p.quoteToken?.info?.imageUrl,
+          volumeToTvl: tvl > 0 ? vol / tvl : 0
+        };
+      },
+      
+      processGeckoTerminal(p) {
+        const a = p.attributes || {};
+        const tvl = parseFloat(a.reserve_in_usd) || 0, vol = parseFloat(a.volume_usd?.h24) || 0;
+        const xV = State.verifiedTokens.has(a.base_token_address || '');
+        const yV = State.verifiedTokens.has(a.quote_token_address || '');
+        let safety = 'warning';
+        if (xV && yV) safety = 'safe';
+        else if (!xV && !yV && tvl < 10000) safety = 'danger';
+        let score = 50;
+        if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
+        if (vol > 100000) score += 15; else if (vol > 10000) score += 10; else if (vol > 1000) score += 5;
+        const apr = tvl > 0 ? (vol / tvl * 365 * 0.003 * 100) : 0;
+        if (apr > 100) score += 10; else if (apr > 50) score += 7; else if (apr > 20) score += 4;
+        if (safety === 'safe') score += 5; else if (safety === 'danger') score -= 15;
+        score = Math.min(99, Math.max(10, Math.round(score)));
+        const nm = (a.name || 'Unknown').split(/[\/\-]/);
+        return {
+          id: p.id?.split('_')[1] || p.id, address: p.id?.split('_')[1] || p.id,
+          name: a.name || 'Unknown', protocol: 'Meteora',
+          mintX: a.base_token_address, mintY: a.quote_token_address,
+          tvl, volume: vol, apr: apr.toFixed(2), fees: vol * 0.003, feeBps: 0.3, binStep: 1,
+          currentPrice: parseFloat(a.base_token_price_usd) || 1, safety, score,
+          bins: this.generateBins(parseFloat(a.base_token_price_usd) || 1), activeBin: 10,
+          icon1: (nm[0] || '?').trim().slice(0, 4), icon2: (nm[1] || '?').trim().slice(0, 4),
+          volumeToTvl: tvl > 0 ? vol / tvl : 0
+        };
       },
       
       processPool(raw) {
@@ -1199,38 +1284,6 @@
           });
         }
         return bins;
-      },
-      
-      generateSamplePools() {
-        const samples = [
-          { name: 'SOL/USDC', price: 185 },
-          { name: 'JUP/USDC', price: 0.92 },
-          { name: 'BONK/SOL', price: 0.000025 },
-          { name: 'WIF/USDC', price: 2.45 },
-          { name: 'PYTH/USDC', price: 0.38 },
-          { name: 'JTO/USDC', price: 3.12 }
-        ];
-        return samples.map((s, i) => ({
-          id: `sample_${i}`,
-          address: `sample_address_${i}`,
-          name: s.name,
-          protocol: 'Meteora DLMM',
-          mintX: '', mintY: '',
-          tvl: Math.floor(Math.random() * 2000000) + 50000,
-          volume: Math.floor(Math.random() * 500000) + 10000,
-          apr: (Math.random() * 80 + 15).toFixed(2),
-          fees: Math.floor(Math.random() * 5000),
-          feeBps: [0.01, 0.05, 0.25][i % 3],
-          binStep: [1, 5, 10][i % 3],
-          currentPrice: s.price,
-          safety: 'safe',
-          score: 55 + Math.floor(Math.random() * 40),
-          bins: this.generateBins(s.price),
-          activeBin: 10,
-          icon1: s.name.split('/')[0],
-          icon2: s.name.split('/')[1],
-          volumeToTvl: 0.3 + Math.random() * 0.5
-        })).sort((a, b) => b.score - a.score);
       },
       
       applyFilters() {
@@ -1292,60 +1345,83 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // WEBSOCKET SERVICE
+    // WEBSOCKET SERVICE - Multi-source with fallback
     // ═══════════════════════════════════════════════════════════════════════════
+    const WS_SOURCES = [
+      { name: 'Helius', url: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113', errors: 0 },
+      { name: 'Solana', url: 'wss://api.mainnet-beta.solana.com', errors: 0 }
+    ];
+    
     const WSService = {
+      currentIdx: 0,
+      
       connect() {
+        this.trySource(this.currentIdx);
+      },
+      
+      trySource(idx) {
+        const source = WS_SOURCES[idx];
+        if (!source) {
+          console.warn('All WebSocket sources failed, retrying first...');
+          WS_SOURCES.forEach(s => s.errors = Math.max(0, s.errors - 1));
+          this.currentIdx = 0;
+          setTimeout(() => this.connect(), CONFIG.WS_RECONNECT_DELAY * 2);
+          return;
+        }
+        
+        if (source.errors >= 3) {
+          this.currentIdx = (idx + 1) % WS_SOURCES.length;
+          this.trySource(this.currentIdx);
+          return;
+        }
+        
         try {
-          if (State.wsConnection) {
-            State.wsConnection.close();
-          }
+          if (State.wsConnection) State.wsConnection.close();
           
-          State.wsConnection = new WebSocket(CONFIG.HELIUS_WS);
+          console.log(`Connecting to WebSocket: ${source.name}`);
+          State.wsConnection = new WebSocket(source.url);
           
           State.wsConnection.onopen = () => {
-            console.log('WebSocket connected to Helius');
+            console.log(`WebSocket connected: ${source.name}`);
             State.wsConnected = true;
+            State.currentWsSource = source.name;
+            source.errors = 0;
             StatusUI.setApi('helius', true);
             
-            // Subscribe to Meteora DLMM program logs
             State.wsConnection.send(JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'logsSubscribe',
-              params: [
-                { mentions: [CONFIG.METEORA_PROGRAM] },
-                { commitment: 'confirmed' }
-              ]
+              jsonrpc: '2.0', id: 1, method: 'logsSubscribe',
+              params: [{ mentions: [CONFIG.METEORA_PROGRAM] }, { commitment: 'confirmed' }]
             }));
           };
           
           State.wsConnection.onmessage = (e) => {
             try {
               const d = JSON.parse(e.data);
-              if (d.method === 'logsNotification') {
-                this.processLog(d.params.result);
-              }
+              if (d.method === 'logsNotification') this.processLog(d.params.result);
             } catch (err) {}
           };
           
-          State.wsConnection.onerror = (e) => {
-            console.warn('WebSocket error:', e);
+          State.wsConnection.onerror = () => {
+            console.warn(`WebSocket error: ${source.name}`);
+            source.errors++;
             State.wsConnected = false;
             StatusUI.setApi('helius', false);
           };
           
           State.wsConnection.onclose = () => {
-            console.log('WebSocket closed, reconnecting...');
+            console.log(`WebSocket closed: ${source.name}`);
             State.wsConnected = false;
+            State.currentWsSource = null;
             StatusUI.setApi('helius', false);
+            this.currentIdx = (this.currentIdx + 1) % WS_SOURCES.length;
             setTimeout(() => this.connect(), CONFIG.WS_RECONNECT_DELAY);
           };
           
         } catch (e) {
-          console.error('WebSocket setup error:', e);
-          StatusUI.setApi('helius', false);
-          this.startSimulation();
+          console.error(`WebSocket setup error: ${source.name}`, e);
+          source.errors++;
+          this.currentIdx = (this.currentIdx + 1) % WS_SOURCES.length;
+          setTimeout(() => this.connect(), CONFIG.WS_RECONNECT_DELAY);
         }
       },
       
@@ -1379,23 +1455,6 @@
         if (State.expandedPoolId === poolId || State.expandedOppId === poolId) {
           PoolTxUI.update(poolId);
         }
-      },
-      
-      startSimulation() {
-        console.log('Starting transaction simulation');
-        setInterval(() => {
-          if (!State.wsConnected && State.filteredPools.length > 0) {
-            const types = ['add', 'remove', 'swap'];
-            const pool = State.filteredPools[Math.floor(Math.random() * Math.min(State.filteredPools.length, 12))];
-            this.addTx(pool.id, {
-              id: `sim_${Date.now()}`,
-              type: types[Math.floor(Math.random() * 3)],
-              signature: Math.random().toString(36).substring(2, 14),
-              amount: (Math.random() * 5000 + 100).toFixed(2),
-              timestamp: Date.now()
-            });
-          }
-        }, 2500);
       }
     };
 
@@ -1503,7 +1562,6 @@
         
         // Connect WebSocket for live transactions
         WSService.connect();
-        WSService.startSimulation(); // Fallback simulation
         
         // Start live updates
         LiveUpdates.start();

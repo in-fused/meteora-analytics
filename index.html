@@ -537,7 +537,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>
             AI-Suggested Alerts
           </div>
-          <button class="btn btn--secondary" onclick="AlertsUI.AI()"></button>
+          <button class="btn btn--secondary" onclick="AlertsUI.refreshAI()">Refresh</button>
         </div>
         <div id="aiSuggestions"></div>
       </div>
@@ -630,7 +630,7 @@
       BIRDEYE_KEY: 'd6394c73bb9848caae1de19f7aebda0a',
       BIRDEYE_API: 'https://public-api.birdeye.so',
       
-      //  intervals
+      // Refresh intervals
       REFRESH_INTERVAL: 30000,
       WS_RECONNECT_DELAY: 5000
     };
@@ -1573,36 +1573,12 @@
         setInterval(() => { if (State.wallet.connected) WalletService.fetchBalance(); }, 30000);
       },
       
-      console.log("Refresh clicked");
-
-try {
-  const res = await fetch("https://api.meteora.ag/pools");
-  const pools = await res.json();
-
-  State.pools = pools;
-  State.filteredPools = pools;
-
-  const opps = pools
-    .filter(p => p.tvl > 100000)
-    .map(p => ({
-      id: p.address,
-      pool: p,
-      score: 0.8,
-      reason: "High TVL pool",
-      actions: [{ type: "VIEW_POOL" }]
-    }));
-
-  State.opportunities = opps;
-
-  PoolsUI.render(State.filteredPools);
-  OpportunitiesUI.render(State.opportunities);
-
-  console.log("Refresh complete");
-
-} catch (err) {
-  console.error("Refresh failed", err);
-}
-
+      async refresh() {
+        await DataService.fetchPools();
+        PoolsGridUI.render();
+        OpportunityUI.render();
+        AlertsUI.populateDropdown();
+      },
       
       applyFilters() {
         DataService.applyFilters();

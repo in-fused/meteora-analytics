@@ -1578,6 +1578,45 @@
         PoolsGridUI.render();
         OpportunityUI.render();
         AlertsUI.populateDropdown();
+
+        // async refresh() {
+  console.log("Refresh clicked");
+
+  try {
+    // 1. Fetch live pools (simple version first)
+    const res = await fetch("https://api.meteora.ag/pools");
+    const pools = await res.json();
+
+    // 2. Store pools
+    State.pools = pools;
+    State.filteredPools = pools;
+
+    // 3. Create VERY SIMPLE opportunities (for now)
+    const opps = pools
+      .filter(p => p.tvl > 100000)
+      .map(p => ({
+        id: p.address,
+        pool: p,
+        score: 0.8,
+        reason: "High TVL pool",
+        actions: [
+          { type: "VIEW_POOL" }
+        ]
+      }));
+
+    State.opportunities = opps;
+
+    // 4. Re-render UI
+    PoolsUI.render(State.filteredPools);
+    OpportunitiesUI.render(State.opportunities);
+
+    console.log("Refresh complete");
+
+  } catch (err) {
+    console.error("Refresh failed", err);
+  }
+}
+
       },
       
       applyFilters() {

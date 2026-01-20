@@ -166,6 +166,7 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 14px;
+      grid-auto-flow: dense;
     }
     @media (max-width: 1200px) { .pools-container { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 768px) { .pools-container { grid-template-columns: 1fr; } }
@@ -180,7 +181,13 @@
       overflow: hidden;
       transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
       position: relative;
+      align-self: start;
     }
+    /* Expanded card spans full width */
+    .pool-card.expanded {
+      grid-column: 1 / -1;
+    }
+    @media (max-width: 768px) { .pool-card.expanded { grid-column: 1; } }
     .pool-card::before {
       content: '';
       position: absolute;
@@ -237,6 +244,18 @@
     .mini-badge.farm { background: rgba(52,211,153,0.15); color: var(--accent-emerald); }
     .mini-badge.bin { background: rgba(129,140,248,0.15); color: var(--accent-primary); }
     .mini-badge.fee { background: rgba(34,211,238,0.15); color: var(--accent-cyan); }
+    .mini-badge.hot { background: rgba(251,113,133,0.2); color: #f87171; animation: hotPulse 1.5s infinite; }
+    @keyframes hotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    
+    /* Hot pool indicator */
+    .pool-card.is-hot { border-color: rgba(251,113,133,0.4); }
+    .pool-card.is-hot::before { opacity: 1; background: linear-gradient(90deg, #f87171, transparent); }
+    .hot-indicator { position: absolute; top: 8px; right: 8px; font-size: 16px; z-index: 3; animation: hotBounce 1s infinite; }
+    @keyframes hotBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+    
+    /* 1h stats highlight */
+    .pool-stat.has-1h .pool-stat-label { color: var(--accent-amber); }
+    .pool-stat.has-1h .pool-stat-value { color: var(--accent-amber); }
     
     /* Advanced Info in Expanded */
     .pool-advanced-info { padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
@@ -244,6 +263,7 @@
     .advanced-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .adv-item { font-size: 11px; color: var(--text-secondary); }
     .adv-item span { color: var(--text-muted); margin-right: 5px; }
+    .adv-item.highlight { color: var(--accent-amber); }
 
     /* Expanded Content */
     .pool-expanded { display: none; border-top: 1px solid var(--border-subtle); }
@@ -535,11 +555,13 @@
             <label class="filter-label">Sort By</label>
             <select class="filter-input filter-select" id="filterSort">
               <option value="score">Score</option>
+              <option value="fees1h">🔥 Fees 1h (Hot)</option>
+              <option value="feeTvl1h">Fee/TVL 1h</option>
               <option value="tvl">TVL</option>
-              <option value="volume">Volume</option>
+              <option value="volume">Volume 24h</option>
               <option value="apr">APR</option>
-              <option value="fees">24h Fees</option>
-              <option value="feeTvl">Fee/TVL Ratio</option>
+              <option value="fees">Fees 24h</option>
+              <option value="feeTvl">Fee/TVL 24h</option>
             </select>
           </div>
           <div class="filter-group">
@@ -584,10 +606,13 @@
             <div class="filter-group">
               <label class="filter-label">Condition</label>
               <select class="filter-input filter-select" id="alertCondition">
+                <option value="fees1h-above">🔥 Fees 1h Above</option>
+                <option value="feeTvl1h-above">Fee/TVL 1h Above</option>
                 <option value="price-above">Price Above</option>
                 <option value="price-below">Price Below</option>
                 <option value="tvl-above">TVL Above</option>
                 <option value="apr-above">APR Above</option>
+                <option value="volume-above">Volume Above</option>
               </select>
             </div>
             <div class="filter-group">
@@ -650,9 +675,10 @@
       HELIUS_RPC: 'https://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
       HELIUS_WS: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
       
-      // Refresh intervals
-      REFRESH_INTERVAL: 30000,
-      WS_RECONNECT_DELAY: 3000,
+      // Refresh intervals (faster for short-term opportunities)
+      REFRESH_INTERVAL: 10000,      // 10 seconds for pool data
+      FAST_REFRESH: 5000,           // 5 seconds for price-sensitive data
+      WS_RECONNECT_DELAY: 2000,
       MAX_ERRORS: 3
     };
 
@@ -916,8 +942,9 @@
         const binBadge = pool.binStep > 1 ? `<span class="mini-badge bin">Bin ${pool.binStep}</span>` : '';
         
         return `
-          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''}" id="pool-${pool.id}">
+          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''} ${pool.isHot ? 'is-hot' : ''}" id="pool-${pool.id}">
             <div class="pool-rank ${rank <= 3 ? 'top3' : ''}">${rank}</div>
+            ${pool.isHot ? '<div class="hot-indicator">🔥</div>' : ''}
             <div class="pool-card-main" onclick="PoolCardUI.toggle('${pool.id}')">
               <div class="pool-header">
                 <div class="pool-pair">
@@ -933,11 +960,11 @@
               </div>
               <div class="pool-stats">
                 <div class="pool-stat"><div class="pool-stat-label">TVL</div><div class="pool-stat-value">${Utils.formatNumber(pool.tvl)}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">Volume</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div>
+                <div class="pool-stat"><div class="pool-stat-label">Vol 24h</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div>
                 <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">Fees</div><div class="pool-stat-value">${Utils.formatNumber(pool.fees)}</div></div>
+                <div class="pool-stat ${pool.fees1h > 0 ? 'has-1h' : ''}"><div class="pool-stat-label">${pool.fees1h > 0 ? 'Fees 1h' : 'Fees 24h'}</div><div class="pool-stat-value">${pool.fees1h > 0 ? Utils.formatNumber(pool.fees1h) : Utils.formatNumber(pool.fees)}</div></div>
               </div>
-              ${farmBadge || binBadge ? `<div class="pool-badges-row">${farmBadge}${binBadge}</div>` : ''}
+              ${farmBadge || binBadge || pool.isHot ? `<div class="pool-badges-row">${pool.isHot ? '<span class="mini-badge hot">🔥 Hot</span>' : ''}${farmBadge}${binBadge}</div>` : ''}
               <div class="pool-expand-hint">Click to expand</div>
             </div>
             <div class="pool-expanded">
@@ -966,12 +993,24 @@
       
       renderAdvancedInfo(pool) {
         const items = [];
-        if (pool.feeBps) items.push(`<div class="adv-item"><span>Fee:</span> ${pool.feeBps}%</div>`);
+        
+        // Short-term metrics first (most actionable)
+        if (pool.fees1h > 0) items.push(`<div class="adv-item highlight"><span>Fees 1h:</span> ${Utils.formatNumber(pool.fees1h)}</div>`);
+        if (pool.fees1h > 0 && pool.fees > 0) {
+          const projected = pool.fees1h * 24;
+          const vs24h = ((projected / pool.fees - 1) * 100).toFixed(0);
+          items.push(`<div class="adv-item ${vs24h > 0 ? 'highlight' : ''}"><span>Projected 24h:</span> ${Utils.formatNumber(projected)} (${vs24h > 0 ? '+' : ''}${vs24h}%)</div>`);
+        }
+        if (pool.feeTvlRatio1h > 0) items.push(`<div class="adv-item highlight"><span>Fee/TVL 1h:</span> ${(pool.feeTvlRatio1h * 100).toFixed(4)}%</div>`);
+        
+        // Standard metrics
+        if (pool.fees > 0) items.push(`<div class="adv-item"><span>Fees 24h:</span> ${Utils.formatNumber(pool.fees)}</div>`);
+        if (pool.feeBps) items.push(`<div class="adv-item"><span>Base Fee:</span> ${pool.feeBps}%</div>`);
         if (pool.binStep > 1) items.push(`<div class="adv-item"><span>Bin Step:</span> ${pool.binStep}</div>`);
         if (pool.farmApr && parseFloat(pool.farmApr) > 0) items.push(`<div class="adv-item"><span>Farm APR:</span> +${pool.farmApr}%</div>`);
-        if (pool.feeTvlRatio > 0) items.push(`<div class="adv-item"><span>Fee/TVL:</span> ${(pool.feeTvlRatio * 100).toFixed(3)}%</div>`);
+        if (pool.feeTvlRatio > 0) items.push(`<div class="adv-item"><span>Fee/TVL 24h:</span> ${(pool.feeTvlRatio * 100).toFixed(3)}%</div>`);
+        if (pool.volumeToTvl > 0) items.push(`<div class="adv-item"><span>Vol/TVL:</span> ${(pool.volumeToTvl * 100).toFixed(0)}%</div>`);
         if (pool.cumulativeTradeVolume > 0) items.push(`<div class="adv-item"><span>All-time Vol:</span> ${Utils.formatNumber(pool.cumulativeTradeVolume)}</div>`);
-        if (pool.creator) items.push(`<div class="adv-item"><span>Creator:</span> ${Utils.shortenAddress(pool.creator, 6)}</div>`);
         
         if (items.length === 0) return '';
         
@@ -1159,14 +1198,38 @@
         list.innerHTML = State.alerts.map(a => `<div class="alert-item"><div class="alert-info"><div class="alert-icon ${a.condition.includes('above') ? 'up' : 'down'}">${a.condition.includes('above') ? '↑' : '↓'}</div><div class="alert-details"><h4>${a.poolName}</h4><p>${a.condition.replace('-', ' ')} ${a.condition.includes('tvl') ? Utils.formatNumber(a.value) : '$' + a.value}</p></div></div><div class="alert-actions"><button class="toggle ${a.active ? 'active' : ''}" onclick="AlertsUI.toggle(${a.id},event)"></button><button class="btn btn--ghost" onclick="AlertsUI.remove(${a.id},event)">✕</button></div></div>`).join('');
       },
       refreshAI() {
-        State.aiSuggestions = State.filteredPools.filter(p => p.safety === 'safe' && (p.volumeToTvl > 0.4 || parseFloat(p.apr) > 50)).slice(0, 4).map(p => ({ pool: p, reason: p.volumeToTvl > 0.4 ? 'High trading volume detected' : `Strong ${p.apr}% APR`, condition: 'price-above', value: (p.currentPrice * 1.05).toFixed(4) }));
+        // Prioritize short-term opportunities (hot pools, high 1h fees)
+        State.aiSuggestions = State.filteredPools
+          .filter(p => p.safety === 'safe' && (p.isHot || p.fees1h > 0 || p.volumeToTvl > 0.4 || parseFloat(p.apr) > 50))
+          .slice(0, 5)
+          .map(p => {
+            let reason, condition, value;
+            if (p.isHot) {
+              reason = `🔥 FEE SPIKE: 1h fees ${Utils.formatNumber(p.fees1h)} - high short-term opportunity`;
+              condition = 'fees1h-above';
+              value = (p.fees1h * 0.8).toFixed(2);
+            } else if (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.0005) {
+              reason = `⚡ Active pool: ${Utils.formatNumber(p.fees1h)} fees in 1h`;
+              condition = 'fees1h-above';
+              value = (p.fees1h * 0.5).toFixed(2);
+            } else if (p.volumeToTvl > 0.4) {
+              reason = `📈 High volume: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
+              condition = 'volume-above';
+              value = (p.volume * 0.8).toFixed(0);
+            } else {
+              reason = `💰 Strong ${p.apr}% APR`;
+              condition = 'apr-above';
+              value = (parseFloat(p.apr) * 0.9).toFixed(0);
+            }
+            return { pool: p, reason, condition, value };
+          });
         this.renderAI();
       },
       renderAI() {
         const c = document.getElementById('aiSuggestions');
         if (!c) return;
-        if (State.aiSuggestions.length === 0) { c.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:10px">Click Refresh for AI-generated suggestions based on current market data.</div>'; return; }
-        c.innerHTML = State.aiSuggestions.map(s => `<div class="ai-suggestion"><div class="ai-suggestion-info"><div class="ai-suggestion-pool">${s.pool.name} - price above $${s.value}</div><div class="ai-suggestion-reason">${s.reason}</div></div><div class="ai-suggestion-actions"><button class="btn btn--success" onclick="AlertsUI.acceptAI('${s.pool.id}','${s.condition}',${s.value})">Accept</button><button class="btn btn--ghost" onclick="this.parentElement.parentElement.remove()">✕</button></div></div>`).join('');
+        if (State.aiSuggestions.length === 0) { c.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">Click Refresh for short-term opportunity alerts.</div>'; return; }
+        c.innerHTML = State.aiSuggestions.map(s => `<div class="ai-suggestion"><div class="ai-suggestion-info"><div class="ai-suggestion-pool">${s.pool.name}</div><div class="ai-suggestion-reason">${s.reason}</div></div><div class="ai-suggestion-actions"><button class="btn btn--success" onclick="AlertsUI.acceptAI('${s.pool.id}','${s.condition}',${s.value})">Add Alert</button><button class="btn btn--ghost" onclick="this.parentElement.parentElement.remove()">✕</button></div></div>`).join('');
       },
       acceptAI(poolId, cond, val) {
         const pool = State.pools.find(p => p.id === poolId);
@@ -1529,9 +1592,18 @@
           // Fee/TVL ratios (multiple timeframes)
           feeTvlRatio,
           feeTvlRatio1h,
-          fees1h: raw.fees?.hour_1 || 0,
-          fees4h: raw.fees?.hour_4 || 0,
-          fees12h: raw.fees?.hour_12 || 0,
+          fees1h: parseFloat(raw.fees?.hour_1) || 0,
+          fees4h: parseFloat(raw.fees?.hour_4) || 0,
+          fees12h: parseFloat(raw.fees?.hour_12) || 0,
+          
+          // Volume short-term (extrapolated from fee data if not available)
+          volume1h: parseFloat(raw.volume?.hour_1) || (parseFloat(raw.fees?.hour_1) || 0) / (parseFloat(raw.base_fee_percentage) || 0.3) * 100,
+          volume4h: parseFloat(raw.volume?.hour_4) || 0,
+          
+          // Short-term opportunity metrics
+          feeVelocity: (parseFloat(raw.fees?.hour_1) || 0) * 24, // Projected 24h fees from 1h rate
+          volumeVelocity: tvl > 0 ? ((parseFloat(raw.volume?.hour_1) || 0) / tvl) * 24 : 0, // Projected vol/TVL from 1h
+          isHot: (parseFloat(raw.fees?.hour_1) || 0) * 24 > fees * 1.5, // Fee rate 50%+ above 24h avg
           
           // Reserves
           reserveX: raw.reserve_x,
@@ -1599,6 +1671,8 @@
         
         f.sort((a, b) => {
           switch (sort) {
+            case 'fees1h': return (b.fees1h || 0) - (a.fees1h || 0);
+            case 'feeTvl1h': return (b.feeTvlRatio1h || 0) - (a.feeTvlRatio1h || 0);
             case 'tvl': return b.tvl - a.tvl;
             case 'volume': return b.volume - a.volume;
             case 'apr': return parseFloat(b.apr) - parseFloat(a.apr);
@@ -1612,58 +1686,66 @@
       },
       
       detectOpportunities() {
+        // Detect both long-term reliable and short-term spike opportunities
         const opps = State.filteredPools.filter(p => 
+          // HOT: Fee velocity spike (1h rate > 150% of 24h average)
+          (p.isHot && p.safety === 'safe' && p.tvl > 5000) ||
+          // HOT: High 1h fee generation relative to TVL
+          (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001 && p.safety === 'safe') ||
+          // High volume/TVL ratio (active trading)
           (p.volumeToTvl > 0.3 && p.safety === 'safe' && p.tvl > 20000) ||
+          // Strong APR with good score
           (parseFloat(p.apr) > 30 && p.safety === 'safe' && p.score >= 65) ||
+          // Top performers
           (p.score >= 80 && p.safety === 'safe') ||
+          // Active farms
           (p.farmActive && p.safety === 'safe' && p.tvl > 10000) ||
+          // High fee efficiency
           (p.feeTvlRatio > 0.01 && p.safety === 'safe')
-        ).slice(0, 10).map(p => {
-          let reason = '', actions = [];
+        ).slice(0, 12).map(p => {
+          let reason = '', type = 'standard';
           
+          // 🔥 HOT short-term opportunity - fee spike
+          if (p.isHot && p.fees1h > 0) {
+            type = 'hot';
+            const projected = (p.fees1h * 24);
+            reason = `🔥 FEE SPIKE: 1h fees ${Utils.formatNumber(p.fees1h)} → projected ${Utils.formatNumber(projected)}/day (${((projected/p.fees - 1) * 100).toFixed(0)}% above 24h avg). Quick entry opportunity!`;
+          }
+          // ⚡ High 1h fee/TVL - active pool
+          else if (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001) {
+            type = 'active';
+            reason = `⚡ ACTIVE: ${Utils.formatNumber(p.fees1h)} fees in last hour (${((p.fees1h / p.tvl) * 100).toFixed(3)}% of TVL). High short-term fee potential.`;
+          }
           // Farm opportunity
-          if (p.farmActive) {
-            reason = `Active farm rewards available! ${p.apr}% base APR + farming incentives. ${p.tokensVerified ? 'Verified tokens.' : ''}`;
-            actions = [
-              { title: 'Farm + LP', desc: 'Provide liquidity and stake LP tokens for dual rewards' },
-              { title: 'Calculate Total APY', desc: 'Combine base APR with farm rewards for true returns' }
-            ];
+          else if (p.farmActive) {
+            reason = `🌾 FARM: ${p.apr}% APR + farm rewards. ${p.tokensVerified ? 'Verified.' : ''}`;
           }
           // High volume opportunity
           else if (p.volumeToTvl > 0.5) {
-            reason = `Exceptional trading activity with ${(p.volumeToTvl * 100).toFixed(0)}% volume-to-TVL ratio. High fee generation potential.`;
-            actions = [
-              { title: 'Concentrated LP', desc: 'Place liquidity in bins near active price for maximum fee capture' },
-              { title: 'Monitor Bin Migration', desc: 'Track price movement to rebalance positions optimally' }
-            ];
+            reason = `📈 HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio. Strong fee generation.`;
           }
           // High APR opportunity
           else if (parseFloat(p.apr) > 50) {
-            reason = `Strong ${p.apr}% APR with ${p.tokensVerified ? 'verified tokens' : 'token pair'}. Fee/TVL ratio: ${(p.feeTvlRatio * 100 || 0).toFixed(2)}%`;
-            actions = [
-              { title: 'Wide Range Position', desc: 'Spread liquidity across multiple bins for steady returns' },
-              { title: 'Set Price Alerts', desc: 'Get notified when price approaches range boundaries' }
-            ];
+            reason = `💰 HIGH APR: ${p.apr}% with ${(p.feeTvlRatio * 100 || 0).toFixed(2)}% fee/TVL efficiency.`;
           }
           // High fee efficiency
           else if (p.feeTvlRatio > 0.01) {
-            reason = `High fee efficiency at ${(p.feeTvlRatio * 100).toFixed(2)}% fee/TVL ratio. ${Utils.formatNumber(p.fees)} in 24h fees.`;
-            actions = [
-              { title: 'Targeted LP', desc: 'Focus liquidity around active price bins for fee optimization' },
-              { title: 'Track Fee Trends', desc: 'Monitor fee generation patterns for entry timing' }
-            ];
+            reason = `📊 EFFICIENT: ${(p.feeTvlRatio * 100).toFixed(2)}% fee/TVL. ${Utils.formatNumber(p.fees)} in 24h fees.`;
           }
           // General top performer
           else {
-            reason = `Top performer with score ${p.score}. ${p.tokensVerified ? 'Verified tokens, ' : ''}healthy TVL, and balanced metrics.`;
-            actions = [
-              { title: 'Balanced LP', desc: 'Add liquidity around current price with moderate range' },
-              { title: 'Auto-Compound', desc: 'Reinvest earned fees periodically to maximize returns' }
-            ];
+            reason = `⭐ TOP SCORER: ${p.score} points. Balanced metrics, ${p.tokensVerified ? 'verified' : 'healthy TVL'}.`;
           }
           
-          return { ...p, reason, actions };
+          return { ...p, reason, oppType: type };
         });
+        
+        // Sort by opportunity type (hot first, then active, then others)
+        opps.sort((a, b) => {
+          const typeOrder = { hot: 0, active: 1, standard: 2 };
+          return (typeOrder[a.oppType] || 2) - (typeOrder[b.oppType] || 2);
+        });
+        
         State.opportunities = opps;
         StatusUI.updateBadges();
       }

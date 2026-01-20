@@ -936,10 +936,9 @@
         // Pool type short label
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
         
-        // Badges
+        // Only show farm badge on collapsed view (bin step shown in details)
         const farmBadge = pool.farmActive ? '<span class="mini-badge farm">🌾 Active</span>' : 
                          pool.hasFarm ? '<span class="mini-badge farm">🌾 Farm</span>' : '';
-        const binBadge = pool.binStep > 1 ? `<span class="mini-badge bin">Bin ${pool.binStep}</span>` : '';
         
         return `
           <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''} ${pool.isHot ? 'is-hot' : ''}" id="pool-${pool.id}">
@@ -964,7 +963,7 @@
                 <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%</div></div>
                 <div class="pool-stat ${pool.fees1h > 0 ? 'has-1h' : ''}"><div class="pool-stat-label">${pool.fees1h > 0 ? 'Fees 1h' : 'Fees 24h'}</div><div class="pool-stat-value">${pool.fees1h > 0 ? Utils.formatNumber(pool.fees1h) : Utils.formatNumber(pool.fees)}</div></div>
               </div>
-              ${farmBadge || binBadge || pool.isHot ? `<div class="pool-badges-row">${pool.isHot ? '<span class="mini-badge hot">🔥 Hot</span>' : ''}${farmBadge}${binBadge}</div>` : ''}
+              ${farmBadge || pool.isHot ? `<div class="pool-badges-row">${pool.isHot ? '<span class="mini-badge hot">🔥 Hot</span>' : ''}${farmBadge}</div>` : ''}
               <div class="pool-expand-hint">Click to expand</div>
             </div>
             <div class="pool-expanded">

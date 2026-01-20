@@ -669,14 +669,24 @@
       METEORA_DLMM: 'https://dlmm-api.meteora.ag',
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
       
-      // Updated endpoints
-JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified',  // For verified tokens
-JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',  // Price API is now V3
+      // Jupiter Token Verification & Price
+const JUPITER_TOKENS = 'https://api.jup.ag/tokens/v2/tag?query=verified';
+const JUPITER_PRICE = 'https://api.jup.ag/price/v3/price';
+
+// Example usage
+const response = await fetch(JUPITER_TOKENS, {
+  headers: {
+    'x-api-key': 'dc76ddd5-a9e1-491d-9c0f-2e2ee377081b',
+  },
+});
       
       // Helius API (Primary)
       HELIUS_KEY: '66097387-f0e6-4f93-a800-dbaac4a4c113',
       HELIUS_RPC: 'https://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
       HELIUS_WS: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
+
+      // Jupiter Token Verification
+      JUPITER_PRICE: 'https://price.jup.ag/v4/price',
       
       // Refresh intervals
       REFRESH_INTERVAL: 30000,

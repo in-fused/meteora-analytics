@@ -537,6 +537,14 @@
             </select>
           </div>
           <div class="filter-group">
+            <label class="filter-label">Pool Type</label>
+            <select class="filter-input filter-select" id="filterPoolType">
+              <option value="all">All Types</option>
+              <option value="dlmm">DLMM Only</option>
+              <option value="damm">DAMM v2 Only</option>
+            </select>
+          </div>
+          <div class="filter-group">
             <label class="filter-label">Sort By</label>
             <select class="filter-input filter-select" id="filterSort">
               <option value="score">Score</option>
@@ -923,6 +931,13 @@
         // Fee/TVL ratio
         const feeTvlDisplay = pool.feeTvlRatio > 0 ? `${(pool.feeTvlRatio * 100).toFixed(2)}%` : '';
         
+        // Bin step for DLMM
+        const binStepDisplay = pool.binStep > 1 ? `<span class="bin-badge">Bin: ${pool.binStep}</span>` : '';
+        
+        // Farm APR display
+        const farmAprDisplay = pool.farmApr && parseFloat(pool.farmApr) > 0 ? 
+          `<span class="farm-apr-badge">+${pool.farmApr}% Farm</span>` : '';
+        
         return `
           <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''}" id="pool-${pool.id}">
             <div class="pool-rank ${rank <= 3 ? 'top3' : ''}">${rank}</div>
@@ -930,12 +945,12 @@
               <div class="pool-header">
                 <div class="pool-pair">
                   <div class="pool-icons"><div class="pool-icon">${pool.icon1}</div><div class="pool-icon">${pool.icon2}</div></div>
-                  <div class="pool-info"><h3>${pool.name}</h3><div class="pool-meta"><span>${pool.protocol}</span><span>•</span><span>Fee: ${feeDisplay}</span></div></div>
+                  <div class="pool-info"><h3>${pool.name}</h3><div class="pool-meta"><span>${pool.protocol}</span><span>•</span><span>Fee: ${feeDisplay}</span>${pool.binStep > 1 ? `<span>•</span><span>Bin: ${pool.binStep}</span>` : ''}</div></div>
                 </div>
                 <div class="pool-badges">
                   <span class="score-badge ${sc}">${pool.score}</span>
                   <span class="safety-badge ${pool.safety}">${si} ${pool.safety}</span>
-                  ${farmBadge}${launchBadge}${lockBadge}
+                  ${farmBadge}${farmAprDisplay}${launchBadge}${lockBadge}
                 </div>
               </div>
               <div class="pool-address">
@@ -946,14 +961,14 @@
               <div class="pool-stats">
                 <div class="pool-stat"><div class="pool-stat-label">TVL</div><div class="pool-stat-value">${Utils.formatNumber(pool.tvl)}</div></div>
                 <div class="pool-stat"><div class="pool-stat-label">24h Vol</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%</div></div>
+                <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%${pool.farmApr && parseFloat(pool.farmApr) > 0 ? ` <small>(+${pool.farmApr}%)</small>` : ''}</div></div>
                 <div class="pool-stat"><div class="pool-stat-label">24h Fees</div><div class="pool-stat-value">${Utils.formatNumber(pool.fees)}</div></div>
                 ${feeTvlDisplay ? `<div class="pool-stat"><div class="pool-stat-label">Fee/TVL</div><div class="pool-stat-value">${feeTvlDisplay}</div></div>` : ''}
               </div>
-              ${pool.tokenAAmount > 0 ? `
+              ${pool.tokenAAmount > 0 || pool.reserveXAmount > 0 ? `
               <div class="pool-token-breakdown">
-                <div class="token-amount"><span>${pool.icon1}:</span> ${pool.tokenAAmount.toLocaleString(undefined, {maximumFractionDigits: 2})} (${Utils.formatNumber(pool.tokenAAmountUsd)})</div>
-                <div class="token-amount"><span>${pool.icon2}:</span> ${pool.tokenBAmount.toLocaleString(undefined, {maximumFractionDigits: 2})} (${Utils.formatNumber(pool.tokenBAmountUsd)})</div>
+                <div class="token-amount"><span>${pool.icon1}:</span> ${(pool.tokenAAmount || pool.reserveXAmount || 0).toLocaleString(undefined, {maximumFractionDigits: 2})} ${pool.tokenAAmountUsd ? `(${Utils.formatNumber(pool.tokenAAmountUsd)})` : ''}</div>
+                <div class="token-amount"><span>${pool.icon2}:</span> ${(pool.tokenBAmount || pool.reserveYAmount || 0).toLocaleString(undefined, {maximumFractionDigits: 2})} ${pool.tokenBAmountUsd ? `(${Utils.formatNumber(pool.tokenBAmountUsd)})` : ''}</div>
               </div>` : ''}
             </div>
             <div class="pool-expanded">
@@ -967,17 +982,27 @@
       },
       
       renderAdvancedInfo(pool) {
-        if (!pool.creator && !pool.virtualPrice && !pool.minPrice) return '';
+        const hasInfo = pool.creator || pool.virtualPrice > 0 || pool.minPrice > 0 || pool.binStep > 1 || 
+                       pool.cumulativeTradeVolume > 0 || pool.rewardMintX || pool.tags?.length > 0;
+        if (!hasInfo) return '';
+        
         return `
           <div class="pool-advanced-info">
             <h4>Advanced Info</h4>
             <div class="advanced-grid">
+              ${pool.binStep > 1 ? `<div class="adv-item"><span>Bin Step:</span> ${pool.binStep} bps</div>` : ''}
+              ${pool.activeBin ? `<div class="adv-item"><span>Active Bin:</span> ${pool.activeBin}</div>` : ''}
               ${pool.creator ? `<div class="adv-item"><span>Creator:</span> ${Utils.shortenAddress(pool.creator, 6)}</div>` : ''}
               ${pool.virtualPrice > 0 ? `<div class="adv-item"><span>Virtual Price:</span> ${pool.virtualPrice.toFixed(6)}</div>` : ''}
               ${pool.minPrice > 0 ? `<div class="adv-item"><span>Price Range:</span> ${Utils.formatPrice(pool.minPrice)} - ${Utils.formatPrice(pool.maxPrice)}</div>` : ''}
               ${pool.alphaVault ? `<div class="adv-item"><span>Alpha Vault:</span> ${Utils.shortenAddress(pool.alphaVault, 6)}</div>` : ''}
               ${pool.createdAt ? `<div class="adv-item"><span>Created:</span> ${pool.createdAt.toLocaleDateString()}</div>` : ''}
               ${pool.poolType !== undefined ? `<div class="adv-item"><span>Pool Type:</span> ${pool.poolType}</div>` : ''}
+              ${pool.cumulativeTradeVolume > 0 ? `<div class="adv-item"><span>Total Volume:</span> ${Utils.formatNumber(pool.cumulativeTradeVolume)}</div>` : ''}
+              ${pool.cumulativeFeeVolume > 0 ? `<div class="adv-item"><span>Total Fees:</span> ${Utils.formatNumber(pool.cumulativeFeeVolume)}</div>` : ''}
+              ${pool.rewardMintX ? `<div class="adv-item"><span>Reward X:</span> ${Utils.shortenAddress(pool.rewardMintX, 6)}</div>` : ''}
+              ${pool.rewardMintY ? `<div class="adv-item"><span>Reward Y:</span> ${Utils.shortenAddress(pool.rewardMintY, 6)}</div>` : ''}
+              ${pool.tags?.length > 0 ? `<div class="adv-item"><span>Tags:</span> ${pool.tags.join(', ')}</div>` : ''}
             </div>
           </div>`;
       },
@@ -1184,88 +1209,125 @@
       
       async fetchPools() {
         try {
-          StatusUI.set('loading', 'Fetching pools...');
+          StatusUI.set('loading', 'Fetching pools from multiple sources...');
           
-          // Primary: Meteora DAMM v2 API (rich data)
-          const r = await fetch('https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc');
-          if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`);
+          // Fetch BOTH DLMM and DAMM v2 in parallel
+          const [dlmmResult, dammResult] = await Promise.allSettled([
+            fetch('https://dlmm-api.meteora.ag/pair/all').then(r => {
+              if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`);
+              return r.json();
+            }),
+            fetch('https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc').then(r => {
+              if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`);
+              return r.json();
+            })
+          ]);
           
-          const response = await r.json();
-          const pools = response.data || [];
-          StatusUI.setApi('meteora', true);
+          let allPools = [];
+          const seenAddresses = new Set();
+          let sources = [];
           
-          State.pools = pools
-            .filter(p => p.pool_address && (p.tvl || 0) > 100)
-            .slice(0, 150)
-            .map(p => this.processDAMMv2(p));
-          
-          // Initialize transaction arrays
-          State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
-          
-          this.applyFilters();
-          this.detectOpportunities();
-          StatusUI.set('live', `${State.filteredPools.length} pools`);
-          console.log(`Loaded ${State.pools.length} pools from DAMM v2 API`);
-          
-        } catch (e) {
-          console.error('DAMM v2 fetch error:', e);
-          
-          // Fallback 1: Try DLMM API
-          try {
-            const dlmmR = await fetch('https://dlmm-api.meteora.ag/pair/all');
-            if (dlmmR.ok) {
-              const dlmmPools = await dlmmR.json();
-              if (Array.isArray(dlmmPools) && dlmmPools.length > 0) {
-                StatusUI.setApi('meteora', true);
-                State.pools = dlmmPools.filter(p => p.name && parseFloat(p.liquidity || 0) > 100).slice(0, 150).map(p => this.processDLMM(p));
-                State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
-                this.applyFilters();
-                this.detectOpportunities();
-                StatusUI.set('live', `${State.filteredPools.length} pools (DLMM)`);
-                console.log(`Loaded ${State.pools.length} pools from DLMM API`);
-                return;
+          // Process DLMM pools (priority - has bin_step, farm_apr, timeframe data)
+          if (dlmmResult.status === 'fulfilled' && Array.isArray(dlmmResult.value)) {
+            const dlmmPools = dlmmResult.value
+              .filter(p => p.name && p.address && !p.hide && !p.is_blacklisted && parseFloat(p.liquidity || 0) > 100)
+              .map(p => this.processDLMM(p));
+            
+            dlmmPools.forEach(p => {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
               }
-            }
-          } catch (dlmmErr) { console.warn('DLMM fallback failed:', dlmmErr); }
+            });
+            sources.push(`DLMM: ${dlmmPools.length}`);
+            console.log(`✓ Loaded ${dlmmPools.length} pools from DLMM API`);
+          } else {
+            console.warn('✗ DLMM API failed:', dlmmResult.reason || 'Unknown error');
+          }
           
+          // Process DAMM v2 pools (adds unique pools not in DLMM)
+          if (dammResult.status === 'fulfilled' && dammResult.value?.data) {
+            const dammPools = dammResult.value.data
+              .filter(p => p.pool_address && (p.tvl || 0) > 100)
+              .map(p => this.processDAMMv2(p));
+            
+            let addedCount = 0;
+            dammPools.forEach(p => {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+                addedCount++;
+              }
+            });
+            sources.push(`DAMM v2: +${addedCount}`);
+            console.log(`✓ Added ${addedCount} unique pools from DAMM v2 API`);
+          } else {
+            console.warn('✗ DAMM v2 API failed:', dammResult.reason || 'Unknown error');
+          }
+          
+          // If both failed, try fallbacks
+          if (allPools.length === 0) {
+          console.warn('Both Meteora APIs failed, trying fallbacks...');
           StatusUI.setApi('meteora', false);
           
-          // Fallback 2: DexScreener
+          // Try DexScreener
           try {
             const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
             if (dxr.ok) {
               const dxData = await dxr.json();
               if (dxData.pairs?.length > 0) {
-                State.pools = dxData.pairs.filter(p => p.dexId === 'meteora' && p.liquidity?.usd > 100).slice(0, 150).map(p => this.processDexScreener(p));
-                State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
-                this.applyFilters();
-                this.detectOpportunities();
-                StatusUI.set('live', `${State.filteredPools.length} pools (DexScreener)`);
-                console.log(`Loaded ${State.pools.length} pools from DexScreener`);
-                return;
+                allPools = dxData.pairs
+                  .filter(p => p.dexId === 'meteora' && p.liquidity?.usd > 100)
+                  .slice(0, 150)
+                  .map(p => this.processDexScreener(p));
+                sources.push(`DexScreener (${allPools.length})`);
               }
             }
-          } catch (dx) { console.warn('DexScreener fallback failed:', dx); }
+          } catch (dx) { console.warn('DexScreener failed:', dx); }
           
-          // Try GeckoTerminal as second fallback
-          try {
-            const gtr = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/dexes/meteora-dlmm/pools?page=1');
-            if (gtr.ok) {
-              const gtData = await gtr.json();
-              if (gtData.data?.length > 0) {
-                State.pools = gtData.data.filter(p => parseFloat(p.attributes?.reserve_in_usd || 0) > 100).slice(0, 150).map(p => this.processGeckoTerminal(p));
-                State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
-                this.applyFilters();
-                this.detectOpportunities();
-                StatusUI.set('live', `${State.filteredPools.length} pools (GeckoTerminal)`);
-                console.log(`Loaded ${State.pools.length} pools from GeckoTerminal`);
-                return;
+          // Try GeckoTerminal if still empty
+          if (allPools.length === 0) {
+            try {
+              const gtr = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/dexes/meteora-dlmm/pools?page=1');
+              if (gtr.ok) {
+                const gtData = await gtr.json();
+                if (gtData.data?.length > 0) {
+                  allPools = gtData.data
+                    .filter(p => parseFloat(p.attributes?.reserve_in_usd || 0) > 100)
+                    .slice(0, 150)
+                    .map(p => this.processGeckoTerminal(p));
+                  sources.push(`GeckoTerminal (${allPools.length})`);
+                }
               }
-            }
-          } catch (gt) { console.warn('GeckoTerminal fallback failed:', gt); }
-          
-          StatusUI.set('error', 'All sources failed - retrying in 30s');
+            } catch (gt) { console.warn('GeckoTerminal failed:', gt); }
+          }
         }
+        
+        if (allPools.length === 0) {
+          StatusUI.set('error', 'All sources failed - retrying in 30s');
+          return;
+        }
+        
+        // Sort by score and limit
+        State.pools = allPools.sort((a, b) => b.score - a.score).slice(0, 200);
+        State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
+        
+        StatusUI.setApi('meteora', true);
+        this.applyFilters();
+        this.detectOpportunities();
+        
+        // Show pool count with source breakdown
+        const dlmmCount = State.pools.filter(p => p.protocol === 'Meteora DLMM').length;
+        const dammCount = State.pools.filter(p => p.protocol === 'Meteora DAMM v2').length;
+        const sourceInfo = sources.length > 0 ? ` [${sources.join(' | ')}]` : '';
+        StatusUI.set('live', `${State.filteredPools.length} pools${sourceInfo}`);
+        console.log(`✓ Total: ${State.pools.length} pools (DLMM: ${dlmmCount}, DAMM v2: ${dammCount})`);
+        
+      } catch (err) {
+        console.error('fetchPools error:', err);
+        StatusUI.set('error', 'Error loading pools - retrying...');
+        setTimeout(() => this.fetchPools(), 10000);
+      }
       },
       
       processDexScreener(p) {
@@ -1400,25 +1462,47 @@
       },
       
       processDLMM(raw) {
+        // All fields from DLMM API: https://dlmm-api.meteora.ag/pair/all
         const tvl = parseFloat(raw.liquidity) || 0;
         const volume = parseFloat(raw.trade_volume_24h) || 0;
         const apr = parseFloat(raw.apr) || 0;
+        const apy = parseFloat(raw.apy) || 0;
         const fees = parseFloat(raw.fees_24h) || 0;
+        const todayFees = parseFloat(raw.today_fees) || 0;
         const mintX = raw.mint_x || '', mintY = raw.mint_y || '';
+        
+        // Use API's is_verified field or check locally
         const xV = State.verifiedTokens.has(mintX), yV = State.verifiedTokens.has(mintY);
+        const apiVerified = raw.is_verified === true;
         
         let safety = 'warning';
-        if (xV && yV) safety = 'safe';
+        if (apiVerified || (xV && yV)) safety = 'safe';
+        else if (raw.is_blacklisted) safety = 'danger';
         else if (!xV && !yV && tvl < 10000) safety = 'danger';
         
+        // Farm APR/APY from DLMM
+        const farmApr = parseFloat(raw.farm_apr) || 0;
+        const farmApy = parseFloat(raw.farm_apy) || 0;
+        const hasFarm = farmApr > 0 || farmApy > 0 || !!raw.reward_mint_x || !!raw.reward_mint_y;
+        const farmActive = farmApr > 0;
+        
+        // Fee/TVL ratios (multiple timeframes)
+        const feeTvlRatio = raw.fee_tvl_ratio?.hour_24 || 0;
+        const feeTvlRatio1h = raw.fee_tvl_ratio?.hour_1 || 0;
+        
+        // Enhanced scoring with DLMM fields
         let score = 50;
         if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
         if (volume > 100000) score += 15; else if (volume > 10000) score += 10; else if (volume > 1000) score += 5;
         if (apr > 100) score += 10; else if (apr > 50) score += 7; else if (apr > 20) score += 4;
         if (safety === 'safe') score += 5; else if (safety === 'danger') score -= 15;
-        score = Math.min(99, Math.max(10, score));
+        if (hasFarm) score += 3;
+        if (farmActive) score += 5;
+        if (apiVerified) score += 3;
+        score = Math.min(99, Math.max(10, Math.round(score)));
         
         const currentPrice = parseFloat(raw.current_price) || 1;
+        const binStep = parseInt(raw.bin_step) || 1;
         
         return {
           id: raw.address,
@@ -1426,9 +1510,15 @@
           name: raw.name || 'Unknown',
           protocol: 'Meteora DLMM',
           mintX, mintY,
-          tvl, volume, apr: apr.toFixed(2), fees,
+          tvl, volume, 
+          apr: apr.toFixed(2), 
+          apy: apy.toFixed(2),
+          fees,
+          todayFees,
           feeBps: parseFloat(raw.base_fee_percentage) || 0,
-          binStep: parseInt(raw.bin_step) || 1,
+          maxFeeBps: parseFloat(raw.max_fee_percentage) || 0,
+          protocolFeeBps: parseFloat(raw.protocol_fee_percentage) || 0,
+          binStep,
           currentPrice,
           safety, score,
           bins: this.generateBins(currentPrice),
@@ -1436,11 +1526,37 @@
           icon1: raw.name?.split('/')[0]?.trim().slice(0, 4) || '?',
           icon2: raw.name?.split('/')[1]?.trim().slice(0, 4) || '?',
           volumeToTvl: tvl > 0 ? volume / tvl : 0,
-          // DLMM specific
+          
+          // DLMM-specific rich fields
+          hasFarm,
+          farmActive,
+          farmApr: farmApr.toFixed(2),
+          farmApy: farmApy.toFixed(2),
+          rewardMintX: raw.reward_mint_x,
+          rewardMintY: raw.reward_mint_y,
+          
+          // Fee/TVL ratios (multiple timeframes)
+          feeTvlRatio,
+          feeTvlRatio1h,
+          fees1h: raw.fees?.hour_1 || 0,
+          fees4h: raw.fees?.hour_4 || 0,
+          fees12h: raw.fees?.hour_12 || 0,
+          
+          // Reserves
           reserveX: raw.reserve_x,
           reserveY: raw.reserve_y,
-          hasFarm: false,
-          farmActive: false
+          reserveXAmount: parseFloat(raw.reserve_x_amount) || 0,
+          reserveYAmount: parseFloat(raw.reserve_y_amount) || 0,
+          
+          // Cumulative stats
+          cumulativeFeeVolume: parseFloat(raw.cumulative_fee_volume) || 0,
+          cumulativeTradeVolume: parseFloat(raw.cumulative_trade_volume) || 0,
+          
+          // Metadata
+          tags: raw.tags || [],
+          tokensVerified: apiVerified,
+          isBlacklisted: raw.is_blacklisted || false,
+          hide: raw.hide || false
         };
       },
       
@@ -1468,6 +1584,7 @@
         const minVol = parseFloat(document.getElementById('filterMinVolume')?.value) || 0;
         const sf = document.getElementById('filterSafety')?.value || 'all';
         const farmFilter = document.getElementById('filterFarm')?.value || 'all';
+        const poolType = document.getElementById('filterPoolType')?.value || 'all';
         const sort = document.getElementById('filterSort')?.value || 'score';
         
         let f = [...State.pools];
@@ -1480,6 +1597,10 @@
         // Farm filter
         if (farmFilter === 'active') f = f.filter(p => p.farmActive);
         else if (farmFilter === 'has') f = f.filter(p => p.hasFarm || p.farmActive);
+        
+        // Pool type filter
+        if (poolType === 'dlmm') f = f.filter(p => p.protocol === 'Meteora DLMM');
+        else if (poolType === 'damm') f = f.filter(p => p.protocol === 'Meteora DAMM v2');
         
         f.sort((a, b) => {
           switch (sort) {

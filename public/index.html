@@ -670,7 +670,9 @@
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
       
       // Jupiter Token Verification
-      JUPITER_PRICE: 'https://price.jup.ag/v4/price',
+      JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
+      JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified',
+      
       
       // Helius API (Primary)
       HELIUS_KEY: '66097387-f0e6-4f93-a800-dbaac4a4c113',
@@ -1225,7 +1227,7 @@
     const DataService = {
       async fetchJupiter() {
         try {
-          const r = await fetch(CONFIG.JUPITER_STRICT);
+          const r = await fetch(CONFIG.JUPITER_TOKENS);
           if (!r.ok) throw new Error('Jupiter API failed');
           const tokens = await r.json();
           tokens.forEach(t => State.verifiedTokens.add(t.address));

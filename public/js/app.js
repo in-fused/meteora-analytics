@@ -54,8 +54,9 @@ window.App = {
 
       StatusUI.set("live", "Live");
       StatusUI.updateBadges();
+
     } catch (e) {
-      console.error(e);
+      console.error("REFRESH FAILED", e);
       StatusUI.set("error", "Live data unavailable");
     }
   },
@@ -71,7 +72,8 @@ window.App = {
 window.addEventListener("load", () => App.start());
 
 window.LiquidityProAPI = {
-  getPools: () => State.pools,
+  getPools: () > State.pools,
   getOpportunities: () => State.opportunities,
   refresh: () => App.refresh()
 };
+=

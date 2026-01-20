@@ -160,24 +160,23 @@
     .connected-wallet-actions .btn { flex: 1; justify-content: center; }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       POOLS CONTAINER - MASONRY-LIKE LAYOUT FOR INDEPENDENT EXPANSION
+       POOLS CONTAINER - HORIZONTAL GRID LAYOUT
     ═══════════════════════════════════════════════════════════════════════════ */
     .pools-container {
-      column-count: 3;
-      column-gap: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
     }
-    @media (max-width: 1200px) { .pools-container { column-count: 2; } }
-    @media (max-width: 768px) { .pools-container { column-count: 1; } }
+    @media (max-width: 1200px) { .pools-container { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) { .pools-container { grid-template-columns: 1fr; } }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       POOL CARD - INDEPENDENT EXPANSION
+       POOL CARD - CLEAN COMPACT DESIGN
     ═══════════════════════════════════════════════════════════════════════════ */
     .pool-card {
-      break-inside: avoid;
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      margin-bottom: 12px;
       overflow: hidden;
       transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
       position: relative;
@@ -199,62 +198,48 @@
     .pool-card-main { padding: 14px; cursor: pointer; }
     .pool-rank { position: absolute; top: 10px; left: 10px; width: 22px; height: 22px; background: var(--bg-elevated); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--border-subtle); z-index: 2; }
     .pool-rank.top3 { background: linear-gradient(135deg, var(--accent-amber), #d97706); color: var(--bg-void); border: none; }
-    .pool-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-left: 26px; }
+    .pool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-left: 26px; }
     .pool-pair { display: flex; align-items: center; gap: 10px; }
     .pool-icons { display: flex; }
-    .pool-icon { width: 28px; height: 28px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--bg-card); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--text-primary); }
-    .pool-icon:nth-child(2) { margin-left: -8px; }
-    .pool-info h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-primary); }
-    .pool-meta { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
-    .pool-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-    .score-badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; font-family: var(--font-mono); }
+    .pool-icon { width: 30px; height: 30px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--bg-card); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-primary); }
+    .pool-icon:nth-child(2) { margin-left: -10px; }
+    .pool-info h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .pool-type-badge { font-size: 10px; color: var(--text-muted); background: var(--bg-secondary); padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+    .pool-badges { display: flex; align-items: center; gap: 6px; }
+    .score-badge { padding: 4px 10px; border-radius: 6px; font-size: 14px; font-weight: 700; font-family: var(--font-mono); }
     .score-badge.high { background: rgba(52,211,153,0.15); color: var(--accent-emerald); }
     .score-badge.medium { background: rgba(251,191,36,0.15); color: var(--accent-amber); }
     .score-badge.low { background: rgba(251,113,133,0.15); color: var(--accent-rose); }
-    .safety-badge { display: flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 6px; border-radius: 3px; }
-    .safety-badge.safe { background: rgba(52,211,153,0.12); color: var(--accent-emerald); }
-    .safety-badge.warning { background: rgba(251,191,36,0.12); color: var(--accent-amber); }
-    .safety-badge.danger { background: rgba(251,113,133,0.12); color: var(--accent-rose); }
-
-    /* Pool Address */
-    .pool-address { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-sm); }
-    .pool-address-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
-    .pool-address-value { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); flex: 1; }
-    .pool-address-copy { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 3px; border-radius: 4px; transition: all var(--transition-fast); display: flex; align-items: center; justify-content: center; }
-    .pool-address-copy:hover { color: var(--accent-primary); background: var(--bg-elevated); }
-    .pool-address-copy svg { width: 14px; height: 14px; }
+    .safety-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .safety-dot.safe { background: var(--accent-emerald); box-shadow: 0 0 6px var(--accent-emerald); }
+    .safety-dot.warning { background: var(--accent-amber); }
+    .safety-dot.danger { background: var(--accent-rose); }
 
     .pool-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-    .pool-stat { text-align: center; padding: 8px 4px; background: var(--bg-secondary); border-radius: var(--radius-sm); }
-    .pool-stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px; }
-    .pool-stat-value { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .pool-stat { text-align: center; padding: 10px 6px; background: var(--bg-secondary); border-radius: var(--radius-sm); }
+    .pool-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; }
+    .pool-stat-value { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text-primary); }
     .pool-stat-value.accent { color: var(--accent-cyan); }
     
-    /* Pool Action Buttons */
-    .pool-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-    .pool-action-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 11px; font-weight: 500; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); background: var(--bg-elevated); color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast); text-decoration: none; }
+    .pool-expand-hint { text-align: center; margin-top: 10px; font-size: 10px; color: var(--text-dim); }
+    
+    /* Pool Action Buttons - In Expanded Only */
+    .pool-actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .pool-action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; font-size: 12px; font-weight: 500; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); background: var(--bg-elevated); color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast); text-decoration: none; }
     .pool-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-active); }
     .pool-action-btn.primary { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); border: none; color: white; }
     .pool-action-btn.primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
     .pool-action-btn svg { width: 14px; height: 14px; }
     
-    /* New DAMM v2 Badges */
-    .farm-badge { font-size: 9px; padding: 3px 6px; border-radius: 4px; background: rgba(52,211,153,0.15); color: var(--accent-emerald); }
-    .farm-badge.active { background: rgba(52,211,153,0.25); box-shadow: 0 0 8px rgba(52,211,153,0.3); }
-    .launch-badge { font-size: 9px; padding: 3px 6px; border-radius: 4px; background: rgba(167,139,250,0.15); color: var(--accent-secondary); }
-    .lock-badge { font-size: 9px; padding: 3px 6px; border-radius: 4px; background: rgba(59,130,246,0.15); color: #60a5fa; }
-    
-    /* Token Breakdown */
-    .pool-token-breakdown { display: flex; gap: 12px; margin-top: 10px; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); }
-    .token-amount { font-size: 11px; color: var(--text-secondary); flex: 1; }
-    .token-amount span { color: var(--text-primary); font-weight: 600; margin-right: 5px; }
-    
-    /* Farm APR Badge */
-    .farm-apr-badge { font-size: 9px; padding: 3px 6px; border-radius: 4px; background: rgba(52,211,153,0.2); color: var(--accent-emerald); }
-    .bin-badge { font-size: 9px; padding: 3px 6px; border-radius: 4px; background: rgba(129,140,248,0.15); color: var(--accent-primary); }
+    /* Compact badges */
+    .pool-badges-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .mini-badge { font-size: 10px; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
+    .mini-badge.farm { background: rgba(52,211,153,0.15); color: var(--accent-emerald); }
+    .mini-badge.bin { background: rgba(129,140,248,0.15); color: var(--accent-primary); }
+    .mini-badge.fee { background: rgba(34,211,238,0.15); color: var(--accent-cyan); }
     
     /* Advanced Info in Expanded */
-    .pool-advanced-info { margin-top: 14px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
+    .pool-advanced-info { padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
     .pool-advanced-info h4 { font-size: 11px; color: var(--text-primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
     .advanced-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .adv-item { font-size: 11px; color: var(--text-secondary); }
@@ -333,39 +318,26 @@
     }
     .opp-card:hover { border-color: var(--border-active); box-shadow: 0 6px 24px rgba(0,0,0,0.2); }
     .opp-card-main { padding: 16px; cursor: pointer; }
-    .opp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .opp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .opp-pool { display: flex; align-items: center; gap: 12px; }
     .opp-pool-icons { display: flex; }
     .opp-pool-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--bg-card); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-primary); }
     .opp-pool-icon:nth-child(2) { margin-left: -10px; }
     .opp-pool-info h3 { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-    .opp-pool-info p { font-size: 12px; color: var(--text-secondary); }
     .opp-score { text-align: right; }
     .opp-score-value { font-size: 28px; font-weight: 700; font-family: var(--font-mono); color: var(--accent-emerald); }
     .opp-score-label { font-size: 11px; color: var(--text-secondary); }
 
-    .opp-address { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-sm); }
-    .opp-address-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
-    .opp-address-value { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); flex: 1; }
-    .opp-address-copy { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 3px; border-radius: 4px; }
-    .opp-address-copy:hover { color: var(--accent-primary); background: var(--bg-elevated); }
-    .opp-address-copy svg { width: 14px; height: 14px; }
-
-    .opp-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+    .opp-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
     .opp-metric { background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
     .opp-metric-value { font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: var(--text-primary); }
     .opp-metric-value.positive { color: var(--accent-emerald); }
     .opp-metric-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
-    .opp-reason { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; }
-    .opp-reason-title { font-size: 12px; font-weight: 600; color: var(--accent-emerald); margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
-    .opp-reason-text { font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
-    .opp-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .opp-action { flex: 1; min-width: 150px; background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all var(--transition-fast); }
-    .opp-action:hover { border-color: var(--border-active); }
-    .opp-action-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary); }
-    .opp-action-desc { font-size: 11px; color: var(--text-secondary); }
+    .opp-reason { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); border-radius: var(--radius-sm); padding: 10px; }
+    .opp-reason-title { font-size: 11px; font-weight: 600; color: var(--accent-emerald); margin-bottom: 4px; }
+    .opp-reason-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
 
-    .opp-expand-hint { text-align: center; padding: 10px; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-subtle); }
+    .opp-expand-hint { text-align: center; padding: 10px; font-size: 10px; color: var(--text-dim); margin-top: 10px; }
 
     .opp-expanded { display: none; border-top: 1px solid var(--border-subtle); }
     .opp-card.expanded .opp-expanded { display: block; }
@@ -926,32 +898,22 @@
     const PoolCardUI = {
       render(pool, rank) {
         const sc = pool.score >= 75 ? 'high' : pool.score >= 55 ? 'medium' : 'low';
-        const si = pool.safety === 'safe' ? '✓' : pool.safety === 'warning' ? '!' : '✕';
         const isExp = State.expandedPoolId === pool.id;
         const addr = pool.address || pool.id;
         
-        // Farm badge
-        const farmBadge = pool.farmActive ? '<span class="farm-badge active">🌾 Farm Active</span>' : 
-                         pool.hasFarm ? '<span class="farm-badge">🌾 Farm</span>' : '';
+        // Determine correct Meteora URL based on pool type
+        const isDLMM = pool.protocol === 'Meteora DLMM';
+        const meteoraUrl = isDLMM 
+          ? `https://app.meteora.ag/dlmm/${addr}` 
+          : `https://app.meteora.ag/pools/${addr}`;
         
-        // Launchpad badge
-        const launchBadge = pool.launchpad ? `<span class="launch-badge">🚀 ${pool.launchpad}</span>` : '';
+        // Pool type short label
+        const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
         
-        // Locked liquidity indicator
-        const lockBadge = pool.permanentLockLiquidity > 0 ? `<span class="lock-badge">🔒 ${Utils.formatNumber(pool.permanentLockLiquidity)}</span>` : '';
-        
-        // Dynamic fee display
-        const feeDisplay = pool.dynamicFee > 0 ? `${pool.baseFee || pool.feeBps}% + ${pool.dynamicFee}%` : `${pool.feeBps}%`;
-        
-        // Fee/TVL ratio
-        const feeTvlDisplay = pool.feeTvlRatio > 0 ? `${(pool.feeTvlRatio * 100).toFixed(2)}%` : '';
-        
-        // Bin step for DLMM
-        const binStepDisplay = pool.binStep > 1 ? `<span class="bin-badge">Bin: ${pool.binStep}</span>` : '';
-        
-        // Farm APR display
-        const farmAprDisplay = pool.farmApr && parseFloat(pool.farmApr) > 0 ? 
-          `<span class="farm-apr-badge">+${pool.farmApr}% Farm</span>` : '';
+        // Badges
+        const farmBadge = pool.farmActive ? '<span class="mini-badge farm">🌾 Active</span>' : 
+                         pool.hasFarm ? '<span class="mini-badge farm">🌾 Farm</span>' : '';
+        const binBadge = pool.binStep > 1 ? `<span class="mini-badge bin">Bin ${pool.binStep}</span>` : '';
         
         return `
           <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''}" id="pool-${pool.id}">
@@ -960,52 +922,40 @@
               <div class="pool-header">
                 <div class="pool-pair">
                   <div class="pool-icons"><div class="pool-icon">${pool.icon1}</div><div class="pool-icon">${pool.icon2}</div></div>
-                  <div class="pool-info"><h3>${pool.name}</h3><div class="pool-meta"><span>${pool.protocol}</span><span>•</span><span>Fee: ${feeDisplay}</span>${pool.binStep > 1 ? `<span>•</span><span>Bin: ${pool.binStep}</span>` : ''}</div></div>
+                  <div class="pool-info">
+                    <h3>${pool.name}<span class="pool-type-badge">${typeLabel}</span></h3>
+                  </div>
                 </div>
                 <div class="pool-badges">
                   <span class="score-badge ${sc}">${pool.score}</span>
-                  <span class="safety-badge ${pool.safety}">${si} ${pool.safety}</span>
-                  ${farmBadge}${farmAprDisplay}${launchBadge}${lockBadge}
+                  <span class="safety-dot ${pool.safety}" title="${pool.safety}"></span>
                 </div>
-              </div>
-              <div class="pool-address">
-                <span class="pool-address-label">Address:</span>
-                <span class="pool-address-value">${Utils.shortenAddress(addr, 6)}</span>
-                <button class="pool-address-copy" onclick="event.stopPropagation(); PoolCardUI.copyAddress('${addr}')" title="Copy">${Utils.copyIcon}</button>
               </div>
               <div class="pool-stats">
                 <div class="pool-stat"><div class="pool-stat-label">TVL</div><div class="pool-stat-value">${Utils.formatNumber(pool.tvl)}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">24h Vol</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%${pool.farmApr && parseFloat(pool.farmApr) > 0 ? ` <small>(+${pool.farmApr}%)</small>` : ''}</div></div>
-                <div class="pool-stat"><div class="pool-stat-label">24h Fees</div><div class="pool-stat-value">${Utils.formatNumber(pool.fees)}</div></div>
-                ${feeTvlDisplay ? `<div class="pool-stat"><div class="pool-stat-label">Fee/TVL</div><div class="pool-stat-value">${feeTvlDisplay}</div></div>` : ''}
+                <div class="pool-stat"><div class="pool-stat-label">Volume</div><div class="pool-stat-value">${Utils.formatNumber(pool.volume)}</div></div>
+                <div class="pool-stat"><div class="pool-stat-label">APR</div><div class="pool-stat-value accent">${pool.apr}%</div></div>
+                <div class="pool-stat"><div class="pool-stat-label">Fees</div><div class="pool-stat-value">${Utils.formatNumber(pool.fees)}</div></div>
               </div>
-              ${pool.tokenAAmount > 0 || pool.reserveXAmount > 0 ? `
-              <div class="pool-token-breakdown">
-                <div class="token-amount"><span>${pool.icon1}:</span> ${(pool.tokenAAmount || pool.reserveXAmount || 0).toLocaleString(undefined, {maximumFractionDigits: 2})} ${pool.tokenAAmountUsd ? `(${Utils.formatNumber(pool.tokenAAmountUsd)})` : ''}</div>
-                <div class="token-amount"><span>${pool.icon2}:</span> ${(pool.tokenBAmount || pool.reserveYAmount || 0).toLocaleString(undefined, {maximumFractionDigits: 2})} ${pool.tokenBAmountUsd ? `(${Utils.formatNumber(pool.tokenBAmountUsd)})` : ''}</div>
-              </div>` : ''}
-              <div class="pool-actions" onclick="event.stopPropagation()">
-                <a href="https://app.meteora.ag/dlmm/${addr}" target="_blank" class="pool-action-btn primary">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-                  Add Liquidity
-                </a>
-                <a href="https://app.meteora.ag/dlmm/${addr}" target="_blank" class="pool-action-btn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  View on Meteora
-                </a>
-                <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                  Solscan
-                </a>
-                <button class="pool-action-btn" onclick="PoolCardUI.copyAddress('${addr}')">
-                  ${Utils.copyIcon}
-                  Copy Address
-                </button>
-              </div>
+              ${farmBadge || binBadge ? `<div class="pool-badges-row">${farmBadge}${binBadge}</div>` : ''}
+              <div class="pool-expand-hint">Click to expand</div>
             </div>
             <div class="pool-expanded">
               <div class="pool-expanded-inner">
+                <div class="pool-actions">
+                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    View Pool
+                  </a>
+                  <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    Solscan
+                  </a>
+                  <button class="pool-action-btn" onclick="PoolCardUI.copyAddress('${addr}')">
+                    ${Utils.copyIcon}
+                    Copy Address
+                  </button>
+                </div>
                 ${LiquidityChartUI.render(pool)}
                 ${PoolTxUI.render(pool.id)}
                 ${this.renderAdvancedInfo(pool)}
@@ -1015,28 +965,20 @@
       },
       
       renderAdvancedInfo(pool) {
-        const hasInfo = pool.creator || pool.virtualPrice > 0 || pool.minPrice > 0 || pool.binStep > 1 || 
-                       pool.cumulativeTradeVolume > 0 || pool.rewardMintX || pool.tags?.length > 0;
-        if (!hasInfo) return '';
+        const items = [];
+        if (pool.feeBps) items.push(`<div class="adv-item"><span>Fee:</span> ${pool.feeBps}%</div>`);
+        if (pool.binStep > 1) items.push(`<div class="adv-item"><span>Bin Step:</span> ${pool.binStep}</div>`);
+        if (pool.farmApr && parseFloat(pool.farmApr) > 0) items.push(`<div class="adv-item"><span>Farm APR:</span> +${pool.farmApr}%</div>`);
+        if (pool.feeTvlRatio > 0) items.push(`<div class="adv-item"><span>Fee/TVL:</span> ${(pool.feeTvlRatio * 100).toFixed(3)}%</div>`);
+        if (pool.cumulativeTradeVolume > 0) items.push(`<div class="adv-item"><span>All-time Vol:</span> ${Utils.formatNumber(pool.cumulativeTradeVolume)}</div>`);
+        if (pool.creator) items.push(`<div class="adv-item"><span>Creator:</span> ${Utils.shortenAddress(pool.creator, 6)}</div>`);
+        
+        if (items.length === 0) return '';
         
         return `
           <div class="pool-advanced-info">
-            <h4>Advanced Info</h4>
-            <div class="advanced-grid">
-              ${pool.binStep > 1 ? `<div class="adv-item"><span>Bin Step:</span> ${pool.binStep} bps</div>` : ''}
-              ${pool.activeBin ? `<div class="adv-item"><span>Active Bin:</span> ${pool.activeBin}</div>` : ''}
-              ${pool.creator ? `<div class="adv-item"><span>Creator:</span> ${Utils.shortenAddress(pool.creator, 6)}</div>` : ''}
-              ${pool.virtualPrice > 0 ? `<div class="adv-item"><span>Virtual Price:</span> ${pool.virtualPrice.toFixed(6)}</div>` : ''}
-              ${pool.minPrice > 0 ? `<div class="adv-item"><span>Price Range:</span> ${Utils.formatPrice(pool.minPrice)} - ${Utils.formatPrice(pool.maxPrice)}</div>` : ''}
-              ${pool.alphaVault ? `<div class="adv-item"><span>Alpha Vault:</span> ${Utils.shortenAddress(pool.alphaVault, 6)}</div>` : ''}
-              ${pool.createdAt ? `<div class="adv-item"><span>Created:</span> ${pool.createdAt.toLocaleDateString()}</div>` : ''}
-              ${pool.poolType !== undefined ? `<div class="adv-item"><span>Pool Type:</span> ${pool.poolType}</div>` : ''}
-              ${pool.cumulativeTradeVolume > 0 ? `<div class="adv-item"><span>Total Volume:</span> ${Utils.formatNumber(pool.cumulativeTradeVolume)}</div>` : ''}
-              ${pool.cumulativeFeeVolume > 0 ? `<div class="adv-item"><span>Total Fees:</span> ${Utils.formatNumber(pool.cumulativeFeeVolume)}</div>` : ''}
-              ${pool.rewardMintX ? `<div class="adv-item"><span>Reward X:</span> ${Utils.shortenAddress(pool.rewardMintX, 6)}</div>` : ''}
-              ${pool.rewardMintY ? `<div class="adv-item"><span>Reward Y:</span> ${Utils.shortenAddress(pool.rewardMintY, 6)}</div>` : ''}
-              ${pool.tags?.length > 0 ? `<div class="adv-item"><span>Tags:</span> ${pool.tags.join(', ')}</div>` : ''}
-            </div>
+            <h4>Details</h4>
+            <div class="advanced-grid">${items.join('')}</div>
           </div>`;
       },
       
@@ -1091,33 +1033,47 @@
       render(opp) {
         const isExp = State.expandedOppId === opp.id;
         const addr = opp.address || opp.id;
+        const isDLMM = opp.protocol === 'Meteora DLMM';
+        const meteoraUrl = isDLMM 
+          ? `https://app.meteora.ag/dlmm/${addr}` 
+          : `https://app.meteora.ag/pools/${addr}`;
+        const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
+        
         return `
           <div class="opp-card ${isExp ? 'expanded' : ''}" id="opp-${opp.id}">
             <div class="opp-card-main" onclick="OppCardUI.toggle('${opp.id}')">
               <div class="opp-header">
                 <div class="opp-pool">
                   <div class="opp-pool-icons"><div class="opp-pool-icon">${opp.icon1}</div><div class="opp-pool-icon">${opp.icon2}</div></div>
-                  <div class="opp-pool-info"><h3>${opp.name}</h3><p>${opp.protocol} • Bin ${opp.binStep}</p></div>
+                  <div class="opp-pool-info"><h3>${opp.name}<span class="pool-type-badge">${typeLabel}</span></h3></div>
                 </div>
                 <div class="opp-score"><div class="opp-score-value">${opp.score}</div><div class="opp-score-label">Score</div></div>
               </div>
-              <div class="opp-address">
-                <span class="opp-address-label">Address:</span>
-                <span class="opp-address-value">${Utils.shortenAddress(addr, 6)}</span>
-                <button class="opp-address-copy" onclick="event.stopPropagation(); OppCardUI.copyAddress('${addr}')" title="Copy">${Utils.copyIcon}</button>
-              </div>
               <div class="opp-metrics">
                 <div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(opp.tvl)}</div><div class="opp-metric-label">TVL</div></div>
-                <div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(opp.volume)}</div><div class="opp-metric-label">24h Vol</div></div>
+                <div class="opp-metric"><div class="opp-metric-value">${Utils.formatNumber(opp.volume)}</div><div class="opp-metric-label">Volume</div></div>
                 <div class="opp-metric"><div class="opp-metric-value positive">${opp.apr}%</div><div class="opp-metric-label">APR</div></div>
                 <div class="opp-metric"><div class="opp-metric-value">${(opp.volumeToTvl * 100).toFixed(0)}%</div><div class="opp-metric-label">Vol/TVL</div></div>
               </div>
-              <div class="opp-reason"><div class="opp-reason-title">⚡ Why This Opportunity</div><div class="opp-reason-text">${opp.reason}</div></div>
-              <div class="opp-actions">${opp.actions.map(a => `<div class="opp-action"><div class="opp-action-title">${a.title}</div><div class="opp-action-desc">${a.desc}</div></div>`).join('')}</div>
-              <div class="opp-expand-hint">Click to ${isExp ? 'collapse' : 'expand real-time chart & transactions'}</div>
+              <div class="opp-reason"><div class="opp-reason-title">⚡ Opportunity</div><div class="opp-reason-text">${opp.reason}</div></div>
+              <div class="opp-expand-hint">Click to expand</div>
             </div>
             <div class="opp-expanded">
               <div class="opp-expanded-inner">
+                <div class="pool-actions">
+                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    View Pool
+                  </a>
+                  <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    Solscan
+                  </a>
+                  <button class="pool-action-btn" onclick="OppCardUI.copyAddress('${addr}')">
+                    ${Utils.copyIcon}
+                    Copy Address
+                  </button>
+                </div>
                 ${LiquidityChartUI.render(opp)}
                 ${PoolTxUI.render(opp.id)}
               </div>
@@ -1226,7 +1182,7 @@
     const DataService = {
       async fetchJupiter() {
         try {
-          const r = await fetch(CONFIG.JUPITER_TOKENS);
+          const r = await fetch(CONFIG.JUPITER_STRICT);
           if (!r.ok) throw new Error('Jupiter API failed');
           const tokens = await r.json();
           tokens.forEach(t => State.verifiedTokens.add(t.address));
@@ -1621,6 +1577,10 @@
         const sort = document.getElementById('filterSort')?.value || 'score';
         
         let f = [...State.pools];
+        
+        // Only show active pools with trading activity (volume > 0)
+        f = f.filter(p => p.volume > 0);
+        
         if (minTVL > 0) f = f.filter(p => p.tvl >= minTVL);
         if (minVol > 0) f = f.filter(p => p.volume >= minVol);
         if (State.jupshieldEnabled) f = f.filter(p => p.safety !== 'danger');

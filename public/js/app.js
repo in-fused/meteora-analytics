@@ -61,6 +61,7 @@ window.App = {
   },
 
   start() {
+    console.log("App.start() called");
     this.refresh();
     HeliusWS.connect();
     setInterval(() => this.refresh(), CONFIG.REFRESH_INTERVAL);

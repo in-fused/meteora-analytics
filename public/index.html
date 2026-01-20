@@ -1182,10 +1182,12 @@
     const DataService = {
       async fetchJupiter() {
         try {
-          const r = await fetch(CONFIG.JUPITER_STRICT);
+          const r = await fetch(CONFIG.JUPITER_TOKENS);
           if (!r.ok) throw new Error('Jupiter API failed');
           const tokens = await r.json();
-          tokens.forEach(t => State.verifiedTokens.add(t.address));
+          // Handle both array format and object with tokens property
+          const tokenList = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
+          tokenList.forEach(t => State.verifiedTokens.add(t.address || t.mint));
           StatusUI.setApi('jupiter', true);
           console.log(`Loaded ${State.verifiedTokens.size} verified tokens from Jupiter`);
         } catch (e) {

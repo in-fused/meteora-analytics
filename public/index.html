@@ -167,6 +167,7 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       align-items: start; /* CRITICAL: Each card sizes independently */
+      padding-bottom: 300px; /* Space for expanded content overlay */
     }
     @media (max-width: 1200px) { .pools-container { grid-template-columns: repeat(2, 1fr); align-items: start; } }
     @media (max-width: 768px) { .pools-container { grid-template-columns: 1fr; align-items: start; } }
@@ -178,10 +179,14 @@
       background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      overflow: hidden;
+      overflow: visible; /* Allow expanded content to overflow */
       transition: all var(--transition-normal);
-      position: relative;
+      position: relative; /* Anchor for absolute positioned expanded content */
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 1;
+    }
+    .pool-card.expanded {
+      z-index: 100; /* Bring expanded card above others */
     }
     .pool-card::before {
       content: '';
@@ -203,7 +208,6 @@
     .pool-card.score-medium::before { background: linear-gradient(90deg, var(--accent-amber), rgba(251,191,36,0.2), transparent); }
     .pool-card.score-low { --card-accent: var(--accent-rose); border-color: rgba(251,113,133,0.3); }
     .pool-card.score-low::before { background: linear-gradient(90deg, var(--accent-rose), rgba(251,113,133,0.2), transparent); }
-    .pool-card-main { padding: 14px; cursor: pointer; }
     .pool-rank { position: absolute; top: 10px; left: 10px; width: 22px; height: 22px; background: var(--bg-elevated); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--border-subtle); z-index: 2; }
     .pool-rank.top3 { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: var(--bg-void); border: none; box-shadow: 0 2px 8px rgba(251,191,36,0.4); }
     .pool-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-left: 26px; }
@@ -266,15 +270,35 @@
     .adv-item span { color: var(--text-muted); margin-right: 4px; }
     .adv-item.highlight { color: var(--accent-amber); }
 
-    /* Expanded Content - Full display, no scroll */
+    /* Expanded Content - Absolute overlay (doesn't affect grid) */
     .pool-expanded { 
       display: none; 
-      border-top: 1px solid var(--border-subtle);
-      background: linear-gradient(180deg, var(--bg-secondary), var(--bg-card));
+      position: absolute;
+      top: 100%; /* Position below the card */
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, var(--bg-card), rgba(24,24,27,0.98));
+      border: 1px solid var(--border-active);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+      z-index: 100;
     }
-    .pool-card.expanded .pool-expanded { display: block; animation: expandFade 0.25s ease; }
-    @keyframes expandFade { from { opacity: 0; } to { opacity: 1; } }
-    .pool-expanded-inner { padding: 14px; }
+    .pool-card.expanded .pool-expanded { display: block; animation: expandFade 0.2s ease; }
+    @keyframes expandFade { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .pool-expanded-inner { padding: 16px; }
+    
+    /* Card main section needs bottom border radius removed when expanded */
+    .pool-card-main {
+      padding: 14px;
+      cursor: pointer;
+      background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
+      border-radius: var(--radius-lg);
+      transition: border-radius 0.15s ease;
+    }
+    .pool-card.expanded .pool-card-main {
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
 
     /* ═══════════════════════════════════════════════════════════════════════════
        LIQUIDITY CHART - Compact
@@ -333,6 +357,7 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       align-items: start; /* CRITICAL: Each card sizes independently */
+      padding-bottom: 300px; /* Space for expanded content overlay */
     }
     @media (max-width: 1200px) { #opportunitiesList { grid-template-columns: repeat(2, 1fr); align-items: start; } }
     @media (max-width: 768px) { #opportunitiesList { grid-template-columns: 1fr; align-items: start; } }
@@ -341,10 +366,14 @@
       background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      overflow: hidden;
+      overflow: visible; /* Allow expanded content to overflow */
       position: relative;
       transition: all var(--transition-normal);
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 1;
+    }
+    .opp-card.expanded {
+      z-index: 100; /* Bring expanded card above others */
     }
     .opp-card::before {
       content: '';
@@ -386,7 +415,6 @@
       border-color: rgba(52,211,153,0.3);
     }
     
-    .opp-card-main { padding: 14px; cursor: pointer; }
     .opp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .opp-pool { display: flex; align-items: center; gap: 10px; }
     .opp-pool-icons { display: flex; }
@@ -408,14 +436,34 @@
 
     .opp-expand-hint { text-align: center; padding: 10px; font-size: 9px; color: var(--text-dim); margin-top: 10px; opacity: 0.7; }
 
-    /* Opportunity Expanded - Full display, no scroll */
+    /* Opportunity Expanded - Absolute overlay (doesn't affect grid) */
     .opp-expanded { 
       display: none; 
-      border-top: 1px solid var(--border-subtle);
-      background: linear-gradient(180deg, var(--bg-secondary), var(--bg-card));
+      position: absolute;
+      top: 100%; /* Position below the card */
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, var(--bg-card), rgba(24,24,27,0.98));
+      border: 1px solid var(--border-active);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+      z-index: 100;
     }
-    .opp-card.expanded .opp-expanded { display: block; animation: expandFade 0.25s ease; }
-    .opp-expanded-inner { padding: 14px; }
+    .opp-card.expanded .opp-expanded { display: block; animation: expandFade 0.2s ease; }
+    .opp-expanded-inner { padding: 16px; }
+    
+    /* Opp card main section */
+    .opp-card-main {
+      padding: 14px 14px 14px 20px;
+      cursor: pointer;
+      background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
+      border-radius: var(--radius-lg);
+      transition: border-radius 0.15s ease;
+    }
+    .opp-card.expanded .opp-card-main {
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
 
     /* ═══════════════════════════════════════════════════════════════════════════
        FILTERS & ALERTS

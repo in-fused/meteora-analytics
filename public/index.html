@@ -183,6 +183,10 @@
       position: relative;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
+    /* CRITICAL: Expanded card spans full width, creating its own row */
+    .pool-card.expanded {
+      grid-column: 1 / -1;
+    }
     .pool-card::before {
       content: '';
       position: absolute;
@@ -284,12 +288,38 @@
     }
     .pool-card.expanded .pool-expanded-inner {
       padding: 16px;
+      /* Multi-column layout for full-width expanded card */
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .pool-card.expanded .pool-expanded-inner {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 600px) {
+      .pool-card.expanded .pool-expanded-inner {
+        grid-template-columns: 1fr;
+      }
     }
     
     /* Card main section */
     .pool-card-main {
       padding: 14px;
       cursor: pointer;
+    }
+    
+    /* Expanded section styling */
+    .expanded-section {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      border: 1px solid var(--border-subtle);
+    }
+    .expanded-actions .pool-actions {
+      margin-bottom: 12px;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -361,6 +391,10 @@
       position: relative;
       transition: all var(--transition-normal);
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    /* CRITICAL: Expanded card spans full width, creating its own row */
+    .opp-card.expanded {
+      grid-column: 1 / -1;
     }
     .opp-card::before {
       content: '';
@@ -442,6 +476,21 @@
     }
     .opp-card.expanded .opp-expanded-inner {
       padding: 16px;
+      /* Multi-column layout for full-width expanded card */
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .opp-card.expanded .opp-expanded-inner {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 600px) {
+      .opp-card.expanded .opp-expanded-inner {
+        grid-template-columns: 1fr;
+      }
     }
     
     /* Opp card main section */
@@ -1770,27 +1819,33 @@
             </div>
             <div class="pool-expanded">
               <div class="pool-expanded-inner">
-                <div class="pool-actions">
-                  <button class="pool-action-btn primary" onclick="ExecutionLayer.open(State.pools.find(p=>p.id==='${pool.id}'))">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
-                    Quick Deposit
-                  </button>
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Meteora
-                  </a>
-                  <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                    Solscan
-                  </a>
-                  <button class="pool-action-btn" onclick="PoolCardUI.copyAddress('${addr}')">
-                    ${Utils.copyIcon}
-                    Copy
-                  </button>
+                <div class="expanded-section expanded-actions">
+                  <div class="pool-actions">
+                    <button class="pool-action-btn primary" onclick="ExecutionLayer.open(State.pools.find(p=>p.id==='${pool.id}'))">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+                      Quick Deposit
+                    </button>
+                    <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      Meteora
+                    </a>
+                    <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      Solscan
+                    </a>
+                    <button class="pool-action-btn" onclick="PoolCardUI.copyAddress('${addr}')">
+                      ${Utils.copyIcon}
+                      Copy
+                    </button>
+                  </div>
+                  ${this.renderAdvancedInfo(pool)}
                 </div>
-                ${LiquidityChartUI.render(pool)}
-                ${PoolTxUI.render(pool.id)}
-                ${this.renderAdvancedInfo(pool)}
+                <div class="expanded-section expanded-chart">
+                  ${LiquidityChartUI.render(pool)}
+                </div>
+                <div class="expanded-section expanded-tx">
+                  ${PoolTxUI.render(pool.id)}
+                </div>
               </div>
             </div>
           </div>`;
@@ -1909,26 +1964,32 @@
             </div>
             <div class="opp-expanded">
               <div class="opp-expanded-inner">
-                <div class="pool-actions">
-                  <button class="pool-action-btn primary" onclick="ExecutionLayer.open(State.opportunities.find(p=>p.id==='${opp.id}'))">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
-                    Quick Deposit
-                  </button>
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Meteora
-                  </a>
-                  <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                    Solscan
-                  </a>
-                  <button class="pool-action-btn" onclick="OppCardUI.copyAddress('${addr}')">
-                    ${Utils.copyIcon}
-                    Copy
-                  </button>
+                <div class="expanded-section expanded-actions">
+                  <div class="pool-actions">
+                    <button class="pool-action-btn primary" onclick="ExecutionLayer.open(State.opportunities.find(p=>p.id==='${opp.id}'))">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+                      Quick Deposit
+                    </button>
+                    <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      Meteora
+                    </a>
+                    <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      Solscan
+                    </a>
+                    <button class="pool-action-btn" onclick="OppCardUI.copyAddress('${addr}')">
+                      ${Utils.copyIcon}
+                      Copy
+                    </button>
+                  </div>
                 </div>
-                ${LiquidityChartUI.render(opp)}
-                ${PoolTxUI.render(opp.id)}
+                <div class="expanded-section expanded-chart">
+                  ${LiquidityChartUI.render(opp)}
+                </div>
+                <div class="expanded-section expanded-tx">
+                  ${PoolTxUI.render(opp.id)}
+                </div>
               </div>
             </div>
           </div>`;

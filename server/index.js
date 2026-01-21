@@ -50,6 +50,17 @@ app.use(
   })
 );
 
+'GET /api/v1/meteora/analytics': {
+  accepts: [{
+    scheme: 'exact',
+    price: '0.002',
+    network: CONFIG.NETWORK,
+    payTo: CONFIG.PAY_TO
+  }],
+  description: 'Meteora DLMM analytics with scoring'
+}
+
+
 // FREE
 app.get('/api/health', (_, res) => {
   res.json({ ok: true });

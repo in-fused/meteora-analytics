@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 // import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
 // import { registerExactEvmScheme } from '@x402/evm/exact/server';
 
-import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
+// import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
 
 dotenv.config();
 
@@ -53,22 +53,21 @@ app.listen(PORT, () => {
 
 
 
-// PAID: Meteora analytics (x402 protected)
+// PAID:  analytics (x402 protected)
 app.get('/api/v1/meteora/analytics', async (req, res) => {
-  try {
-    const pools = await fetchMeteoraPools();
-    const scored = pools.map(scorePool);
-
-    res.json({
-      success: true,
-      preview: true,
-      count: scored.length,
-      data: scored
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({
+    success: true,
+    preview: true,
+    data: [
+      {
+        pool: "SOL/USDC",
+        score: 92,
+        liquidity: 1234567
+      }
+    ]
+  });
 });
+
 
 
 

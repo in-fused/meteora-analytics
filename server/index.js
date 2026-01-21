@@ -76,17 +76,21 @@ app.get('/api/premium', (req, res) => {
   });
 });
 
-app.listen(CONFIG.PORT, () => {
-  console.log(`API running on port ${CONFIG.PORT}`);
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
+
 
 
 // PAID: Meteora analytics (x402 protected)
 app.get('/api/v1/meteora/analytics', async (req, res) => {
   // If this exists, payment was verified
-  if (!req.x402Payment) {
-    return res.status(402).json({ error: 'Payment required' });
-  }
+  if (!req.x402Payment && process.env.PREVIEW_MODE !== 'true') {
+  return res.status(402).json({ error: 'Payment required' });
+}
+
 
   try {
     const pools = await fetchMeteoraPools();

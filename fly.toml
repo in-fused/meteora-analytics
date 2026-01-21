@@ -8,7 +8,7 @@ primary_region = "lax"
 [env]
   NODE_ENV = "production"
   PREVIEW_MODE = "true"
-  PORT = "3000"
+
 
 [http_service]
   internal_port = 3000

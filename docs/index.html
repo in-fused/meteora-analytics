@@ -2,38 +2,135 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Meteora Liquidity Analytics</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meteora Liquidity Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- NO server code allowed here -->
-  <!-- Frontend only -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+      background: #0b0f14;
+      color: #eaeaea;
+    }
 
-  <script>
-    const CONFIG = {
-      METEORA_DLMM: 'https://dlmm-api.meteora.ag',
-      JUPITER_API: 'https://api.jup.ag/ultra/v1',
-      JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified'
-    };
-  </script>
+    h1 {
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #9aa4b2;
+      margin-bottom: 16px;
+    }
+
+    button {
+      padding: 10px 16px;
+      background: #3b82f6;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #1f2937;
+      text-align: right;
+    }
+
+    th {
+      color: #9aa4b2;
+      font-weight: normal;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    .status {
+      margin-top: 12px;
+      color: #9aa4b2;
+    }
+  </style>
 </head>
 
 <body>
   <h1>Meteora Liquidity Dashboard</h1>
-  <p>Live pool analytics + Jupiter execution</p>
+  <div class="subtitle">Live DLMM pools (preview mode)</div>
 
-  <button onclick="loadPools()">Load Pools</button>
+  <button id="loadBtn">Load Pools</button>
+  <div class="status" id="status"></div>
 
-  <pre id="output"></pre>
+  <table id="table" style="display:none;">
+    <thead>
+      <tr>
+        <th>Pool</th>
+        <th>TVL ($)</th>
+        <th>24h Volume ($)</th>
+        <th>APR (%)</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
 
   <script>
-    async function loadPools() {
-      const res = await fetch(
-        'https://dlmm-api.meteora.ag/pair/all'
-      );
-      const data = await res.json();
-      document.getElementById('output').textContent =
-        JSON.stringify(data.slice(0, 5), null, 2);
+    const loadBtn = document.getElementById('loadBtn');
+    const statusEl = document.getElementById('status');
+    const tableEl = document.getElementById('table');
+    const tbodyEl = document.getElementById('tbody');
+
+    function formatNumber(n) {
+      return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
     }
+
+    loadBtn.onclick = async () => {
+      loadBtn.disabled = true;
+      statusEl.textContent = 'Loading pools from Meteora...';
+
+      try {
+        const res = await fetch('https://dlmm-api.meteora.ag/pair/all');
+        const pools = await res.json();
+
+        const filtered = pools
+          .filter(p => !p.hide && !p.is_blacklisted && p.liquidity > 10_000)
+          .slice(0, 50);
+
+        tbodyEl.innerHTML = '';
+
+        for (const p of filtered) {
+          const tr = document.createElement('tr');
+
+          tr.innerHTML = `
+            <td>${p.name}</td>
+            <td>$${formatNumber(p.liquidity)}</td>
+            <td>$${formatNumber(p.trade_volume_24h || 0)}</td>
+            <td>${formatNumber(p.apr || 0)}</td>
+          `;
+
+          tbodyEl.appendChild(tr);
+        }
+
+        tableEl.style.display = 'table';
+        statusEl.textContent = `Loaded ${filtered.length} pools`;
+      } catch (err) {
+        statusEl.textContent = 'Failed to load pools';
+        console.error(err);
+      } finally {
+        loadBtn.disabled = false;
+      }
+    };
   </script>
 </body>
 </html>

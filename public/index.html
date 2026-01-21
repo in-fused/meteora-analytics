@@ -3020,5 +3020,29 @@
       }
     });
   </script>
+  <script>
+  const loadBtn = document.querySelector("button");
+  const output = document.createElement("pre");
+
+  output.style.marginTop = "16px";
+  output.style.whiteSpace = "pre-wrap";
+  document.body.appendChild(output);
+
+  loadBtn.addEventListener("click", async () => {
+    output.textContent = "Loading pools…";
+
+    try {
+      const res = await fetch("/api/v1/meteora/analytics");
+      if (!res.ok) throw new Error("API error");
+
+      const json = await res.json();
+
+      output.textContent = JSON.stringify(json.data.slice(0, 10), null, 2);
+    } catch (err) {
+      output.textContent = "Error loading pools: " + err.message;
+    }
+  });
+</script>
+
 </body>
 </html>

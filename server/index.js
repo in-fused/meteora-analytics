@@ -45,20 +45,21 @@ app.use(
           network: CONFIG.NETWORK,
           payTo: CONFIG.PAY_TO
         }]
+      },
+
+      'GET /api/v1/meteora/analytics': {
+        accepts: [{
+          scheme: 'exact',
+          price: '0.002',
+          network: CONFIG.NETWORK,
+          payTo: CONFIG.PAY_TO
+        }],
+        description: 'Meteora DLMM analytics with scoring'
       }
     }
   })
 );
 
-'GET /api/v1/meteora/analytics': {
-  accepts: [{
-    scheme: 'exact',
-    price: '0.002',
-    network: CONFIG.NETWORK,
-    payTo: CONFIG.PAY_TO
-  }],
-  description: 'Meteora DLMM analytics with scoring'
-}
 
 
 // FREE

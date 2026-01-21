@@ -1,32 +1,41 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 /**
- * Health + root
+ * Serve frontend (public/index.html)
+ */
+app.use(express.static(path.join(__dirname, '../public')));
+
+/**
+ * Root
  */
 app.get('/', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'meteora-analytics-backend',
-    uptime: process.uptime()
-  });
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
+/**
+ * Health check
+ */
 app.get('/api/health', (_, res) => {
   res.json({ ok: true });
 });
 
 /**
- * FREE: Meteora analytics (no payment, preview mode)
+ * Meteora analytics (FREE / preview)
  */
 app.get('/api/v1/meteora/analytics', async (req, res) => {
   try {
@@ -45,10 +54,10 @@ app.get('/api/v1/meteora/analytics', async (req, res) => {
 });
 
 /**
- * PORT — Fly.io REQUIRED
+ * REQUIRED FOR FLY
  */
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, () => {
-  console.log(`✅ Meteora backend running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });

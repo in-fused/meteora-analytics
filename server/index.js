@@ -2,9 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import { paymentMiddleware } from '@x402/express';
-import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
-import { registerExactEvmScheme } from '@x402/evm/exact/server';
+// import { paymentMiddleware } from '@x402/express';
+// import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
+// import { registerExactEvmScheme } from '@x402/evm/exact/server';
 
 import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
 
@@ -31,12 +31,12 @@ const facilitator = new HTTPFacilitatorClient({
   url: CONFIG.FACILITATOR
 });
 
-const x402 = new x402ResourceServer(facilitator);
-registerExactEvmScheme(x402);
+// const x402 = new x402ResourceServer(facilitator);
+// registerExactEvmScheme(x402);
 
 app.use(
-  paymentMiddleware({
-    server: x402,
+  // paymentMiddleware({
+    // server: x402,
     resources: {
       'GET /api/premium': {
         accepts: [{
@@ -76,12 +76,12 @@ app.get('/api/premium', (req, res) => {
   });
 });
 
-
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 // PAID: Meteora analytics (x402 protected)

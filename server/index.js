@@ -1,89 +1,28 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-
-// import { paymentMiddleware } from '@x402/express';
-// import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
-// import { registerExactEvmScheme } from '@x402/evm/exact/server';
-
-// import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
-
-dotenv.config();
+import express from "express";
+import cors from "cors";
 
 const app = express();
+
+/* Middleware */
 app.use(cors());
 app.use(express.json());
+
+/* Health check */
 app.get("/", (req, res) => {
-  res.status(200).json({
+  res.json({
     status: "ok",
     service: "meteora-analytics-backend",
-    uptime: process.uptime()
+    time: new Date().toISOString()
   });
 });
 
-
-const PRICING = {
-  PREMIUM_POOLS: '0.001',
-  OPPORTUNITIES: '0.002'
-};
-
-
-// x402 disabled for preview deployment
-
-
-// FREE
-app.get('/api/health', (_, res) => {
+app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
-// PAID
-// app.get('/api/premium', (req, res) => {
-  res.json({
-    success: true,
-    payment: req.x402Payment,
-    data: 'Premium analytics payload here'
-  });
-});
+/* Fly.io REQUIRED PORT */
+const PORT = process.env.PORT || 8080;
 
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-
-
-// PAID:  analytics (x402 protected)
-app.get('/api/v1/meteora/analytics', async (req, res) => {
-  res.json({
-    success: true,
-    preview: true,
-    data: [
-      {
-        pool: "SOL/USDC",
-        score: 92,
-        liquidity: 1234567
-      }
-    ]
-  });
-});
-
-
-
-
-  try {
-    const pools = await fetchMeteoraPools();
-    const scored = pools.map(scorePool);
-
-    res.json({
-      success: true,
-      payment: {
-        txHash: req.x402Payment.transactionHash
-      },
-      count: scored.length,
-      data: scored
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server listening on port ${PORT}`);
 });

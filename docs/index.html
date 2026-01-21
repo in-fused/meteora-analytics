@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Meteora Liquidity Analytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- NO server code allowed here -->
+  <!-- Frontend only -->
+
+  <script>
+    const CONFIG = {
+      METEORA_DLMM: 'https://dlmm-api.meteora.ag',
+      JUPITER_API: 'https://api.jup.ag/ultra/v1',
+      JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified'
+    };
+  </script>
+</head>
+
+<body>
+  <h1>Meteora Liquidity Dashboard</h1>
+  <p>Live pool analytics + Jupiter execution</p>
+
+  <button onclick="loadPools()">Load Pools</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    async function loadPools() {
+      const res = await fetch(
+        'https://dlmm-api.meteora.ag/pair/all'
+      );
+      const data = await res.json();
+      document.getElementById('output').textContent =
+        JSON.stringify(data.slice(0, 5), null, 2);
+    }
+  </script>
+</body>
+</html>

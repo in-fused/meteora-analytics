@@ -1,28 +1,67 @@
-import express from "express";
-import cors from "cors";
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
+
+dotenv.config();
 
 const app = express();
-
-/* Middleware */
 app.use(cors());
 app.use(express.json());
 
-/* Health check */
-app.get("/", (req, res) => {
+/**
+ * ✅ REQUIRED FOR FLY.IO
+ * Fly injects PORT — we MUST use it
+ */
+const PORT = process.env.PORT;
+
+/**
+ * ✅ Serve frontend
+ */
+app.use(express.static('public'));
+
+/**
+ * Health / root check
+ */
+app.get('/', (_req, res) => {
   res.json({
-    status: "ok",
-    service: "meteora-analytics-backend",
-    time: new Date().toISOString()
+    status: 'ok',
+    service: 'meteora-analytics-backend',
+    uptime: process.uptime()
   });
 });
 
-app.get("/api/health", (req, res) => {
+/**
+ * Free health endpoint
+ */
+app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-/* Fly.io REQUIRED PORT */
-const PORT = process.env.PORT || 3000;
+/**
+ * Meteora analytics
+ * PREVIEW_MODE=true disables payment enforcement
+ */
+app.get('/api/v1/meteora/analytics', async (req, res) => {
+  try {
+    const pools = await fetchMeteoraPools();
+    const scored = pools.map(scorePool);
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server listening on port ${PORT}`);
+    res.json({
+      success: true,
+      count: scored.length,
+      data: scored
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Start server
+ */
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });

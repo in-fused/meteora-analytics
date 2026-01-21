@@ -65,3 +65,25 @@ app.get('/api/premium', (req, res) => {
 app.listen(CONFIG.PORT, () => {
   console.log(`API running on port ${CONFIG.PORT}`);
 });
+
+import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
+
+app.get('/api/meteora/premium', (req, res) => {
+  const data = req.x402Payment;
+  if (!data) {
+    return res.status(402).json({ error: 'Payment required' });
+  }
+
+  fetchMeteoraPools()
+    .then(pools => pools.map(scorePool))
+    .then(scored => {
+      res.json({
+        success: true,
+        payment: data,
+        pools: scored.slice(0, 50)
+      });
+    })
+    .catch(err => {
+      res.status(500).json({ error: err.message });
+    });
+});

@@ -7,11 +7,9 @@
     "start": "node server/index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "@x402/express": "^0.0.7",
-    "@x402/core": "^0.0.7"
+    "express": "^4.19.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18 <21"
   }
 }

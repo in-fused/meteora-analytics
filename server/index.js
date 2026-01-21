@@ -6,6 +6,8 @@ import { paymentMiddleware } from '@x402/express';
 import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
 import { registerExactEvmScheme } from '@x402/evm/exact/server';
 
+import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
+
 dotenv.config();
 
 const app = express();
@@ -66,24 +68,27 @@ app.listen(CONFIG.PORT, () => {
   console.log(`API running on port ${CONFIG.PORT}`);
 });
 
-import { fetchMeteoraPools, scorePool } from './analytics/meteora.js';
 
-app.get('/api/meteora/premium', (req, res) => {
-  const data = req.x402Payment;
-  if (!data) {
+// PAID: Meteora analytics (x402 protected)
+app.get('/api/v1/meteora/analytics', async (req, res) => {
+  // If this exists, payment was verified
+  if (!req.x402Payment) {
     return res.status(402).json({ error: 'Payment required' });
   }
 
-  fetchMeteoraPools()
-    .then(pools => pools.map(scorePool))
-    .then(scored => {
-      res.json({
-        success: true,
-        payment: data,
-        pools: scored.slice(0, 50)
-      });
-    })
-    .catch(err => {
-      res.status(500).json({ error: err.message });
+  try {
+    const pools = await fetchMeteoraPools();
+    const scored = pools.map(scorePool);
+
+    res.json({
+      success: true,
+      payment: {
+        txHash: req.x402Payment.transactionHash
+      },
+      count: scored.length,
+      data: scored
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });

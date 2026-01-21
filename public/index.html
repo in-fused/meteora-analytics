@@ -167,7 +167,6 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       align-items: start; /* CRITICAL: Each card sizes independently */
-      padding-bottom: 300px; /* Space for expanded content overlay */
     }
     @media (max-width: 1200px) { .pools-container { grid-template-columns: repeat(2, 1fr); align-items: start; } }
     @media (max-width: 768px) { .pools-container { grid-template-columns: 1fr; align-items: start; } }
@@ -179,14 +178,10 @@
       background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      overflow: visible; /* Allow expanded content to overflow */
+      overflow: hidden;
       transition: all var(--transition-normal);
-      position: relative; /* Anchor for absolute positioned expanded content */
+      position: relative;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      z-index: 1;
-    }
-    .pool-card.expanded {
-      z-index: 100; /* Bring expanded card above others */
     }
     .pool-card::before {
       content: '';
@@ -270,34 +265,31 @@
     .adv-item span { color: var(--text-muted); margin-right: 4px; }
     .adv-item.highlight { color: var(--accent-amber); }
 
-    /* Expanded Content - Absolute overlay (doesn't affect grid) */
+    /* Expanded Content - Inline flow, cards below slide down */
     .pool-expanded { 
-      display: none; 
-      position: absolute;
-      top: 100%; /* Position below the card */
-      left: 0;
-      right: 0;
-      background: linear-gradient(180deg, var(--bg-card), rgba(24,24,27,0.98));
-      border: 1px solid var(--border-active);
-      border-top: none;
-      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-      z-index: 100;
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s ease;
+      border-top: 1px solid transparent;
     }
-    .pool-card.expanded .pool-expanded { display: block; animation: expandFade 0.2s ease; }
-    @keyframes expandFade { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-    .pool-expanded-inner { padding: 16px; }
+    .pool-expanded-inner { 
+      overflow: hidden;
+      padding: 0 16px;
+      transition: padding 0.3s ease;
+    }
+    .pool-card.expanded .pool-expanded { 
+      grid-template-rows: 1fr;
+      border-top-color: var(--border-subtle);
+      background: linear-gradient(180deg, var(--bg-secondary), var(--bg-card));
+    }
+    .pool-card.expanded .pool-expanded-inner {
+      padding: 16px;
+    }
     
-    /* Card main section needs bottom border radius removed when expanded */
+    /* Card main section */
     .pool-card-main {
       padding: 14px;
       cursor: pointer;
-      background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
-      border-radius: var(--radius-lg);
-      transition: border-radius 0.15s ease;
-    }
-    .pool-card.expanded .pool-card-main {
-      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -357,7 +349,6 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       align-items: start; /* CRITICAL: Each card sizes independently */
-      padding-bottom: 300px; /* Space for expanded content overlay */
     }
     @media (max-width: 1200px) { #opportunitiesList { grid-template-columns: repeat(2, 1fr); align-items: start; } }
     @media (max-width: 768px) { #opportunitiesList { grid-template-columns: 1fr; align-items: start; } }
@@ -366,14 +357,10 @@
       background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      overflow: visible; /* Allow expanded content to overflow */
+      overflow: hidden;
       position: relative;
       transition: all var(--transition-normal);
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      z-index: 1;
-    }
-    .opp-card.expanded {
-      z-index: 100; /* Bring expanded card above others */
     }
     .opp-card::before {
       content: '';
@@ -436,33 +423,31 @@
 
     .opp-expand-hint { text-align: center; padding: 10px; font-size: 9px; color: var(--text-dim); margin-top: 10px; opacity: 0.7; }
 
-    /* Opportunity Expanded - Absolute overlay (doesn't affect grid) */
+    /* Opportunity Expanded - Inline flow, cards below slide down */
     .opp-expanded { 
-      display: none; 
-      position: absolute;
-      top: 100%; /* Position below the card */
-      left: 0;
-      right: 0;
-      background: linear-gradient(180deg, var(--bg-card), rgba(24,24,27,0.98));
-      border: 1px solid var(--border-active);
-      border-top: none;
-      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-      z-index: 100;
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s ease;
+      border-top: 1px solid transparent;
     }
-    .opp-card.expanded .opp-expanded { display: block; animation: expandFade 0.2s ease; }
-    .opp-expanded-inner { padding: 16px; }
+    .opp-expanded-inner { 
+      overflow: hidden;
+      padding: 0 16px;
+      transition: padding 0.3s ease;
+    }
+    .opp-card.expanded .opp-expanded { 
+      grid-template-rows: 1fr;
+      border-top-color: var(--border-subtle);
+      background: linear-gradient(180deg, var(--bg-secondary), var(--bg-card));
+    }
+    .opp-card.expanded .opp-expanded-inner {
+      padding: 16px;
+    }
     
     /* Opp card main section */
     .opp-card-main {
       padding: 14px 14px 14px 20px;
       cursor: pointer;
-      background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
-      border-radius: var(--radius-lg);
-      transition: border-radius 0.15s ease;
-    }
-    .opp-card.expanded .opp-card-main {
-      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════

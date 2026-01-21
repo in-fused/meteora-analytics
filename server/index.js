@@ -11,20 +11,9 @@ app.use(cors());
 app.use(express.json());
 
 /**
- * ✅ REQUIRED FOR FLY.IO
- * Fly injects PORT — we MUST use it
+ * Health + root
  */
-const PORT = process.env.PORT;
-
-/**
- * ✅ Serve frontend
- */
-app.use(express.static('public'));
-
-/**
- * Health / root check
- */
-app.get('/', (_req, res) => {
+app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'meteora-analytics-backend',
@@ -32,16 +21,12 @@ app.get('/', (_req, res) => {
   });
 });
 
-/**
- * Free health endpoint
- */
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (_, res) => {
   res.json({ ok: true });
 });
 
 /**
- * Meteora analytics
- * PREVIEW_MODE=true disables payment enforcement
+ * FREE: Meteora analytics (no payment, preview mode)
  */
 app.get('/api/v1/meteora/analytics', async (req, res) => {
   try {
@@ -60,8 +45,10 @@ app.get('/api/v1/meteora/analytics', async (req, res) => {
 });
 
 /**
- * Start server
+ * PORT — Fly.io REQUIRED
  */
+const PORT = process.env.PORT || 8080;
+
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Meteora backend running on port ${PORT}`);
 });

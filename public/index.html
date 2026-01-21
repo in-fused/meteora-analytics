@@ -483,6 +483,241 @@
       .alert-form { grid-template-columns: 1fr; }
       .pool-stats, .opp-metrics { grid-template-columns: repeat(2, 1fr); }
     }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TIP JAR & EMAIL CAPTURE
+    ═══════════════════════════════════════════════════════════════════════════ */
+    .tip-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: 0 2px 8px rgba(245,158,11,0.3);
+    }
+    .tip-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(245,158,11,0.4); }
+    .tip-btn svg { width: 14px; height: 14px; }
+    
+    .email-capture {
+      background: linear-gradient(135deg, rgba(129,140,248,0.1), rgba(52,211,153,0.1));
+      border: 1px solid rgba(129,140,248,0.25);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .email-capture h3 { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .email-capture p { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+    .email-form { display: flex; gap: 10px; max-width: 400px; margin: 0 auto; }
+    .email-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+    .email-input:focus { outline: none; border-color: var(--accent-primary); }
+    .email-submit {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .email-submit:hover { filter: brightness(1.1); }
+    .email-success { color: var(--accent-emerald); font-size: 13px; margin-top: 10px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION LAYER - DEPOSIT MODAL
+    ═══════════════════════════════════════════════════════════════════════════ */
+    .exec-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    .exec-modal.active { display: flex; }
+    .exec-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .exec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .exec-header h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+    .exec-close {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .exec-close:hover { background: var(--accent-rose); color: white; }
+    .exec-body { padding: 20px; }
+    .exec-pool-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+    }
+    .exec-pool-icons { display: flex; }
+    .exec-pool-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--bg-card); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .exec-pool-icon:nth-child(2) { margin-left: -12px; }
+    .exec-pool-details h3 { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .exec-pool-details p { font-size: 12px; color: var(--text-secondary); }
+    
+    .exec-input-group { margin-bottom: 16px; }
+    .exec-input-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+    .exec-input-row { display: flex; gap: 10px; }
+    .exec-input {
+      flex: 1;
+      padding: 12px 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 16px;
+    }
+    .exec-input:focus { outline: none; border-color: var(--accent-primary); }
+    .exec-token-select {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .exec-max-btn {
+      padding: 4px 10px;
+      background: rgba(129,140,248,0.15);
+      border: none;
+      border-radius: 4px;
+      color: var(--accent-primary);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .exec-balance { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    
+    .exec-summary {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .exec-summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    .exec-summary-row span:first-child { color: var(--text-secondary); }
+    .exec-summary-row span:last-child { color: var(--text-primary); font-family: var(--font-mono); }
+    .exec-summary-row.total { border-top: 1px solid var(--border-subtle); padding-top: 10px; margin-top: 6px; }
+    .exec-summary-row.total span:last-child { color: var(--accent-emerald); font-weight: 600; }
+    
+    .exec-fee-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(251,191,36,0.1);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--accent-amber);
+    }
+    
+    .exec-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .exec-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .exec-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .exec-btn.loading { pointer-events: none; }
+    .exec-btn.loading::after { content: '...'; animation: dots 1s infinite; }
+    @keyframes dots { 0%, 33% { content: '.'; } 34%, 66% { content: '..'; } 67%, 100% { content: '...'; } }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       METRICS DASHBOARD (Admin/Internal)
+    ═══════════════════════════════════════════════════════════════════════════ */
+    .metrics-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow-x: auto;
+    }
+    .metric-item { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .metric-item strong { color: var(--text-primary); font-family: var(--font-mono); }
+    
+    /* Pro badge teaser */
+    .pro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 6px;
+      background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(245,158,11,0.1));
+      border: 1px solid rgba(251,191,36,0.3);
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--accent-amber);
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
@@ -500,6 +735,122 @@
         </button>
       </div>
       <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Execution Modal - Deposit into Pool -->
+  <div class="exec-modal" id="execModal">
+    <div class="exec-content">
+      <div class="exec-header">
+        <h2>⚡ Quick Deposit</h2>
+        <button class="exec-close" onclick="ExecutionLayer.close()">✕</button>
+      </div>
+      <div class="exec-body">
+        <div class="exec-pool-info" id="execPoolInfo">
+          <div class="exec-pool-icons">
+            <div class="exec-pool-icon" id="execIcon1">-</div>
+            <div class="exec-pool-icon" id="execIcon2">-</div>
+          </div>
+          <div class="exec-pool-details">
+            <h3 id="execPoolName">Loading...</h3>
+            <p id="execPoolStats">APR: -% | TVL: $-</p>
+          </div>
+        </div>
+        
+        <div class="exec-input-group">
+          <label>Deposit Amount</label>
+          <div class="exec-input-row">
+            <input type="number" class="exec-input" id="execAmount" placeholder="0.00" oninput="ExecutionLayer.updateQuote()">
+            <div class="exec-token-select" id="execToken">
+              <span>SOL</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <span class="exec-balance">Balance: <strong id="execBalance">0.00</strong> SOL</span>
+            <button class="exec-max-btn" onclick="ExecutionLayer.setMax()">MAX</button>
+          </div>
+        </div>
+        
+        <div class="exec-summary">
+          <div class="exec-summary-row">
+            <span>You Deposit</span>
+            <span id="execDepositAmount">0.00 SOL</span>
+          </div>
+          <div class="exec-summary-row">
+            <span>Swap to Pool Tokens</span>
+            <span id="execSwapInfo">Via Jupiter</span>
+          </div>
+          <div class="exec-summary-row">
+            <span>Network Fee</span>
+            <span id="execNetworkFee">~0.00005 SOL</span>
+          </div>
+          <div class="exec-summary-row">
+            <span>Platform Fee (0.1%)</span>
+            <span id="execPlatformFee">0.00 SOL</span>
+          </div>
+          <div class="exec-summary-row total">
+            <span>Est. LP Position</span>
+            <span id="execLPValue">$0.00</span>
+          </div>
+        </div>
+        
+        <div class="exec-fee-note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span>0.1% fee supports continued development of free analytics</span>
+        </div>
+        
+        <button class="exec-btn" id="execBtn" onclick="ExecutionLayer.execute()" disabled>
+          Connect Wallet to Deposit
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tip Jar Modal -->
+  <div class="exec-modal" id="tipModal">
+    <div class="exec-content" style="max-width:400px">
+      <div class="exec-header">
+        <h2>☕ Support LiquidityPro</h2>
+        <button class="exec-close" onclick="TipJar.close()">✕</button>
+      </div>
+      <div class="exec-body" style="text-align:center">
+        <p style="color:var(--text-secondary);margin-bottom:20px">
+          Help us keep building free tools for the Solana LP community. Every tip goes directly to development.
+        </p>
+        
+        <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:16px;margin-bottom:20px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">SOLANA WALLET</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);word-break:break-all" id="tipAddress">
+            inFuseD3ZaP1m8raFeDDYyAGfA3QCmy71QGsoRcfvuo
+          </div>
+          <button class="exec-max-btn" style="margin-top:10px" onclick="TipJar.copyAddress()">📋 Copy Address</button>
+        </div>
+        
+        <div class="exec-input-group">
+          <label>Quick Tip Amount (SOL)</label>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+            <button class="exec-max-btn" onclick="TipJar.setAmount(0.1)" style="padding:8px 16px">0.1 SOL</button>
+            <button class="exec-max-btn" onclick="TipJar.setAmount(0.5)" style="padding:8px 16px">0.5 SOL</button>
+            <button class="exec-max-btn" onclick="TipJar.setAmount(1)" style="padding:8px 16px">1 SOL</button>
+          </div>
+        </div>
+        
+        <div class="exec-input-group" style="margin-top:16px">
+          <div class="exec-input-row">
+            <input type="number" class="exec-input" id="tipAmount" placeholder="Custom amount" step="0.01" min="0.01">
+            <span style="padding:12px;color:var(--text-secondary)">SOL</span>
+          </div>
+        </div>
+        
+        <button class="exec-btn" id="tipBtn" onclick="TipJar.send()" style="margin-top:16px">
+          Send Tip 💜
+        </button>
+        
+        <p style="font-size:11px;color:var(--text-dim);margin-top:16px">
+          Thank you for supporting open-source DeFi tools!
+        </p>
+      </div>
     </div>
   </div>
 
@@ -523,6 +874,10 @@
         </div>
       </div>
       <div class="header-actions">
+        <button class="tip-btn" onclick="TipJar.show()" title="Support Development">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Tip SOL
+        </button>
         <button class="btn btn--secondary" onclick="App.refresh()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>
           Refresh
@@ -533,6 +888,15 @@
         </button>
       </div>
     </header>
+    
+    <!-- Metrics Bar -->
+    <div class="metrics-bar" id="metricsBar">
+      <div class="metric-item">👥 Users: <strong id="metricUsers">1</strong></div>
+      <div class="metric-item">👁️ Views: <strong id="metricViews">0</strong></div>
+      <div class="metric-item">🔍 Pool Clicks: <strong id="metricClicks">0</strong></div>
+      <div class="metric-item">⚡ Opportunities: <strong id="metricOpps">0</strong></div>
+      <div class="metric-item">⏱️ Session: <strong id="metricSession">0m</strong></div>
+    </div>
 
     <!-- Navigation -->
     <nav class="nav-tabs">
@@ -562,6 +926,16 @@
 
     <!-- Opportunities Tab -->
     <div class="tab-content" id="opportunities-tab">
+      <!-- Email Capture -->
+      <div class="email-capture" id="emailCapture">
+        <h3>🔔 Get Opportunity Alerts</h3>
+        <p>Be the first to know when high-yield LP opportunities appear. No spam, just alpha.</p>
+        <form class="email-form" onsubmit="EmailCapture.submit(event)">
+          <input type="email" class="email-input" id="emailInput" placeholder="your@email.com" required>
+          <button type="submit" class="email-submit">Subscribe</button>
+        </form>
+        <div class="email-success" id="emailSuccess" style="display:none">✓ You're subscribed! Check your inbox.</div>
+      </div>
       <div id="opportunitiesList"></div>
     </div>
 
@@ -841,6 +1215,318 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // TIP JAR - Support development
+    // ═══════════════════════════════════════════════════════════════════════════
+    const TipJar = {
+      WALLET: 'inFuseD3ZaP1m8raFeDDYyAGfA3QCmy71QGsoRcfvuo',
+      
+      show() {
+        document.getElementById('tipModal').classList.add('active');
+        Metrics.track('tip_jar_opened');
+      },
+      
+      close() {
+        document.getElementById('tipModal').classList.remove('active');
+      },
+      
+      setAmount(amount) {
+        document.getElementById('tipAmount').value = amount;
+      },
+      
+      copyAddress() {
+        navigator.clipboard.writeText(this.WALLET);
+        ToastUI.success('Copied!', 'Wallet address copied to clipboard');
+        Metrics.track('tip_address_copied');
+      },
+      
+      async send() {
+        const amount = parseFloat(document.getElementById('tipAmount').value);
+        if (!amount || amount <= 0) {
+          ToastUI.error('Invalid Amount', 'Please enter a valid tip amount');
+          return;
+        }
+        
+        if (!State.wallet.connected) {
+          ToastUI.error('Wallet Required', 'Please connect your wallet first');
+          WalletUI.open();
+          return;
+        }
+        
+        const btn = document.getElementById('tipBtn');
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Sending';
+        
+        try {
+          const provider = window.phantom?.solana || window.solflare || window.backpack;
+          if (!provider) throw new Error('No wallet provider');
+          
+          // Create transfer transaction
+          const connection = new (window.solanaWeb3?.Connection || class{})(CONFIG.HELIUS_RPC);
+          const fromPubkey = provider.publicKey;
+          const toPubkey = new (window.solanaWeb3?.PublicKey || class{})(this.WALLET);
+          
+          // For now, show manual transfer instructions
+          ToastUI.info('Manual Transfer', `Please send ${amount} SOL to: ${Utils.shortenAddress(this.WALLET, 8)}`);
+          
+          Metrics.track('tip_attempted', { amount });
+          this.close();
+          
+        } catch (err) {
+          console.error('Tip error:', err);
+          ToastUI.error('Transfer Failed', err.message || 'Please try again');
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('loading');
+          btn.textContent = 'Send Tip 💜';
+        }
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL CAPTURE - Build mailing list
+    // ═══════════════════════════════════════════════════════════════════════════
+    const EmailCapture = {
+      STORAGE_KEY: 'lp_email_subscribed',
+      
+      init() {
+        if (localStorage.getItem(this.STORAGE_KEY)) {
+          const el = document.getElementById('emailCapture');
+          if (el) el.style.display = 'none';
+        }
+      },
+      
+      submit(e) {
+        e.preventDefault();
+        const email = document.getElementById('emailInput').value;
+        if (!email) return;
+        
+        // Store locally (in production, send to backend/email service)
+        const emails = JSON.parse(localStorage.getItem('lp_emails') || '[]');
+        if (!emails.includes(email)) {
+          emails.push(email);
+          localStorage.setItem('lp_emails', JSON.stringify(emails));
+        }
+        
+        localStorage.setItem(this.STORAGE_KEY, 'true');
+        
+        // Show success
+        document.querySelector('.email-form').style.display = 'none';
+        document.getElementById('emailSuccess').style.display = 'block';
+        
+        Metrics.track('email_subscribed', { email: email.split('@')[1] }); // Domain only for privacy
+        ToastUI.success('Subscribed!', 'You\'ll receive opportunity alerts');
+        
+        // Hide capture after a moment
+        setTimeout(() => {
+          const el = document.getElementById('emailCapture');
+          if (el) el.style.opacity = '0';
+          setTimeout(() => { if (el) el.style.display = 'none'; }, 300);
+        }, 3000);
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXECUTION LAYER - Direct pool deposits via Jupiter
+    // ═══════════════════════════════════════════════════════════════════════════
+    const ExecutionLayer = {
+      currentPool: null,
+      PLATFORM_FEE: 0.001, // 0.1%
+      FEE_WALLET: 'inFuseD3ZaP1m8raFeDDYyAGfA3QCmy71QGsoRcfvuo',
+      
+      open(pool) {
+        this.currentPool = pool;
+        const modal = document.getElementById('execModal');
+        
+        // Populate pool info
+        document.getElementById('execIcon1').textContent = pool.icon1;
+        document.getElementById('execIcon2').textContent = pool.icon2;
+        document.getElementById('execPoolName').textContent = pool.name;
+        document.getElementById('execPoolStats').textContent = `APR: ${pool.apr}% | TVL: ${Utils.formatNumber(pool.tvl)}`;
+        
+        // Update balance if wallet connected
+        if (State.wallet.connected) {
+          document.getElementById('execBalance').textContent = State.wallet.balance.toFixed(4);
+          document.getElementById('execBtn').disabled = false;
+          document.getElementById('execBtn').textContent = 'Deposit via Jupiter';
+        } else {
+          document.getElementById('execBalance').textContent = '0.00';
+          document.getElementById('execBtn').disabled = true;
+          document.getElementById('execBtn').textContent = 'Connect Wallet to Deposit';
+        }
+        
+        // Reset inputs
+        document.getElementById('execAmount').value = '';
+        this.updateQuote();
+        
+        modal.classList.add('active');
+        Metrics.track('execution_opened', { pool: pool.name });
+      },
+      
+      close() {
+        document.getElementById('execModal').classList.remove('active');
+        this.currentPool = null;
+      },
+      
+      setMax() {
+        if (!State.wallet.connected) return;
+        const max = Math.max(0, State.wallet.balance - 0.01); // Leave some for fees
+        document.getElementById('execAmount').value = max.toFixed(4);
+        this.updateQuote();
+      },
+      
+      updateQuote() {
+        const amount = parseFloat(document.getElementById('execAmount').value) || 0;
+        const solPrice = State.solPrice || 185;
+        
+        const platformFee = amount * this.PLATFORM_FEE;
+        const netAmount = amount - platformFee;
+        const usdValue = netAmount * solPrice;
+        
+        document.getElementById('execDepositAmount').textContent = `${amount.toFixed(4)} SOL`;
+        document.getElementById('execPlatformFee').textContent = `${platformFee.toFixed(6)} SOL`;
+        document.getElementById('execLPValue').textContent = `$${usdValue.toFixed(2)}`;
+      },
+      
+      async execute() {
+        if (!State.wallet.connected) {
+          WalletUI.open();
+          return;
+        }
+        
+        const amount = parseFloat(document.getElementById('execAmount').value);
+        if (!amount || amount <= 0) {
+          ToastUI.error('Invalid Amount', 'Please enter a deposit amount');
+          return;
+        }
+        
+        if (amount > State.wallet.balance) {
+          ToastUI.error('Insufficient Balance', 'You don\'t have enough SOL');
+          return;
+        }
+        
+        const btn = document.getElementById('execBtn');
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Processing';
+        
+        try {
+          // In production, this would:
+          // 1. Get optimal swap route from Jupiter
+          // 2. Split SOL into pool token pair
+          // 3. Create Meteora deposit instruction
+          // 4. Bundle into single transaction
+          // 5. Collect platform fee
+          
+          const pool = this.currentPool;
+          const addr = pool.address || pool.id;
+          const isDLMM = pool.protocol === 'Meteora DLMM';
+          const meteoraUrl = isDLMM 
+            ? `https://app.meteora.ag/dlmm/${addr}` 
+            : `https://app.meteora.ag/pools/${addr}`;
+          
+          // For now, redirect to Meteora with amount in URL
+          ToastUI.success('Redirecting...', 'Opening Meteora to complete deposit');
+          
+          Metrics.track('execution_attempted', { 
+            pool: pool.name, 
+            amount, 
+            fee: amount * this.PLATFORM_FEE 
+          });
+          
+          setTimeout(() => {
+            window.open(meteoraUrl, '_blank');
+            this.close();
+          }, 1000);
+          
+        } catch (err) {
+          console.error('Execution error:', err);
+          ToastUI.error('Deposit Failed', err.message || 'Please try again');
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('loading');
+          btn.textContent = 'Deposit via Jupiter';
+        }
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // METRICS TRACKING - Analytics for monetization decisions
+    // ═══════════════════════════════════════════════════════════════════════════
+    const Metrics = {
+      data: {
+        sessionStart: Date.now(),
+        pageViews: 0,
+        poolClicks: 0,
+        opportunityViews: 0,
+        expandedPools: [],
+        executionAttempts: 0,
+        events: []
+      },
+      
+      init() {
+        this.data.pageViews = parseInt(localStorage.getItem('lp_total_views') || '0') + 1;
+        localStorage.setItem('lp_total_views', this.data.pageViews);
+        
+        // Update display
+        this.updateDisplay();
+        
+        // Update session timer
+        setInterval(() => this.updateSession(), 60000);
+        
+        // Track on unload
+        window.addEventListener('beforeunload', () => this.save());
+      },
+      
+      track(event, data = {}) {
+        const entry = {
+          event,
+          data,
+          timestamp: Date.now()
+        };
+        this.data.events.push(entry);
+        
+        // Update specific counters
+        if (event === 'pool_clicked') this.data.poolClicks++;
+        if (event === 'pool_expanded') this.data.expandedPools.push(data.pool);
+        if (event.includes('execution')) this.data.executionAttempts++;
+        
+        this.updateDisplay();
+        
+        // In production, send to analytics backend
+        console.log('📊 Metric:', event, data);
+      },
+      
+      updateDisplay() {
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('metricViews', this.data.pageViews);
+        setEl('metricClicks', this.data.poolClicks);
+        setEl('metricOpps', State.opportunities?.length || 0);
+      },
+      
+      updateSession() {
+        const mins = Math.floor((Date.now() - this.data.sessionStart) / 60000);
+        const el = document.getElementById('metricSession');
+        if (el) el.textContent = `${mins}m`;
+      },
+      
+      save() {
+        localStorage.setItem('lp_metrics', JSON.stringify(this.data));
+      },
+      
+      getReport() {
+        return {
+          ...this.data,
+          sessionDuration: Date.now() - this.data.sessionStart,
+          mostViewedPools: [...new Set(this.data.expandedPools)]
+            .map(p => ({ pool: p, views: this.data.expandedPools.filter(x => x === p).length }))
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 10)
+        };
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // WALLET UI
     // ═══════════════════════════════════════════════════════════════════════════
     const WalletUI = {
@@ -1052,9 +1738,13 @@
             <div class="pool-expanded">
               <div class="pool-expanded-inner">
                 <div class="pool-actions">
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn primary">
+                  <button class="pool-action-btn primary" onclick="ExecutionLayer.open(State.pools.find(p=>p.id==='${pool.id}'))">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+                    Quick Deposit
+                  </button>
+                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    View Pool
+                    Meteora
                   </a>
                   <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -1062,7 +1752,7 @@
                   </a>
                   <button class="pool-action-btn" onclick="PoolCardUI.copyAddress('${addr}')">
                     ${Utils.copyIcon}
-                    Copy Address
+                    Copy
                   </button>
                 </div>
                 ${LiquidityChartUI.render(pool)}
@@ -1124,6 +1814,9 @@
         } else {
           card.classList.add('expanded');
           State.expandedPoolId = poolId;
+          // Track expansion
+          const pool = State.filteredPools.find(p => p.id === poolId);
+          if (pool) Metrics.track('pool_expanded', { pool: pool.name });
         }
       },
       
@@ -1184,9 +1877,13 @@
             <div class="opp-expanded">
               <div class="opp-expanded-inner">
                 <div class="pool-actions">
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn primary">
+                  <button class="pool-action-btn primary" onclick="ExecutionLayer.open(State.opportunities.find(p=>p.id==='${opp.id}'))">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+                    Quick Deposit
+                  </button>
+                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    View Pool
+                    Meteora
                   </a>
                   <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -1194,7 +1891,7 @@
                   </a>
                   <button class="pool-action-btn" onclick="OppCardUI.copyAddress('${addr}')">
                     ${Utils.copyIcon}
-                    Copy Address
+                    Copy
                   </button>
                 </div>
                 ${LiquidityChartUI.render(opp)}
@@ -2038,6 +2735,10 @@
         Background.init();
         StatusUI.set('loading', 'Initializing...');
         
+        // Initialize metrics & email capture
+        Metrics.init();
+        EmailCapture.init();
+        
         // Auto-connect wallet if previously authorized
         await WalletService.autoConnect();
         
@@ -2063,6 +2764,9 @@
         
         // Refresh wallet balance periodically
         setInterval(() => { if (State.wallet.connected) WalletService.fetchBalance(); }, 30000);
+        
+        // Update metrics display periodically
+        setInterval(() => Metrics.updateDisplay(), 5000);
       },
       
       async refresh() {

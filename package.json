@@ -1,16 +1,15 @@
 {
   "name": "meteora-analytics",
+  "version": "1.0.0",
   "type": "module",
+  "private": true,
   "scripts": {
     "start": "node server/index.js"
   },
   "dependencies": {
-    "express": "^4.21.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "@x402/core": "^0.2.0",
-    "@x402/express": "^0.2.0",
-    "@x402/evm": "^0.2.0"
+    "express": "^4.19.2",
+    "@x402/express": "^0.0.9",
+    "@x402/core": "^0.0.9"
   },
   "engines": {
     "node": ">=18"

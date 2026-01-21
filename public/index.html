@@ -3020,6 +3020,21 @@
       }
     });
   </script>
+
+  <script>
+function normalizePool(pool) {
+  return {
+    address: pool.address ?? "",
+    name: pool.name ?? "Unknown",
+    liquidity: Number(pool.liquidity ?? 0),
+    apr: Number(pool.apr ?? 0),
+    volume24h: Number(pool.trade_volume_24h ?? 0),
+    score: Number(pool.score ?? 0),
+    raw: pool
+  };
+}
+</script>
+  
   <script>
   const loadBtn = document.querySelector("button");
   const output = document.createElement("pre");

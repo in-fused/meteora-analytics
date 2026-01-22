@@ -2061,7 +2061,7 @@
     if (!container) return;
 
     if (State.filteredPools.length === 0) {
-      container.innerHTML =
+      poolsContainer.insertAdjacentHTML("beforeend", cardHTML);
         '<div class="alert-empty" style="text-align:center;padding:40px;column-span:all">' +
         '<div class="loading-spinner"></div>' +
         '<p style="margin-top:12px">Loading pools...</p></div>';

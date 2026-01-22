@@ -3035,7 +3035,20 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
         this.applyFilters();
       }
     };
-<script>
+
+    document.addEventListener('DOMContentLoaded', () => App.init());
+    // Modal close on overlay click
+    document.getElementById('walletModal')?.addEventListener('click', e => {
+      if (e.target.id === 'walletModal') WalletUI.close();
+    });
+
+  // ================================
+  // GLOBAL STATE
+  // ================================
+  let pools = [];
+  let opportunities = [];
+
+  <script>
 const App = {
   init() {
     if (!State || !State.pools) {
@@ -3063,18 +3076,6 @@ const App = {
 };
 </script>
 
-              document.addEventListener('DOMContentLoaded', () => App.init());
-    // Modal close on overlay click
-    document.getElementById('walletModal')?.addEventListener('click', e => {
-      if (e.target.id === 'walletModal') WalletUI.close();
-    });
-
-  // ================================
-  // GLOBAL STATE
-  // ================================
-  let pools = [];
-  let opportunities = [];
-
   <script>
   // Initialize app
   document.addEventListener('DOMContentLoaded', () => App.init());
@@ -3094,8 +3095,6 @@ const App = {
     }
   });
 </script>
-
-
   
   <script>
   const loadBtn = document.querySelector("button");

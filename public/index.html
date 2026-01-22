@@ -2067,9 +2067,10 @@ if (!columnCount || columnCount === 1) {
       columnCount
     );
 
-    container.innerHTML = State.filteredPools
+    container.innerHTML = reordered
   .map((p, i) => PoolCardUI.render(p, i + 1))
   .join('');
+
 
   }
 };
@@ -2175,7 +2176,10 @@ if (!columnCount || columnCount === 1) {
           list.innerHTML = '<div class="alert-empty">No high-probability opportunities detected. Adjust filters or wait for market conditions to change.</div>';
           return;
         }
-        list.innerHTML = State.opportunities.map(o => OppCardUI.render(o)).join('');
+        container.innerHTML = reordered
+  .map((o) => OppCardUI.render(o))
+  .join('');
+
       }
     };
 

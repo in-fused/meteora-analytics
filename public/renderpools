@@ -3043,14 +3043,13 @@ document.addEventListener('DOMContentLoaded', () => App.init());
       if (e.target.id === 'walletModal') WalletUI.close();
     });
 
-
-<script>
   // ================================
   // GLOBAL STATE
   // ================================
   let pools = [];
   let opportunities = [];
 
+  <script>
   // Initialize app
   document.addEventListener('DOMContentLoaded', () => App.init());
 
@@ -3069,6 +3068,7 @@ document.addEventListener('DOMContentLoaded', () => App.init());
     }
   });
 </script>
+
 
   
   <script>

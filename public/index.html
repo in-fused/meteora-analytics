@@ -2047,10 +2047,18 @@
       return;
     }
 
-    const columnCount = parseInt(
-      getComputedStyle(container).columnCount || 1,
-      10
-    );
+    let columnCount = parseInt(
+  getComputedStyle(container).columnCount,
+  10
+);
+
+if (!columnCount || columnCount === 1) {
+  if (window.innerWidth >= 1400) columnCount = 4;
+  else if (window.innerWidth >= 1100) columnCount = 3;
+  else if (window.innerWidth >= 768) columnCount = 2;
+  else columnCount = 1;
+}
+
 
     const reordered = reorderForCssColumns(
       [...State.filteredPools],

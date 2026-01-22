@@ -2062,10 +2062,14 @@ if (!columnCount || columnCount === 1) {
 }
 
 
-    const reordered = reorderForCssColumns(
-      [...State.filteredPools],
-      columnCount
-    );
+    const columnCount = getComputedStyle(container)
+  .columnCount || 1;
+
+const reordered = reorderForCssColumns(
+  [...State.filteredPools],
+  Number(columnCount)
+);
+
 
     container.innerHTML = reordered
   .map((p, i) => PoolCardUI.render(p, i + 1))

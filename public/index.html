@@ -2087,11 +2087,6 @@ if (!columnCount || columnCount === 1) {
     const columnCount = getComputedStyle(container)
   .columnCount || 1;
 
-const reordered = reorderForCssColumns(
-  [...State.filteredPools],
-  Number(columnCount)
-);
-
 
 
     container.innerHTML = reordered

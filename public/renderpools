@@ -1175,21 +1175,19 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
-    <script>
-/**
- * Reorders items so CSS columns render left-to-right by rank
- */
+    
+<script>
+/* ===== COLUMN ORDER FIX (SAFE, PURE FUNCTION) ===== */
 function reorderForCssColumns(items, columnCount) {
+  if (!Array.isArray(items) || !columnCount) return items;
+
   const rows = Math.ceil(items.length / columnCount);
   const reordered = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const row = Math.floor(i / columnCount);
-    const col = i % columnCount;
-    const index = col * rows + row;
-
-    if (items[index]) {
-      reordered.push(items[index]);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < columnCount; c++) {
+      const idx = c * rows + r;
+      if (items[idx]) reordered.push(items[idx]);
     }
   }
 
@@ -1197,27 +1195,6 @@ function reorderForCssColumns(items, columnCount) {
 }
 </script>
 
-  <script>
-/**
- * Reorders items so CSS Grid / Columns render
- * left-to-right instead of top-to-bottom
- */
-function reorderForCssColumns(items, columnCount) {
-  if (!Array.isArray(items) || items.length === 0) return items;
-
-  const rows = Math.ceil(items.length / columnCount);
-  const reordered = [];
-
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < columnCount; col++) {
-      const index = col * rows + row;
-      if (items[index]) reordered.push(items[index]);
-    }
-  }
-
-  return reordered;
-}
-</script>
 
     const State = {
       pools: [],
@@ -2429,12 +2406,10 @@ if (!columnCount || columnCount === 1) {
         }
         
         // Sort by score and limit
-        State.pools = reorderForCssColumns(
-  pools
-    .map(normalizePool)
-    .sort((a, b) => b.score - a.score),
-  getComputedStyle(document.querySelector('.pools-container')).columnCount
-);
+        const sorted = pools.sort((a, b) => b.score - a.score);
+const columnCount = getComputedStyle(container).columnCount || 3;
+const ordered = reorderForCssColumns(sorted, Number(columnCount));
+
 
         
         StatusUI.setApi('meteora', true);
@@ -3081,7 +3056,7 @@ if (!columnCount || columnCount === 1) {
         this.applyFilters();
       }
     };
-
+document.addEventListener('DOMContentLoaded', () => App.init());
     // Modal close on overlay click
     document.getElementById('walletModal')?.addEventListener('click', e => {
       if (e.target.id === 'walletModal') WalletUI.close();
@@ -3110,9 +3085,6 @@ function normalizePool(pool) {
   let opportunities = [];
 </script>
 
-  <script>  
-    document.addEventListener('DOMContentLoaded', () => App.init());
-    </script>
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (State.expandedPoolId) {

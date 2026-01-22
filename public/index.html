@@ -2035,16 +2035,34 @@
     // POOLS GRID UI
     // ═══════════════════════════════════════════════════════════════════════════
     const PoolsGridUI = {
-      render() {
-        const container = document.getElementById('poolsContainer');
-        if (!container) return;
-        if (State.filteredPools.length === 0) {
-          container.innerHTML = '<div class="alert-empty" style="text-align:center;padding:40px;column-span:all"><div class="loading-spinner"></div><p style="margin-top:12px">Loading pools...</p></div>';
-          return;
-        }
-        container.innerHTML = State.filteredPools.map((p, i) => PoolCardUI.render(p, i + 1)).join('');
-      }
-    };
+  render() {
+    const container = document.getElementById('poolsContainer');
+    if (!container) return;
+
+    if (State.filteredPools.length === 0) {
+      container.innerHTML =
+        '<div class="alert-empty" style="text-align:center;padding:40px;column-span:all">' +
+        '<div class="loading-spinner"></div>' +
+        '<p style="margin-top:12px">Loading pools...</p></div>';
+      return;
+    }
+
+    const columnCount = parseInt(
+      getComputedStyle(container).columnCount || 1,
+      10
+    );
+
+    const reordered = reorderForCssColumns(
+      [...State.filteredPools],
+      columnCount
+    );
+
+    container.innerHTML = reordered
+      .map((p, i) => PoolCardUI.render(p, i + 1))
+      .join('');
+  }
+};
+
 
     // ═══════════════════════════════════════════════════════════════════════════
     // OPPORTUNITY CARD UI - EXPANDABLE WITH CHARTS

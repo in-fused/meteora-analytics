@@ -1197,6 +1197,28 @@ function reorderForCssColumns(items, columnCount) {
 }
 </script>
 
+  <script>
+/**
+ * Reorders items so CSS Grid / Columns render
+ * left-to-right instead of top-to-bottom
+ */
+function reorderForCssColumns(items, columnCount) {
+  if (!Array.isArray(items) || items.length === 0) return items;
+
+  const rows = Math.ceil(items.length / columnCount);
+  const reordered = [];
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columnCount; col++) {
+      const index = col * rows + row;
+      if (items[index]) reordered.push(items[index]);
+    }
+  }
+
+  return reordered;
+}
+</script>
+
     const State = {
       pools: [],
       filteredPools: [],

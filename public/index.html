@@ -2350,8 +2350,13 @@
         }
         
         // Sort by score and limit
-        State.pools = allPools.sort((a, b) => b.score - a.score).slice(0, 200);
-        State.pools.forEach(p => { if (!State.poolTransactions[p.id]) State.poolTransactions[p.id] = []; });
+        State.pools = reorderForCssColumns(
+  pools
+    .map(normalizePool)
+    .sort((a, b) => b.score - a.score),
+  getComputedStyle(document.querySelector('.pools-container')).columnCount
+);
+
         
         StatusUI.setApi('meteora', true);
         this.applyFilters();

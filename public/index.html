@@ -3035,7 +3035,35 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
         this.applyFilters();
       }
     };
-document.addEventListener('DOMContentLoaded', () => App.init());
+<script>
+const App = {
+  init() {
+    if (!State || !State.pools) {
+      console.error("State not initialized");
+      return;
+    }
+
+    this.renderPools();
+  },
+
+  renderPools() {
+    const container = document.getElementById('pools');
+    if (!container) {
+      console.error("Pools container not found");
+      return;
+    }
+
+    container.innerHTML = '';
+
+    State.pools.forEach(pool => {
+      const card = createPoolCard(pool);
+      container.appendChild(card);
+    });
+  }
+};
+</script>
+
+              document.addEventListener('DOMContentLoaded', () => App.init());
     // Modal close on overlay click
     document.getElementById('walletModal')?.addEventListener('click', e => {
       if (e.target.id === 'walletModal') WalletUI.close();

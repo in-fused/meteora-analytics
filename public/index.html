@@ -1175,7 +1175,9 @@
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
 
+  <script>
     const State = {
+      init(),
       pools: [],
       filteredPools: [],
       opportunities: [],
@@ -1192,6 +1194,25 @@
       wallet: { connected: false, publicKey: null, provider: null, name: null, balance: 0 },
       apiStatus: { meteora: false, jupiter: false, helius: false, birdeye: false }
     };
+
+    document.addEventListener('DOMContentLoaded', () => App.init());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (State.expandedPoolId) {
+        const card = document.getElementById(`pool-${State.expandedPoolId}`);
+        if (card) card.classList.remove('expanded');
+        State.expandedPoolId = null;
+      }
+      if (State.expandedOppId) {
+        const card = document.getElementById(`opp-${State.expandedOppId}`);
+        if (card) card.classList.remove('expanded');
+        State.expandedOppId = null;
+      }
+    }
+  });
+    
+</script>
+  
 
     // ═══════════════════════════════════════════════════════════════════════════
     // UTILITIES
@@ -3063,12 +3084,7 @@ const App = {
   }
 };
 </script>
-              
-    document.addEventListener('DOMContentLoaded', () => App.init());
-    // Modal close on overlay click
-    document.getElementById('walletModal')?.addEventListener('click', e => {
-      if (e.target.id === 'walletModal') WalletUI.close();
-    });
+
 
   // ================================
   // GLOBAL STATE
@@ -3078,24 +3094,6 @@ const App = {
 
 
   // Initialize app
- <script>
-  document.addEventListener('DOMContentLoaded', () => App.init());
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (State.expandedPoolId) {
-        const card = document.getElementById(`pool-${State.expandedPoolId}`);
-        if (card) card.classList.remove('expanded');
-        State.expandedPoolId = null;
-      }
-      if (State.expandedOppId) {
-        const card = document.getElementById(`opp-${State.expandedOppId}`);
-        if (card) card.classList.remove('expanded');
-        State.expandedOppId = null;
-      }
-    }
-  });
-</script>
   
   <script>
   const loadBtn = document.querySelector("button");

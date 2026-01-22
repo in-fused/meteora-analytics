@@ -1175,25 +1175,6 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
-    
-<script>
-/* ===== COLUMN ORDER FIX (SAFE, PURE FUNCTION) ===== */
-function reorderForCssColumns(items, columnCount) {
-  if (!Array.isArray(items) || !columnCount) return items;
-
-  const rows = Math.ceil(items.length / columnCount);
-  const reordered = [];
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < columnCount; c++) {
-      const idx = c * rows + r;
-      if (items[idx]) reordered.push(items[idx]);
-    }
-  }
-
-  return reordered;
-}
-</script>
 
 
     const State = {
@@ -3074,31 +3055,33 @@ function normalizePool(pool) {
     raw: pool
   };
 }
-</script>
-    
-    // Initialize app
-    <script>
+
+<script>
   // ================================
-  // GLOBAL STATE (REQUIRED)
+  // GLOBAL STATE
   // ================================
   let pools = [];
   let opportunities = [];
+
+  // Initialize app
+  document.addEventListener('DOMContentLoaded', () => App.init());
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (State.expandedPoolId) {
+        const card = document.getElementById(`pool-${State.expandedPoolId}`);
+        if (card) card.classList.remove('expanded');
+        State.expandedPoolId = null;
+      }
+      if (State.expandedOppId) {
+        const card = document.getElementById(`opp-${State.expandedOppId}`);
+        if (card) card.classList.remove('expanded');
+        State.expandedOppId = null;
+      }
+    }
+  });
 </script>
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (State.expandedPoolId) {
-          const card = document.getElementById(`pool-${State.expandedPoolId}`);
-          if (card) card.classList.remove('expanded');
-          State.expandedPoolId = null;
-        }
-        if (State.expandedOppId) {
-          const card = document.getElementById(`opp-${State.expandedOppId}`);
-          if (card) card.classList.remove('expanded');
-          State.expandedOppId = null;
-        }
-      }
-    });
   
   <script>
   const loadBtn = document.querySelector("button");

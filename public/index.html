@@ -163,9 +163,11 @@
        POOLS CONTAINER - CSS COLUMNS (Independent column flow)
     ═══════════════════════════════════════════════════════════════════════════ */
     .pools-container {
-      column-count: 3;
-      column-gap: 16px;
-    }
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
     @media (max-width: 1200px) { .pools-container { column-count: 2; } }
     @media (max-width: 768px) { .pools-container { column-count: 1; } }
 
@@ -2065,9 +2067,10 @@ if (!columnCount || columnCount === 1) {
       columnCount
     );
 
-    container.innerHTML = reordered
-      .map((p, i) => PoolCardUI.render(p, i + 1))
-      .join('');
+    container.innerHTML = State.filteredPools
+  .map((p, i) => PoolCardUI.render(p, i + 1))
+  .join('');
+
   }
 };
 
@@ -3054,24 +3057,6 @@ if (!columnCount || columnCount === 1) {
     });
   </script>
 
-  <script>
-function reorderForCssColumns(items, columnCount) {
-  const rows = Math.ceil(items.length / columnCount);
-  const reordered = [];
-
-  for (let i = 0; i < items.length; i++) {
-    const row = Math.floor(i / columnCount);
-    const col = i % columnCount;
-    const index = col * rows + row;
-
-    if (items[index]) {
-      reordered.push(items[index]);
-    }
-  }
-
-  return reordered;
-}
-</script>
 
   <script>
 function normalizePool(pool) {

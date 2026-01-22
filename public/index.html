@@ -1175,6 +1175,28 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
+    <script>
+/**
+ * Reorders items so CSS columns render left-to-right by rank
+ */
+function reorderForCssColumns(items, columnCount) {
+  const rows = Math.ceil(items.length / columnCount);
+  const reordered = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const row = Math.floor(i / columnCount);
+    const col = i % columnCount;
+    const index = col * rows + row;
+
+    if (items[index]) {
+      reordered.push(items[index]);
+    }
+  }
+
+  return reordered;
+}
+</script>
+
     const State = {
       pools: [],
       filteredPools: [],

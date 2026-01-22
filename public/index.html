@@ -1176,7 +1176,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     const State = {
-      init()
+      innit()
       pools: [],
       filteredPools: [],
       opportunities: [],
@@ -1193,8 +1193,11 @@
       wallet: { connected: false, publicKey: null, provider: null, name: null, balance: 0 },
       apiStatus: { meteora: false, jupiter: false, helius: false, birdeye: false }
     };
+<script>
+  App.init();
+</script>
 
-    document.addEventListener('DOMContentLoaded', () => App.init());
+  document.addEventListener('DOMContentLoaded', () => App.init());
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (State.expandedPoolId) {

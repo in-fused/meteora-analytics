@@ -1194,24 +1194,25 @@
       apiStatus: { meteora: false, jupiter: false, helius: false, birdeye: false }
     };
 
+  <script>
+document.addEventListener('DOMContentLoaded', () => App.init());
 
-  document.addEventListener('DOMContentLoaded', () => App.init());
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (State.expandedPoolId) {
-        const card = document.getElementById(`pool-${State.expandedPoolId}`);
-        if (card) card.classList.remove('expanded');
-        State.expandedPoolId = null;
-      }
-      if (State.expandedOppId) {
-        const card = document.getElementById(`opp-${State.expandedOppId}`);
-        if (card) card.classList.remove('expanded');
-        State.expandedOppId = null;
-      }
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (State.expandedPoolId) {
+      const card = document.getElementById(`pool-${State.expandedPoolId}`);
+      if (card) card.classList.remove('expanded');
+      State.expandedPoolId = null;
     }
-  });
-    
-  
+    if (State.expandedOppId) {
+      const card = document.getElementById(`opp-${State.expandedOppId}`);
+      if (card) card.classList.remove('expanded');
+      State.expandedOppId = null;
+    }
+  }
+});
+</script>
+
 
     // ═══════════════════════════════════════════════════════════════════════════
     // UTILITIES
@@ -2994,92 +2995,72 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
     // ═══════════════════════════════════════════════════════════════════════════
     // APP CONTROLLER
     // ═══════════════════════════════════════════════════════════════════════════
-    const App = {
-     async init() {
+    // ═══════════════════════════════════════════════════════════════════════════
+// APP CONTROLLER
+// ═══════════════════════════════════════════════════════════════════════════
+const App = {
+  async init() {
     if (!State || !State.pools) {
       console.error("State not initialized");
       return;
     }
 
-    this.renderPools();
+    // Initialize services
+    Metrics.init();
+    EmailCapture.init();
+
+    // Auto-connect wallet
+    await WalletService.autoConnect();
+
+    // Fetch initial data
+    await DataService.fetchJupiter();
+    await DataService.fetchPools();
+
+    // Render UI
+    PoolsGridUI.render();
+    OpportunityUI.render();
+    AlertsUI.populateDropdown();
+    AlertsUI.render();
+    AlertsUI.refreshAI();
+
+    // WebSocket + live updates
+    WSService.connect();
+    LiveUpdates.start();
+
+    // Periodic refresh
+    setInterval(() => this.refresh(), CONFIG.REFRESH_INTERVAL);
+    setInterval(() => {
+      if (State.wallet.connected) WalletService.fetchBalance();
+    }, 30000);
+    setInterval(() => Metrics.updateDisplay(), 5000);
   },
 
-  renderPools() {
-    const container = document.getElementById('pools');
-    if (!container) {
-      console.error("Pools container not found");
-      return;
-    }
+  async refresh() {
+    await DataService.fetchPools();
+    PoolsGridUI.render();
+    OpportunityUI.render();
+    AlertsUI.populateDropdown();
+  },
 
-    container.innerHTML = '';
+  applyFilters() {
+    DataService.applyFilters();
+    DataService.detectOpportunities();
+    PoolsGridUI.render();
+    OpportunityUI.render();
+    AlertsUI.populateDropdown();
+    TabsUI.switch('pools');
+    StatusUI.set('live', `${State.filteredPools.length} pools`);
+  },
 
-    State.pools.forEach(pool => {
-      const card = createPoolCard(pool);
-      container.appendChild(card);
-    });
+  toggleJupShield() {
+    State.jupshieldEnabled = !State.jupshieldEnabled;
+    document
+      .getElementById('jupshieldToggle')
+      ?.classList.toggle('active', State.jupshieldEnabled);
+    this.applyFilters();
   }
+};
 
-        
-        // Initialize metrics & email capture
-        Metrics.init();
-        EmailCapture.init();
-        
-        // Auto-connect wallet if previously authorized
-	 await WalletService.autoConnect();
-	
-        
-        // Fetch data from APIs
-        
-	await DataService.fetchJupiter();
-        await DataService.fetchPools();
-	
-        
-        // Render UI
-        PoolsGridUI.render();
-        OpportunityUI.render();
-        AlertsUI.populateDropdown();
-        AlertsUI.render();
-        AlertsUI.refreshAI();
-        
-        // Connect WebSocket for live transactions
-        WSService.connect();
-        
-        // Start live updates
-        LiveUpdates.start();
-        
-        // Periodic refresh
-        setInterval(() => this.refresh(), CONFIG.REFRESH_INTERVAL);
-        
-        // Refresh wallet balance periodically
-        setInterval(() => { if (State.wallet.connected) WalletService.fetchBalance(); }, 30000);
-        
-        // Update metrics display periodically
-        setInterval(() => Metrics.updateDisplay(), 5000);
-      },
-      
-      async refresh() {
-        await DataService.fetchPools();
-        PoolsGridUI.render();
-        OpportunityUI.render();
-        AlertsUI.populateDropdown();
-      },
-      
-      applyFilters() {
-        DataService.applyFilters();
-        DataService.detectOpportunities();
-        PoolsGridUI.render();
-        OpportunityUI.render();
-        AlertsUI.populateDropdown();
-        TabsUI.switch('pools');
-        StatusUI.set('live', `${State.filteredPools.length} pools`);
-      },
-      
-      toggleJupShield() {
-        State.jupshieldEnabled = !State.jupshieldEnabled;
-        document.getElementById('jupshieldToggle')?.classList.toggle('active', State.jupshieldEnabled);
-        this.applyFilters();
-      }
-    };          
 
 
 

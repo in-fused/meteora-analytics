@@ -1193,7 +1193,7 @@
       wallet: { connected: false, publicKey: null, provider: null, name: null, balance: 0 },
       apiStatus: { meteora: false, jupiter: false, helius: false, birdeye: false }
     };
-  
+
 
   document.addEventListener('DOMContentLoaded', () => App.init());
   document.addEventListener('keydown', (e) => {
@@ -2083,7 +2083,7 @@ if (!columnCount || columnCount === 1) {
 }
 
 
-    const columnCount = getComputedStyle(container)
+    const layoutcolumnCount = getComputedStyle(container)
   .columnCount || 1;
 
 
@@ -2407,7 +2407,7 @@ if (!columnCount || columnCount === 1) {
         
         // Sort by score and limit
         const sorted = pools.sort((a, b) => b.score - a.score);
-const columnCount = getComputedStyle(container).columnCount || 3;
+const poolcolumnCount = getComputedStyle(container).columnCount || 3;
 const ordered = reorderForCssColumns(sorted, Number(columnCount));
 
 
@@ -2995,20 +2995,44 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
     // APP CONTROLLER
     // ═══════════════════════════════════════════════════════════════════════════
     const App = {
-      async init() {
-        Background.init();
-        StatusUI.set('loading', 'Initializing...');
+     async init() {
+    if (!State || !State.pools) {
+      console.error("State not initialized");
+      return;
+    }
+
+    this.renderPools();
+  },
+
+  renderPools() {
+    const container = document.getElementById('pools');
+    if (!container) {
+      console.error("Pools container not found");
+      return;
+    }
+
+    container.innerHTML = '';
+
+    State.pools.forEach(pool => {
+      const card = createPoolCard(pool);
+      container.appendChild(card);
+    });
+  }
+
         
         // Initialize metrics & email capture
         Metrics.init();
         EmailCapture.init();
         
         // Auto-connect wallet if previously authorized
-        await WalletService.autoConnect();
+	 await WalletService.autoConnect();
+	
         
         // Fetch data from APIs
-        await DataService.fetchJupiter();
+        
+	await DataService.fetchJupiter();
         await DataService.fetchPools();
+	
         
         // Render UI
         PoolsGridUI.render();
@@ -3055,34 +3079,7 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
         document.getElementById('jupshieldToggle')?.classList.toggle('active', State.jupshieldEnabled);
         this.applyFilters();
       }
-    };
-              
-
-const App = {
-  init() {
-    if (!State || !State.pools) {
-      console.error("State not initialized");
-      return;
-    }
-
-    this.renderPools();
-  },
-
-  renderPools() {
-    const container = document.getElementById('pools');
-    if (!container) {
-      console.error("Pools container not found");
-      return;
-    }
-
-    container.innerHTML = '';
-
-    State.pools.forEach(pool => {
-      const card = createPoolCard(pool);
-      container.appendChild(card);
-    });
-  }
-};
+    };          
 
 
 

@@ -3006,16 +3006,11 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
     // APP CONTROLLER
     // ═══════════════════════════════════════════════════════════════════════════
 const App = {
-  async init();
-
+  async init() {
     if (!State.pools) {
       console.error("State not initialized");
       return;
     }
-
-await DataService.fetchPools();
-this.renderPools();
-}
 
     // Initialize services
     Metrics.init();
@@ -3029,6 +3024,7 @@ this.renderPools();
     await DataService.fetchPools();
 
     // Render UI
+    this.renderPools();
     PoolsGridUI.render();
     OpportunityUI.render();
     AlertsUI.populateDropdown();
@@ -3045,6 +3041,17 @@ this.renderPools();
       if (State.wallet.connected) WalletService.fetchBalance();
     }, 30000);
     setInterval(() => Metrics.updateDisplay(), 5000);
+  },
+
+  renderPools() {
+    const container = document.getElementById('pools');
+    if (!container) return;
+
+    container.innerHTML = '';
+    State.pools.forEach(pool => {
+      const card = createPoolCard(pool);
+      container.appendChild(card);
+    });
   },
 
   async refresh() {
@@ -3072,6 +3079,7 @@ this.renderPools();
     this.applyFilters();
   }
 };
+
 
 
 document.addEventListener('DOMContentLoaded', () => App.init());

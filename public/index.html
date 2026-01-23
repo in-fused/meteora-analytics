@@ -2439,6 +2439,7 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
         StatusUI.set('error', 'Error loading pools - retrying...');
         setTimeout(() => this.fetchPools(), 10000);
       }
+        State.pools = pools;
       },
       
       processDexScreener(p) {
@@ -3026,6 +3027,25 @@ const App = {
     // Render UI
     this.renderPools();
     PoolsGridUI.render();
+
+    // Sort by score and limit
+const sorted = pools.sort((a, b) => b.score - a.score);
+const poolColumnCount = getComputedStyle(container).columnCount || 3;
+const ordered = reorderForCssColumns(sorted, Number(columnCount));
+
+StatusUI.setApi('meteora', true);
+this.applyFilters();
+this.detectOpportunities();
+
+// Show pool count with source breakdown
+const dlmmCount = State.pools.filter(p => p.protocol === 'Meteora DLMM').length;
+const dammCount = State.pools.filter(p => p.protocol === 'Meteora DAMM v2').length;
+const sourceInfo = sources.length > 0 ? `(${sources.join(', ')})` : '';
+
+StatusUI.set('live', `${State.filteredPools.length} pools${sourceInfo}`);
+console.log(`Total: ${State.pools.length} pools (DLMM: ${dlmmCount}, DAMM v2: ${dammCount})`);
+
+    
     OpportunityUI.render();
     AlertsUI.populateDropdown();
     AlertsUI.render();

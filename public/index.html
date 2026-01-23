@@ -2387,7 +2387,7 @@ if (!container) {
       StatusUI.set('error', 'Error loading pools - retrying...');
       setTimeout(() => this.fetchPools(), 10000);
     }
-  },
+  }
     };
 
       
@@ -2416,6 +2416,9 @@ if (!container) {
           icon1Url: p.baseToken?.info?.imageUrl, icon2Url: p.quoteToken?.info?.imageUrl,
           volumeToTvl: tvl > 0 ? vol / tvl : 0
         };
+      }
+  };
+      
       },
       
       processGeckoTerminal(p) {

@@ -1177,22 +1177,34 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     const State = {
-      
-      filteredPools: [],
-      opportunities: [],
-      verifiedTokens: new Set(),
-      alerts: [],
-      aiSuggestions: [],
-      expandedPoolId: null,
-      expandedOppId: null,
-      poolTransactions: {},
-      wsConnection: null,
-      wsConnected: false,
-      currentWsSource: null,
-      jupshieldEnabled: true,
-      wallet: { connected: false, publicKey: null, provider: null, name: null, balance: 0 },
-      apiStatus: { meteora: false, jupiter: false, helius: false, birdeye: false }
-    };
+  pools: [],
+  filteredPools: [],
+  opportunities: [],
+  verifiedTokens: new Set(),
+  alerts: [],
+  aiSuggestions: [],
+  expandedPoolId: null,
+  expandedOppId: null,
+  poolTransactions: {},
+  wsConnection: null,
+  wsConnected: false,
+  currentSource: null,
+  jupshieldEnabled: true,
+  wallet: {
+    connected: false,
+    publicKey: null,
+    provider: null,
+    name: null,
+    balance: 0
+  },
+  apiStatus: {
+    meteora: false,
+    jupiter: false,
+    helius: false,
+    birdeye: false
+  }
+};
+
 
   
 
@@ -2993,15 +3005,17 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
     // ═══════════════════════════════════════════════════════════════════════════
     // APP CONTROLLER
     // ═══════════════════════════════════════════════════════════════════════════
-    // ═══════════════════════════════════════════════════════════════════════════
-// APP CONTROLLER
-// ═══════════════════════════════════════════════════════════════════════════
 const App = {
-  async init() {
-    if (!State || !State.pools) {
+  async init();
+
+    if (!State.pools) {
       console.error("State not initialized");
       return;
     }
+
+await DataService.fetchPools();
+this.renderPools();
+}
 
     // Initialize services
     Metrics.init();

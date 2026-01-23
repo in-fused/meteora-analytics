@@ -2388,7 +2388,6 @@ if (!container) {
       setTimeout(() => this.fetchPools(), 10000);
     }
   }
-    };
 
       
       processDexScreener(p) {
@@ -2417,9 +2416,7 @@ if (!container) {
           volumeToTvl: tvl > 0 ? vol / tvl : 0
         };
       }
-  };
-      
-      },
+  },
       
       processGeckoTerminal(p) {
         const a = p.attributes || {};
@@ -2522,6 +2519,7 @@ if (!container) {
           icon1: (p.token_a_symbol || name.split('/')[0] || '?').slice(0, 4),
           icon2: (p.token_b_symbol || name.split('/')[1] || '?').slice(0, 4),
           volumeToTvl: tvl > 0 ? volume / tvl : 0
+        }
         };
       },
       
@@ -2631,8 +2629,9 @@ if (!container) {
           isBlacklisted: raw.is_blacklisted || false,
           hide: raw.hide || false
         };
-      },
-      
+      }
+  };
+  
       // Legacy processPool - kept for compatibility
       processPool(raw) {
         return this.processDLMM(raw);

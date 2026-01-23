@@ -2416,23 +2416,7 @@ if (!columnCount || columnCount === 1) {
           return;
         }
         
-        // Sort by score and limit
-        const sorted = pools.sort((a, b) => b.score - a.score);
-const poolcolumnCount = getComputedStyle(container).columnCount || 3;
-const ordered = reorderForCssColumns(sorted, Number(columnCount));
-
-
         
-        StatusUI.setApi('meteora', true);
-        this.applyFilters();
-        this.detectOpportunities();
-        
-        // Show pool count with source breakdown
-        const dlmmCount = State.pools.filter(p => p.protocol === 'Meteora DLMM').length;
-        const dammCount = State.pools.filter(p => p.protocol === 'Meteora DAMM v2').length;
-        const sourceInfo = sources.length > 0 ? ` [${sources.join(' | ')}]` : '';
-        StatusUI.set('live', `${State.filteredPools.length} pools${sourceInfo}`);
-        console.log(`✓ Total: ${State.pools.length} pools (DLMM: ${dlmmCount}, DAMM v2: ${dammCount})`);
         
       } catch (err) {
         console.error('fetchPools error:', err);

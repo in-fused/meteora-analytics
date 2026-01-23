@@ -1124,6 +1124,7 @@
     </div>
   </div>
 
+<script>
     // ═══════════════════════════════════════════════════════════════════════════
     // CONFIGURATION - ALL API KEYS & ENDPOINTS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1745,9 +1746,10 @@
       
       getReport() {
         return {
-          ...this.data,
-          sessionDuration: Date.now() - this.data.sessionStart,
-          mostViewedPools: [...new Set(this.data.expandedPools)]
+  ...this.data,
+  sessionDuration: Date.now() - this.data.sessionStart,
+  mostViewedPools: [...new Set(this.data.expandedPools)]
+
             .map(p => ({ pool: p, views: this.data.expandedPools.filter(x => x === p).length }))
             .sort((a, b) => b.views - a.views)
             .slice(0, 10)
@@ -3058,7 +3060,7 @@ const ordered = reorderForCssColumns(sorted, Number(columnCount));
       }
     };
               
-<script>
+
 const App = {
   init() {
     if (!State || !State.pools) {
@@ -3084,7 +3086,7 @@ const App = {
     });
   }
 };
-</script>
+
 
 
   // ================================
@@ -3096,7 +3098,7 @@ const App = {
 
   // Initialize app
   
-  <script>
+ 
   const loadBtn = document.querySelector("button");
   const output = document.createElement("pre");
 

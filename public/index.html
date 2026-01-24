@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LiquidityPro | Live DeFi Analytics</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23818cf8'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3ELP%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -163,6 +164,28 @@
     /* ═══════════════════════════════════════════════════════════════════════════
        POOL CARD - BEAUTIFUL DESIGN WITH GRADIENT ACCENTS
     ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Pools Grid - 3 independent columns using flexbox */
+    .pools-container {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .pool-column {
+      flex: 1;
+      min-width: 0; /* Prevent flex items from overflowing */
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    @media (max-width: 1200px) {
+      .pools-container { flex-wrap: wrap; }
+      .pool-column { flex: 1 1 calc(50% - 8px); }
+    }
+    @media (max-width: 768px) {
+      .pool-column { flex: 1 1 100%; }
+    }
+    
     .pool-card {
       background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
       border: 1px solid var(--border-subtle);
@@ -171,8 +194,6 @@
       transition: all var(--transition-normal);
       position: relative;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      break-inside: avoid; /* Prevent card from breaking across columns */
-      margin-bottom: 16px; /* Spacing between cards in column */
     }
     .pool-card::before {
       content: '';
@@ -1126,6 +1147,7 @@
       // Jupiter Token Verification
       JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
       JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified',
+      JUPITER_API_KEY: '1259f9c1-9259-43db-aac0-0dc441c39592',
       
       // Helius API (Primary)
       HELIUS_KEY: '66097387-f0e6-4f93-a800-dbaac4a4c113',
@@ -1403,7 +1425,7 @@ document.addEventListener('keydown', (e) => {
       },
       
       // Jupiter Ultra API endpoints (use portal API for production)
-      JUPITER_API: 'https://lite-api.jup.ag/ultra/v1',
+      JUPITER_API: 'https://api.jup.ag/ultra/v1',
       
       open(pool) {
         this.currentPool = pool;
@@ -2055,46 +2077,45 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // POOLS GRID UI
+    // POOLS GRID UI - Explicit Columns for Independent Expansion + L-R Numbering
     // ═══════════════════════════════════════════════════════════════════════════
     const PoolsGridUI = {
-  render() {
-    const container = document.getElementById('poolsContainer');
-    if (!container) return;
+      getColumnCount() {
+        if (window.innerWidth >= 1200) return 3;
+        if (window.innerWidth >= 768) return 2;
+        return 1;
+      },
+      
+      render() {
+        const container = document.getElementById('poolsContainer');
+        if (!container) return;
 
-    if (State.filteredPools.length === 0) {
-      poolsContainer.insertAdjacentHTML("beforeend", cardHTML);
-        '<div class="alert-empty" style="text-align:center;padding:40px;column-span:all">' +
-        '<div class="loading-spinner"></div>' +
-        '<p style="margin-top:12px">Loading pools...</p></div>';
-      return;
-    }
+        if (!State.filteredPools || State.filteredPools.length === 0) {
+          container.innerHTML = 
+            '<div class="alert-empty" style="text-align:center;padding:40px;width:100%">' +
+            '<div class="loading-spinner"></div>' +
+            '<p style="margin-top:12px">Loading pools...</p></div>';
+          return;
+        }
 
-    //let columnCount = parseInt(
-  //getComputedStyle(container).columnCount,
-  //10
-//);
-
-//if (!columnCount || columnCount === 1) {
-  //if (window.innerWidth >= 1400) columnCount = 4;
- // else if (window.innerWidth >= 1100) columnCount = 3;
- // else if (window.innerWidth >= 768) columnCount = 2;
- // else columnCount = 1;
-//}
-
-
-    //const layoutcolumnCount = getComputedStyle(container)
-  //.columnCount || 1;
-
-
-
-    container.innerHTML = reordered
-  .map((p, i) => PoolCardUI.render(p, i + 1))
-  .join('');
-
-
-  }
-};
+        const columnCount = this.getColumnCount();
+        
+        // Create column arrays - distribute cards for left-to-right reading
+        // Card 1 → col0, Card 2 → col1, Card 3 → col2, Card 4 → col0, etc.
+        const columns = Array.from({length: columnCount}, () => []);
+        
+        State.filteredPools.forEach((pool, index) => {
+          const rank = index + 1;
+          const columnIndex = index % columnCount;
+          columns[columnIndex].push(PoolCardUI.render(pool, rank));
+        });
+        
+        // Build HTML with separate column divs
+        container.innerHTML = columns
+          .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
+          .join('');
+      }
+    };
 
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -2193,14 +2214,15 @@ document.addEventListener('keydown', (e) => {
       render() {
         const list = document.getElementById('opportunitiesList');
         if (!list) return;
-        if (State.opportunities.length === 0) {
+        
+        if (!State.opportunities || State.opportunities.length === 0) {
           list.innerHTML = '<div class="alert-empty">No high-probability opportunities detected. Adjust filters or wait for market conditions to change.</div>';
           return;
         }
-        container.innerHTML = reordered
-  .map((o) => OppCardUI.render(o))
-  .join('');
-
+        
+        list.innerHTML = State.opportunities
+          .map((o) => OppCardUI.render(o))
+          .join('');
       }
     };
 
@@ -2286,12 +2308,22 @@ document.addEventListener('keydown', (e) => {
     const DataService = {
       async fetchJupiter() {
         try {
-          const r = await fetch(CONFIG.JUPITER_TOKENS);
+          const r = await fetch(CONFIG.JUPITER_TOKENS, {
+            headers: {
+              'x-api-key': CONFIG.JUPITER_API_KEY
+            }
+          });
           if (!r.ok) throw new Error('Jupiter API failed');
           const tokens = await r.json();
-          // Handle both array format and object with tokens property
+          // Handle multiple response formats:
+          // - V2 tag endpoint: array of mint address strings
+          // - V1 endpoints: array of objects with address/mint property
           const tokenList = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
-          tokenList.forEach(t => State.verifiedTokens.add(t.address || t.mint));
+          tokenList.forEach(t => {
+            // If t is a string (V2 format), add directly; otherwise get address property
+            const mint = typeof t === 'string' ? t : (t.address || t.mint || t.id);
+            if (mint) State.verifiedTokens.add(mint);
+          });
           StatusUI.setApi('jupiter', true);
           console.log(`Loaded ${State.verifiedTokens.size} verified tokens from Jupiter`);
         } catch (e) {
@@ -2304,11 +2336,7 @@ document.addEventListener('keydown', (e) => {
       
       async fetchPools() {
   try {
-const container = document.getElementById('pools');
-if (!container) {
-  throw new Error('Pools container not found');
-}
-
+    // Container check removed - we just need to load data into State
     let allPools = [];
     const seenAddresses = new Set();
     const sources = [];
@@ -2381,15 +2409,19 @@ if (!container) {
     // ✅ THIS WAS MISSING
     State.pools = allPools;
     State.sources = sources;
+    
+    // Set Meteora status to active (we got pools!)
+    StatusUI.setApi('meteora', true);
+    console.log(`Loaded ${allPools.length} pools from: ${sources.join(', ')}`);
 
   } catch (err) {
       console.error('fetchPools error:', err);
+      StatusUI.setApi('meteora', false);
       StatusUI.set('error', 'Error loading pools - retrying...');
       setTimeout(() => this.fetchPools(), 10000);
     }
-  }
+  },
 
-      
       processDexScreener(p) {
         const xV = State.verifiedTokens.has(p.baseToken?.address || '');
         const yV = State.verifiedTokens.has(p.quoteToken?.address || '');
@@ -2415,7 +2447,7 @@ if (!container) {
           icon1Url: p.baseToken?.info?.imageUrl, icon2Url: p.quoteToken?.info?.imageUrl,
           volumeToTvl: tvl > 0 ? vol / tvl : 0
         };
-    },
+  },
       
       processGeckoTerminal(p) {
         const a = p.attributes || {};
@@ -2518,7 +2550,6 @@ if (!container) {
           icon1: (p.token_a_symbol || name.split('/')[0] || '?').slice(0, 4),
           icon2: (p.token_b_symbol || name.split('/')[1] || '?').slice(0, 4),
           volumeToTvl: tvl > 0 ? volume / tvl : 0
-        }
         };
       },
       
@@ -2628,8 +2659,7 @@ if (!container) {
           isBlacklisted: raw.is_blacklisted || false,
           hide: raw.hide || false
         };
-      }
-  };
+      },
   
       // Legacy processPool - kept for compatibility
       processPool(raw) {
@@ -2966,6 +2996,10 @@ const App = {
       // Fetch initial data (order matters)
       await DataService.fetchJupiter();
       await DataService.fetchPools();
+      
+      // Process pools into filteredPools and opportunities
+      DataService.applyFilters();
+      DataService.detectOpportunities();
 
       // Auto-connect wallet AFTER data loads
       await WalletService.autoConnect();
@@ -2988,6 +3022,19 @@ const App = {
       }, 30000);
       setInterval(() => Metrics.updateDisplay(), 5000);
 
+      // Re-render on resize to update column ordering (debounced)
+      let resizeTimeout, lastColumnCount = PoolsGridUI.getColumnCount();
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          const newColumnCount = PoolsGridUI.getColumnCount();
+          if (newColumnCount !== lastColumnCount) {
+            lastColumnCount = newColumnCount;
+            PoolsGridUI.render();
+          }
+        }, 150);
+      });
+
       StatusUI.set('live', `${State.pools.length} pools loaded`);
     } catch (err) {
       console.error('App init failed:', err);
@@ -2997,6 +3044,8 @@ const App = {
 
   async refresh() {
     await DataService.fetchPools();
+    DataService.applyFilters();
+    DataService.detectOpportunities();
     PoolsGridUI.render();
     OpportunityUI.render();
     AlertsUI.populateDropdown();
@@ -3025,38 +3074,6 @@ const App = {
 
 
 document.addEventListener('DOMContentLoaded', () => App.init());
-
-  // ================================
-  // GLOBAL STATE
-  // ================================
-  let pools = [];
-  let opportunities = [];
-
-
-  // Initialize app
-  
- 
-  const loadBtn = document.querySelector("button");
-  const output = document.createElement("pre");
-
-  output.style.marginTop = "16px";
-  output.style.whiteSpace = "pre-wrap";
-  document.body.appendChild(output);
-
-  loadBtn.addEventListener("click", async () => {
-    output.textContent = "Loading pools…";
-
-    try {
-      const res = await fetch("/api/v1/meteora/analytics");
-      if (!res.ok) throw new Error("API error");
-
-      const json = await res.json();
-
-      output.textContent = JSON.stringify(json.data.slice(0, 10), null, 2);
-    } catch (err) {
-      output.textContent = "Error loading pools: " + err.message;
-    }
-  });
 </script>
 
 </body>

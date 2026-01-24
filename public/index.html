@@ -1636,7 +1636,7 @@ document.addEventListener('keydown', (e) => {
           // Redirect to Meteora with amount context
           const meteoraUrl = isDLMM 
             ? `https://app.meteora.ag/dlmm/${addr}` 
-            : `https://app.meteora.ag/pools/${addr}`;
+            : `https://app.meteora.ag/dammv2/${addr}`;
           
           ToastUI.success('Redirecting...', 'Opening Meteora to complete deposit');
           
@@ -1950,7 +1950,7 @@ document.addEventListener('keydown', (e) => {
         const isDLMM = pool.protocol === 'Meteora DLMM';
         const meteoraUrl = isDLMM 
           ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/pools/${addr}`;
+          : `https://app.meteora.ag/dammv2/${addr}`;
         
         // Pool type short label
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
@@ -2128,7 +2128,7 @@ document.addEventListener('keydown', (e) => {
         const isDLMM = opp.protocol === 'Meteora DLMM';
         const meteoraUrl = isDLMM 
           ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/pools/${addr}`;
+          : `https://app.meteora.ag/dammv2/${addr}`;
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
         const oppTypeClass = opp.oppType ? `opp-${opp.oppType}` : 'opp-standard';
         

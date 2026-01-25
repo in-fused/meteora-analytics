@@ -371,13 +371,28 @@
     /* ═══════════════════════════════════════════════════════════════════════════
        OPPORTUNITY CARD - BEAUTIFUL DISTINCT DESIGNS
     ═══════════════════════════════════════════════════════════════════════════ */
-    /* Opportunities Container - CSS Columns (Independent column flow) */
+    /* Opportunities Container - Flexbox columns for independent expansion */
     #opportunitiesList {
-      column-count: 3;
-      column-gap: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      contain: layout style;
     }
-    @media (max-width: 1200px) { #opportunitiesList { column-count: 2; } }
-    @media (max-width: 768px) { #opportunitiesList { column-count: 1; } }
+    .opp-column {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      contain: layout;
+    }
+    @media (max-width: 1200px) {
+      #opportunitiesList { flex-wrap: wrap; }
+      .opp-column { flex: 1 1 calc(50% - 8px); }
+    }
+    @media (max-width: 768px) {
+      .opp-column { flex: 1 1 100%; }
+    }
     
     .opp-card {
       background: linear-gradient(145deg, var(--bg-card) 0%, rgba(24,24,27,0.95) 100%);
@@ -385,10 +400,15 @@
       border-radius: var(--radius-lg);
       overflow: hidden;
       position: relative;
-      transition: all var(--transition-normal);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      break-inside: avoid; /* Prevent card from breaking across columns */
-      margin-bottom: 16px; /* Spacing between cards in column */
+      will-change: transform;
+      contain: layout style paint;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .opp-card:active {
+      transform: scale(0.995);
     }
     .opp-card::before {
       content: '';
@@ -400,7 +420,9 @@
     .opp-card:hover { 
       border-color: var(--border-active); 
       box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(52,211,153,0.15);
-      transform: translateY(-2px);
+    }
+    @media (hover: hover) {
+      .opp-card:hover { transform: translateY(-2px); }
     }
     
     /* HOT opportunity - Red/Orange theme */
@@ -430,7 +452,32 @@
       border-color: rgba(52,211,153,0.3);
     }
     
-    .opp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    /* Opportunity rank badge */
+    .opp-rank {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 22px;
+      height: 22px;
+      background: var(--bg-elevated);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      z-index: 2;
+    }
+    .opp-rank.top3 {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: var(--bg-void);
+      border: none;
+      box-shadow: 0 2px 8px rgba(251,191,36,0.4);
+    }
+    
+    .opp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-left: 26px; }
     .opp-pool { display: flex; align-items: center; gap: 10px; }
     .opp-pool-icons { display: flex; }
     .opp-pool-icon { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--bg-elevated), var(--bg-secondary)); border: 2px solid var(--bg-card); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--text-primary); box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
@@ -1064,6 +1111,18 @@
     <div class="tab-content" id="alerts-tab">
       <div class="filters-section">
         <div class="filters-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Search Pools
+        </div>
+        <div class="search-container" style="margin-bottom:16px">
+          <input type="text" class="filter-input search-input" id="poolSearch" placeholder="Search by ticker, token address, or pool address..." style="width:100%;padding:12px 16px;font-size:14px" oninput="App.handleSearch(this.value)">
+          <div class="search-hint" style="font-size:10px;color:var(--text-muted);margin-top:6px">
+            Examples: "SOL", "USDC", "EPjFWdd5..." (token mint), or full pool address
+          </div>
+        </div>
+      </div>
+      <div class="filters-section">
+        <div class="filters-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
           Pool Filters
         </div>
@@ -1182,24 +1241,64 @@
     <div class="tab-content" id="guide-tab">
       <div class="guide-grid">
         <div class="guide-card">
-          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/></svg></div>
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="9"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
           <h3>All Pools</h3>
-          <p>Browse DLMM pools ranked by score. Click any card to expand charts and live transactions.</p>
+          <p>Browse 4000+ Meteora DLMM and DAMM v2 pools ranked by our proprietary score. Click any card to expand and view liquidity distribution charts and live transaction feeds.</p>
         </div>
         <div class="guide-card">
           <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
           <h3>Opportunities</h3>
-          <p>AI-detected high-probability setups. Click to expand real-time charts and transaction flow.</p>
+          <p>AI-detected high-probability setups including HOT fee spikes 🔥, high APR pools, active farms, and strong volume/TVL ratios. Updated every 30 seconds.</p>
         </div>
         <div class="guide-card">
-          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/></svg></div>
-          <h3>Wallet</h3>
-          <p>Connect Phantom, Solflare, or Backpack to interact with pools directly.</p>
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+          <h3>Search</h3>
+          <p>Find pools instantly by ticker symbol (SOL, USDC), token contract address, or pool address. Search is case-insensitive and supports partial matches.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div>
+          <h3>Filters</h3>
+          <p>Filter by minimum TVL/Volume, safety level, farm status, pool type (DLMM/DAMM), and sort by Score, Fees 1h 🔥, APR, TVL, Volume, or Fee/TVL ratio.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+          <h3>Real-Time Alerts</h3>
+          <p>Set custom alerts for price movements, fee thresholds, TVL changes, or APR targets. AI-suggested alerts analyze market conditions to recommend optimal triggers.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <h3>Wallet Integration</h3>
+          <p>Connect Phantom, Solflare, or Backpack to view your SOL balance and interact with pools directly via the Quick Deposit feature.</p>
         </div>
         <div class="guide-card">
           <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
           <h3>JupShield Safety</h3>
-          <p>Token verification via Jupiter strict list. ✓ Safe, ! Warning, ✕ Danger.</p>
+          <p>Token verification via Jupiter's strict list. <span style="color:var(--accent-emerald)">●</span> Safe = Both tokens verified. <span style="color:var(--accent-amber)">●</span> Warning = Partial. <span style="color:var(--accent-rose)">●</span> Danger = Unverified.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></div>
+          <h3>Live Data Feeds</h3>
+          <p>WebSocket connection to Helius provides real-time transaction monitoring. See swaps, deposits, and withdrawals as they happen on each pool.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
+          <h3>Pool Scoring</h3>
+          <p>Our 0-100 score weighs TVL (stability), volume (activity), APR (returns), fees (earnings), and safety. 75+ = High, 55-74 = Medium, &lt;55 = Low.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div>
+          <h3>Quick Actions</h3>
+          <p>Each expanded card provides Quick Deposit, direct links to Meteora and Solscan, copy address functionality, and detailed pool metrics.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <h3>API Access (Coming Soon)</h3>
+          <p>Programmatic API access for trading bots and institutions via x402 micropayments. Pay-per-request model with no API keys required.</p>
+        </div>
+        <div class="guide-card">
+          <div class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <h3>Auto-Refresh</h3>
+          <p>Data refreshes automatically every 30 seconds. Manual refresh available via the Refresh button. Metrics display updates every 15 seconds.</p>
         </div>
       </div>
     </div>
@@ -2238,7 +2337,9 @@ document.addEventListener('keydown', (e) => {
     // OPPORTUNITY CARD UI - EXPANDABLE WITH CHARTS
     // ═══════════════════════════════════════════════════════════════════════════
     const OppCardUI = {
-      render(opp) {
+      _toggling: false,
+      
+      render(opp, rank = 0) {
         const isExp = State.expandedOppId === opp.id;
         const addr = opp.address || opp.id;
         const isDLMM = opp.protocol === 'Meteora DLMM';
@@ -2247,9 +2348,11 @@ document.addEventListener('keydown', (e) => {
           : `https://app.meteora.ag/pools/${addr}`;
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
         const oppTypeClass = opp.oppType ? `opp-${opp.oppType}` : 'opp-standard';
+        const rankClass = rank <= 3 ? 'top3' : '';
         
         return `
           <div class="opp-card ${oppTypeClass} ${isExp ? 'expanded' : ''}" id="opp-${opp.id}">
+            ${rank > 0 ? `<div class="opp-rank ${rankClass}">${rank}</div>` : ''}
             <div class="opp-card-main" onclick="OppCardUI.toggle('${opp.id}')">
               <div class="opp-header">
                 <div class="opp-pool">
@@ -2294,6 +2397,11 @@ document.addEventListener('keydown', (e) => {
           </div>`;
       },
       toggle(oppId) {
+        // Prevent rapid toggling (debounce)
+        if (this._toggling) return;
+        this._toggling = true;
+        setTimeout(() => { this._toggling = false; }, 200);
+        
         // Close previously expanded opportunity card
         if (State.expandedOppId && State.expandedOppId !== oppId) {
           const prev = document.getElementById(`opp-${State.expandedOppId}`);
@@ -2324,21 +2432,74 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // OPPORTUNITIES UI
+    // OPPORTUNITIES UI - Flexbox columns with smart rendering
     // ═══════════════════════════════════════════════════════════════════════════
     const OpportunityUI = {
-      render() {
+      lastRenderHash: null,
+      lastColumnCount: null,
+      
+      getColumnCount() {
+        if (window.innerWidth >= 1200) return 3;
+        if (window.innerWidth >= 768) return 2;
+        return 1;
+      },
+      
+      getOppsHash() {
+        if (!State.opportunities || State.opportunities.length === 0) return 'empty';
+        return State.opportunities.map(o => `${o.id}:${o.score}:${o.type}`).join('|');
+      },
+      
+      render(forceRender = false) {
         const list = document.getElementById('opportunitiesList');
         if (!list) return;
         
+        // Empty state
         if (!State.opportunities || State.opportunities.length === 0) {
-          list.innerHTML = '<div class="alert-empty">No high-probability opportunities detected. Adjust filters or wait for market conditions to change.</div>';
+          if (list.querySelector('.alert-empty')) return;
+          list.innerHTML = '<div class="alert-empty" style="width:100%">No high-probability opportunities detected. Adjust filters or wait for market conditions to change.</div>';
+          this.lastRenderHash = 'empty';
           return;
         }
         
-        list.innerHTML = State.opportunities
-          .map((o) => OppCardUI.render(o))
-          .join('');
+        const columnCount = this.getColumnCount();
+        const currentHash = this.getOppsHash();
+        
+        // Skip re-render if nothing changed
+        if (!forceRender && 
+            this.lastRenderHash === currentHash && 
+            this.lastColumnCount === columnCount) {
+          return;
+        }
+        
+        // Store current expanded state
+        const expandedOppId = State.expandedOppId;
+        
+        // Create column arrays - distribute cards for left-to-right reading
+        const columns = Array.from({length: columnCount}, () => []);
+        
+        State.opportunities.forEach((opp, index) => {
+          const rank = index + 1;
+          const columnIndex = index % columnCount;
+          columns[columnIndex].push(OppCardUI.render(opp, rank));
+        });
+        
+        // Use requestAnimationFrame for smooth DOM update
+        requestAnimationFrame(() => {
+          list.innerHTML = columns
+            .map(colCards => `<div class="opp-column">${colCards.join('')}</div>`)
+            .join('');
+          
+          // Restore expanded state
+          if (expandedOppId) {
+            const card = document.getElementById(`opp-${expandedOppId}`);
+            if (card && !card.classList.contains('expanded')) {
+              card.classList.add('expanded');
+            }
+          }
+        });
+        
+        this.lastRenderHash = currentHash;
+        this.lastColumnCount = columnCount;
       }
     };
 
@@ -3165,6 +3326,9 @@ const App = {
       DataService.applyFilters();
       DataService.detectOpportunities();
       
+      // Check alerts against new data
+      this.checkAlerts();
+      
       // Only re-render if user isn't interacting (no expanded card)
       // Smart render will skip if nothing changed anyway
       PoolsGridUI.render();
@@ -3192,6 +3356,114 @@ const App = {
       .getElementById('jupshieldToggle')
       ?.classList.toggle('active', State.jupshieldEnabled);
     this.applyFilters();
+  },
+  
+  // Search by ticker, token address, or pool address
+  handleSearch(query) {
+    const q = query.toLowerCase().trim();
+    
+    // Clear search
+    if (!q) {
+      DataService.applyFilters();
+      PoolsGridUI.render(true);
+      StatusUI.set('live', `${State.filteredPools.length} pools`);
+      return;
+    }
+    
+    // Search across pools
+    const results = State.pools.filter(p => {
+      // Pool name (contains ticker symbols)
+      if (p.name?.toLowerCase().includes(q)) return true;
+      
+      // Pool address (exact or partial match)
+      if (p.address?.toLowerCase().includes(q)) return true;
+      if (p.id?.toLowerCase().includes(q)) return true;
+      
+      // Token mint addresses
+      if (p.mintX?.toLowerCase().includes(q)) return true;
+      if (p.mintY?.toLowerCase().includes(q)) return true;
+      
+      // Token symbols individually
+      const [token1, token2] = (p.name || '').split('/').map(t => t.trim().toLowerCase());
+      if (token1 === q || token2 === q) return true;
+      
+      return false;
+    });
+    
+    State.filteredPools = results;
+    PoolsGridUI.render(true);
+    StatusUI.set('live', `${results.length} results for "${query}"`);
+    
+    // Auto-switch to pools tab if not there
+    if (results.length > 0) {
+      TabsUI.switch('pools');
+    }
+  },
+  
+  // Check alerts against current pool data
+  checkAlerts() {
+    if (!State.alerts || State.alerts.length === 0) return;
+    
+    const triggered = [];
+    
+    State.alerts.forEach(alert => {
+      if (!alert.active) return;
+      
+      const pool = State.pools.find(p => p.id === alert.poolId);
+      if (!pool) return;
+      
+      let value = 0;
+      let condMet = false;
+      
+      switch (alert.condition) {
+        case 'fees1h-above':
+          value = pool.fees1h || 0;
+          condMet = value > alert.value;
+          break;
+        case 'feeTvl1h-above':
+          value = pool.feeTvlRatio1h || 0;
+          condMet = value > alert.value;
+          break;
+        case 'price-above':
+          value = pool.price || 0;
+          condMet = value > alert.value;
+          break;
+        case 'price-below':
+          value = pool.price || 0;
+          condMet = value < alert.value;
+          break;
+        case 'tvl-above':
+          value = pool.tvl || 0;
+          condMet = value > alert.value;
+          break;
+        case 'apr-above':
+          value = parseFloat(pool.apr) || 0;
+          condMet = value > alert.value;
+          break;
+        case 'volume-above':
+          value = pool.volume || 0;
+          condMet = value > alert.value;
+          break;
+      }
+      
+      if (condMet && !alert.lastTriggered) {
+        triggered.push({ alert, pool, value });
+        alert.lastTriggered = Date.now();
+      } else if (!condMet) {
+        alert.lastTriggered = null; // Reset for re-trigger
+      }
+    });
+    
+    // Show notifications for triggered alerts
+    triggered.forEach(({ alert, pool, value }) => {
+      const formattedValue = alert.condition.includes('tvl') || alert.condition.includes('volume') 
+        ? Utils.formatNumber(value)
+        : value.toFixed(2);
+      ToastUI.success(
+        `🔔 Alert: ${pool.name}`,
+        `${alert.condition.replace('-', ' ')} - Current: ${formattedValue}`
+      );
+    });
   }
 };
 

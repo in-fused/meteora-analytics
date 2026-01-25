@@ -170,6 +170,7 @@
       display: flex;
       gap: 16px;
       align-items: flex-start;
+      contain: layout style; /* CSS containment for performance */
     }
     .pool-column {
       flex: 1;
@@ -177,6 +178,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+      contain: layout; /* Isolate layout recalculations */
     }
     @media (max-width: 1200px) {
       .pools-container { flex-wrap: wrap; }
@@ -191,9 +193,16 @@
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       overflow: hidden;
-      transition: all var(--transition-normal);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       position: relative;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      will-change: transform;
+      contain: layout style paint; /* Full CSS containment */
+      -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight */
+      touch-action: manipulation; /* Optimize touch response */
+    }
+    .pool-card:active {
+      transform: scale(0.995);
     }
     .pool-card::before {
       content: '';
@@ -206,7 +215,9 @@
     .pool-card:hover { 
       border-color: var(--border-active); 
       box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(129,140,248,0.1);
-      transform: translateY(-2px);
+    }
+    @media (hover: hover) {
+      .pool-card:hover { transform: translateY(-2px); }
     }
     .pool-card:hover::before { opacity: 1; }
     .pool-card.score-high { --card-accent: var(--accent-emerald); border-color: rgba(52,211,153,0.3); }
@@ -525,6 +536,66 @@
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg-secondary); }
     ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       INSTITUTIONAL POLISH - Premium Visual Refinements
+    ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Smooth page transitions */
+    * { 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* Prevent layout shift during data updates */
+    .pools-container, #opportunitiesList {
+      min-height: 400px;
+    }
+    
+    /* Subtle fade-in for new content */
+    @keyframes cardFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pool-column > .pool-card {
+      animation: cardFadeIn 0.3s ease backwards;
+    }
+    .pool-column > .pool-card:nth-child(1) { animation-delay: 0.02s; }
+    .pool-column > .pool-card:nth-child(2) { animation-delay: 0.04s; }
+    .pool-column > .pool-card:nth-child(3) { animation-delay: 0.06s; }
+    .pool-column > .pool-card:nth-child(4) { animation-delay: 0.08s; }
+    .pool-column > .pool-card:nth-child(5) { animation-delay: 0.1s; }
+    .pool-column > .pool-card:nth-child(n+6) { animation-delay: 0.12s; }
+    
+    /* Premium glow effects */
+    .score-badge.high { 
+      text-shadow: 0 0 12px rgba(52, 211, 153, 0.5);
+    }
+    
+    /* Refined focus states for accessibility */
+    button:focus-visible, a:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .pool-column > .pool-card {
+        animation: none; /* Disable stagger on mobile for performance */
+      }
+      .pools-container, #opportunitiesList {
+        min-height: 200px;
+      }
+    }
+    
+    /* Reduce motion for accessibility */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
 
     @media (max-width: 768px) {
       .header { flex-direction: column; }
@@ -1154,10 +1225,10 @@
       HELIUS_RPC: 'https://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
       HELIUS_WS: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
       
-      // Refresh intervals (faster for short-term opportunities)
-      REFRESH_INTERVAL: 10000,      // 10 seconds for pool data
-      FAST_REFRESH: 5000,           // 5 seconds for price-sensitive data
-      WS_RECONNECT_DELAY: 2000,
+      // Refresh intervals (optimized for performance)
+      REFRESH_INTERVAL: 30000,       // 30 seconds for pool data (reduced from 10s)
+      FAST_REFRESH: 15000,           // 15 seconds for price-sensitive data
+      WS_RECONNECT_DELAY: 3000,
       MAX_ERRORS: 3
     };
 
@@ -1636,7 +1707,7 @@ document.addEventListener('keydown', (e) => {
           // Redirect to Meteora with amount context
           const meteoraUrl = isDLMM 
             ? `https://app.meteora.ag/dlmm/${addr}` 
-            : `https://app.meteora.ag/dammv2/${addr}`;
+            : `https://app.meteora.ag/pools/${addr}`;
           
           ToastUI.success('Redirecting...', 'Opening Meteora to complete deposit');
           
@@ -1950,7 +2021,7 @@ document.addEventListener('keydown', (e) => {
         const isDLMM = pool.protocol === 'Meteora DLMM';
         const meteoraUrl = isDLMM 
           ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
+          : `https://app.meteora.ag/pools/${addr}`;
         
         // Pool type short label
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
@@ -2043,7 +2114,15 @@ document.addEventListener('keydown', (e) => {
           </div>`;
       },
       
+      // Debounce flag to prevent rapid clicks
+      _toggling: false,
+      
       toggle(poolId) {
+        // Prevent rapid toggling (debounce)
+        if (this._toggling) return;
+        this._toggling = true;
+        setTimeout(() => { this._toggling = false; }, 200);
+        
         // Close previously expanded pool card
         if (State.expandedPoolId && State.expandedPoolId !== poolId) {
           const prev = document.getElementById(`pool-${State.expandedPoolId}`);
@@ -2077,20 +2156,33 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // POOLS GRID UI - Explicit Columns for Independent Expansion + L-R Numbering
+    // POOLS GRID UI - Optimized rendering with smart updates
     // ═══════════════════════════════════════════════════════════════════════════
     const PoolsGridUI = {
+      lastRenderHash: null,
+      lastColumnCount: null,
+      
       getColumnCount() {
         if (window.innerWidth >= 1200) return 3;
         if (window.innerWidth >= 768) return 2;
         return 1;
       },
       
-      render() {
+      // Generate a hash of pool state for comparison
+      getPoolsHash() {
+        if (!State.filteredPools || State.filteredPools.length === 0) return 'empty';
+        return State.filteredPools.slice(0, 50).map(p => 
+          `${p.id}:${p.score}:${Math.round(p.tvl/1000)}`
+        ).join('|');
+      },
+      
+      render(forceRender = false) {
         const container = document.getElementById('poolsContainer');
         if (!container) return;
 
+        // Loading state
         if (!State.filteredPools || State.filteredPools.length === 0) {
+          if (container.querySelector('.alert-empty')) return; // Already showing loading
           container.innerHTML = 
             '<div class="alert-empty" style="text-align:center;padding:40px;width:100%">' +
             '<div class="loading-spinner"></div>' +
@@ -2099,9 +2191,19 @@ document.addEventListener('keydown', (e) => {
         }
 
         const columnCount = this.getColumnCount();
+        const currentHash = this.getPoolsHash();
+        
+        // Skip re-render if nothing changed (except column count changes or forced)
+        if (!forceRender && 
+            this.lastRenderHash === currentHash && 
+            this.lastColumnCount === columnCount) {
+          return;
+        }
+        
+        // Store current expanded state
+        const expandedPoolId = State.expandedPoolId;
         
         // Create column arrays - distribute cards for left-to-right reading
-        // Card 1 → col0, Card 2 → col1, Card 3 → col2, Card 4 → col0, etc.
         const columns = Array.from({length: columnCount}, () => []);
         
         State.filteredPools.forEach((pool, index) => {
@@ -2110,10 +2212,24 @@ document.addEventListener('keydown', (e) => {
           columns[columnIndex].push(PoolCardUI.render(pool, rank));
         });
         
-        // Build HTML with separate column divs
-        container.innerHTML = columns
-          .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
-          .join('');
+        // Use requestAnimationFrame for smooth DOM update
+        requestAnimationFrame(() => {
+          container.innerHTML = columns
+            .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
+            .join('');
+          
+          // Restore expanded state if card still exists
+          if (expandedPoolId) {
+            const card = document.getElementById(`pool-${expandedPoolId}`);
+            if (card && !card.classList.contains('expanded')) {
+              card.classList.add('expanded');
+            }
+          }
+        });
+        
+        // Update tracking
+        this.lastRenderHash = currentHash;
+        this.lastColumnCount = columnCount;
       }
     };
 
@@ -2128,7 +2244,7 @@ document.addEventListener('keydown', (e) => {
         const isDLMM = opp.protocol === 'Meteora DLMM';
         const meteoraUrl = isDLMM 
           ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
+          : `https://app.meteora.ag/pools/${addr}`;
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
         const oppTypeClass = opp.oppType ? `opp-${opp.oppType}` : 'opp-standard';
         
@@ -3020,7 +3136,7 @@ const App = {
       setInterval(() => {
         if (State.wallet.connected) WalletService.fetchBalance();
       }, 30000);
-      setInterval(() => Metrics.updateDisplay(), 5000);
+      setInterval(() => Metrics.updateDisplay(), 15000);
 
       // Re-render on resize to update column ordering (debounced)
       let resizeTimeout, lastColumnCount = PoolsGridUI.getColumnCount();
@@ -3043,12 +3159,21 @@ const App = {
   },
 
   async refresh() {
-    await DataService.fetchPools();
-    DataService.applyFilters();
-    DataService.detectOpportunities();
-    PoolsGridUI.render();
-    OpportunityUI.render();
-    AlertsUI.populateDropdown();
+    // Silent background refresh - don't interrupt user interaction
+    try {
+      await DataService.fetchPools();
+      DataService.applyFilters();
+      DataService.detectOpportunities();
+      
+      // Only re-render if user isn't interacting (no expanded card)
+      // Smart render will skip if nothing changed anyway
+      PoolsGridUI.render();
+      OpportunityUI.render();
+      AlertsUI.populateDropdown();
+    } catch (err) {
+      console.warn('Background refresh failed:', err.message);
+      // Silent fail - don't disrupt user experience
+    }
   },
 
   applyFilters() {

@@ -627,7 +627,8 @@
     
     /* Mobile optimizations */
     @media (max-width: 768px) {
-      .pool-column > .pool-card {
+      .pool-column > .pool-card,
+      .opp-column > .opp-card {
         animation: none; /* Disable stagger on mobile for performance */
       }
       .pools-container, #opportunitiesList {
@@ -2270,29 +2271,28 @@ document.addEventListener('keydown', (e) => {
       // Generate a hash of pool state for comparison
       getPoolsHash() {
         if (!State.filteredPools || State.filteredPools.length === 0) return 'empty';
-        return State.filteredPools.slice(0, 50).map(p => 
-          `${p.id}:${p.score}:${Math.round(p.tvl/1000)}`
-        ).join('|');
+        // Include length in hash to detect filtered changes
+        return `${State.filteredPools.length}:` + State.filteredPools.slice(0, 30).map(p => p.id).join('|');
       },
       
       render(forceRender = false) {
         const container = document.getElementById('poolsContainer');
         if (!container) return;
 
-        // Loading state
+        // Empty state - either loading or no results
         if (!State.filteredPools || State.filteredPools.length === 0) {
-          if (container.querySelector('.alert-empty')) return; // Already showing loading
-          container.innerHTML = 
-            '<div class="alert-empty" style="text-align:center;padding:40px;width:100%">' +
-            '<div class="loading-spinner"></div>' +
-            '<p style="margin-top:12px">Loading pools...</p></div>';
+          const isSearching = document.getElementById('poolSearch')?.value?.trim();
+          container.innerHTML = isSearching
+            ? '<div class="alert-empty" style="text-align:center;padding:40px;width:100%"><p>No pools found matching your search.</p></div>'
+            : '<div class="alert-empty" style="text-align:center;padding:40px;width:100%"><div class="loading-spinner"></div><p style="margin-top:12px">Loading pools...</p></div>';
+          this.lastRenderHash = 'empty';
           return;
         }
 
         const columnCount = this.getColumnCount();
         const currentHash = this.getPoolsHash();
         
-        // Skip re-render if nothing changed (except column count changes or forced)
+        // Skip re-render if nothing changed (unless forced)
         if (!forceRender && 
             this.lastRenderHash === currentHash && 
             this.lastColumnCount === columnCount) {
@@ -2311,20 +2311,18 @@ document.addEventListener('keydown', (e) => {
           columns[columnIndex].push(PoolCardUI.render(pool, rank));
         });
         
-        // Use requestAnimationFrame for smooth DOM update
-        requestAnimationFrame(() => {
-          container.innerHTML = columns
-            .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
-            .join('');
-          
-          // Restore expanded state if card still exists
-          if (expandedPoolId) {
-            const card = document.getElementById(`pool-${expandedPoolId}`);
-            if (card && !card.classList.contains('expanded')) {
-              card.classList.add('expanded');
-            }
+        // Direct DOM update (RAF only needed for animations)
+        container.innerHTML = columns
+          .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
+          .join('');
+        
+        // Restore expanded state if card still exists
+        if (expandedPoolId) {
+          const card = document.getElementById(`pool-${expandedPoolId}`);
+          if (card && !card.classList.contains('expanded')) {
+            card.classList.add('expanded');
           }
-        });
+        }
         
         // Update tracking
         this.lastRenderHash = currentHash;
@@ -2446,7 +2444,7 @@ document.addEventListener('keydown', (e) => {
       
       getOppsHash() {
         if (!State.opportunities || State.opportunities.length === 0) return 'empty';
-        return State.opportunities.map(o => `${o.id}:${o.score}:${o.type}`).join('|');
+        return `${State.opportunities.length}:` + State.opportunities.map(o => o.id).join('|');
       },
       
       render(forceRender = false) {
@@ -2455,7 +2453,6 @@ document.addEventListener('keydown', (e) => {
         
         // Empty state
         if (!State.opportunities || State.opportunities.length === 0) {
-          if (list.querySelector('.alert-empty')) return;
           list.innerHTML = '<div class="alert-empty" style="width:100%">No high-probability opportunities detected. Adjust filters or wait for market conditions to change.</div>';
           this.lastRenderHash = 'empty';
           return;
@@ -2483,20 +2480,18 @@ document.addEventListener('keydown', (e) => {
           columns[columnIndex].push(OppCardUI.render(opp, rank));
         });
         
-        // Use requestAnimationFrame for smooth DOM update
-        requestAnimationFrame(() => {
-          list.innerHTML = columns
-            .map(colCards => `<div class="opp-column">${colCards.join('')}</div>`)
-            .join('');
-          
-          // Restore expanded state
-          if (expandedOppId) {
-            const card = document.getElementById(`opp-${expandedOppId}`);
-            if (card && !card.classList.contains('expanded')) {
-              card.classList.add('expanded');
-            }
+        // Direct DOM update
+        list.innerHTML = columns
+          .map(colCards => `<div class="opp-column">${colCards.join('')}</div>`)
+          .join('');
+        
+        // Restore expanded state
+        if (expandedOppId) {
+          const card = document.getElementById(`opp-${expandedOppId}`);
+          if (card && !card.classList.contains('expanded')) {
+            card.classList.add('expanded');
           }
-        });
+        }
         
         this.lastRenderHash = currentHash;
         this.lastColumnCount = columnCount;
@@ -3227,36 +3222,37 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // LIVE BIN UPDATES
+    // LIVE BIN UPDATES - Isolated chart updates only
     // ═══════════════════════════════════════════════════════════════════════════
     const LiveUpdates = {
       start() {
+        // Update charts only every 5 seconds, and only for expanded cards
         setInterval(() => {
-          // Update bin liquidity for all pools
-          State.pools.forEach(p => {
-            if (p.bins) {
-              p.bins.forEach(b => {
-                b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
-              });
-            }
-          });
-          
-          // Re-render expanded card's chart
+          // Only update if there's an expanded card
           if (State.expandedPoolId) {
             const pool = State.pools.find(p => p.id === State.expandedPoolId);
-            if (pool) {
+            if (pool && pool.bins) {
+              // Simulate bin liquidity changes
+              pool.bins.forEach(b => {
+                b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
+              });
+              // Update only the chart element, not the whole card
               const chartEl = document.querySelector(`#pool-${State.expandedPoolId} .chart-section`);
               if (chartEl) chartEl.outerHTML = LiquidityChartUI.render(pool);
             }
           }
+          
           if (State.expandedOppId) {
             const opp = State.opportunities.find(o => o.id === State.expandedOppId);
-            if (opp) {
+            if (opp && opp.bins) {
+              opp.bins.forEach(b => {
+                b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
+              });
               const chartEl = document.querySelector(`#opp-${State.expandedOppId} .chart-section`);
               if (chartEl) chartEl.outerHTML = LiquidityChartUI.render(opp);
             }
           }
-        }, 3000);
+        }, 5000); // Reduced from 3s to 5s
       }
     };
 
@@ -3307,7 +3303,8 @@ const App = {
           const newColumnCount = PoolsGridUI.getColumnCount();
           if (newColumnCount !== lastColumnCount) {
             lastColumnCount = newColumnCount;
-            PoolsGridUI.render();
+            PoolsGridUI.render(true);
+            OpportunityUI.render(true);
           }
         }, 150);
       });
@@ -3358,13 +3355,30 @@ const App = {
     this.applyFilters();
   },
   
+  // Search debounce timer
+  _searchTimeout: null,
+  _lastSearchQuery: '',
+  
   // Search by ticker, token address, or pool address
   handleSearch(query) {
+    // Debounce search input (300ms)
+    clearTimeout(this._searchTimeout);
+    this._searchTimeout = setTimeout(() => {
+      this._executeSearch(query);
+    }, 300);
+  },
+  
+  _executeSearch(query) {
     const q = query.toLowerCase().trim();
     
-    // Clear search
+    // Skip if same query
+    if (q === this._lastSearchQuery) return;
+    this._lastSearchQuery = q;
+    
+    // Clear search - restore normal filters
     if (!q) {
       DataService.applyFilters();
+      PoolsGridUI.lastRenderHash = null; // Force re-render
       PoolsGridUI.render(true);
       StatusUI.set('live', `${State.filteredPools.length} pools`);
       return;
@@ -3391,13 +3405,9 @@ const App = {
     });
     
     State.filteredPools = results;
+    PoolsGridUI.lastRenderHash = null; // Force re-render by clearing hash
     PoolsGridUI.render(true);
     StatusUI.set('live', `${results.length} results for "${query}"`);
-    
-    // Auto-switch to pools tab if not there
-    if (results.length > 0) {
-      TabsUI.switch('pools');
-    }
   },
   
   // Check alerts against current pool data

@@ -542,6 +542,35 @@
     .toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: var(--text-muted); border-radius: 50%; top: 3px; left: 3px; transition: all var(--transition-fast); }
     .toggle.active { background: var(--accent-primary); }
     .toggle.active::after { transform: translateX(16px); background: white; }
+    
+    /* Search Results Section */
+    .search-results-section {
+      background: linear-gradient(135deg, rgba(34,211,238,0.08), rgba(129,140,248,0.08));
+      border: 1px solid rgba(34,211,238,0.25);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .search-results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .search-results-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent-cyan);
+    }
+    #searchResultsContainer {
+      min-height: 200px;
+    }
+    
     .ai-alerts-section { background: linear-gradient(135deg, rgba(129,140,248,0.1), rgba(34,211,238,0.1)); border: 1px solid rgba(129,140,248,0.25); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; }
     .ai-alerts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .ai-alerts-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-primary); }
@@ -1122,7 +1151,20 @@
           </div>
         </div>
       </div>
-      <div class="filters-section">
+      
+      <!-- Search Results Section (hidden by default, shown when searching) -->
+      <div id="searchResultsSection" class="search-results-section" style="display:none">
+        <div class="search-results-header">
+          <div class="search-results-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span id="searchResultsCount">0 Results</span>
+          </div>
+          <button class="btn btn--secondary" onclick="App.clearSearch()">Clear Search</button>
+        </div>
+        <div class="pools-container" id="searchResultsContainer"></div>
+      </div>
+      
+      <div class="filters-section" id="filtersSection">
         <div class="filters-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
           Pool Filters
@@ -3358,6 +3400,7 @@ const App = {
   // Search debounce timer
   _searchTimeout: null,
   _lastSearchQuery: '',
+  _searchResults: [],
   
   // Search by ticker, token address, or pool address
   handleSearch(query) {
@@ -3375,17 +3418,28 @@ const App = {
     if (q === this._lastSearchQuery) return;
     this._lastSearchQuery = q;
     
-    // Clear search - restore normal filters
+    const resultsSection = document.getElementById('searchResultsSection');
+    const resultsContainer = document.getElementById('searchResultsContainer');
+    const resultsCount = document.getElementById('searchResultsCount');
+    
+    // Clear search - hide results section
     if (!q) {
-      DataService.applyFilters();
-      PoolsGridUI.lastRenderHash = null; // Force re-render
-      PoolsGridUI.render(true);
+      if (resultsSection) resultsSection.style.display = 'none';
+      this._searchResults = [];
       StatusUI.set('live', `${State.filteredPools.length} pools`);
       return;
     }
     
-    // Search across pools
-    const results = State.pools.filter(p => {
+    // Get current filter settings
+    const minTVL = parseFloat(document.getElementById('filterMinTVL')?.value) || 0;
+    const minVol = parseFloat(document.getElementById('filterMinVolume')?.value) || 0;
+    const sf = document.getElementById('filterSafety')?.value || 'all';
+    const farmFilter = document.getElementById('filterFarm')?.value || 'all';
+    const poolType = document.getElementById('filterPoolType')?.value || 'all';
+    const sort = document.getElementById('filterSort')?.value || 'score';
+    
+    // Search across ALL pools (not just filtered)
+    let results = State.pools.filter(p => {
       // Pool name (contains ticker symbols)
       if (p.name?.toLowerCase().includes(q)) return true;
       
@@ -3400,14 +3454,82 @@ const App = {
       // Token symbols individually
       const [token1, token2] = (p.name || '').split('/').map(t => t.trim().toLowerCase());
       if (token1 === q || token2 === q) return true;
+      if (token1?.includes(q) || token2?.includes(q)) return true;
       
       return false;
     });
     
-    State.filteredPools = results;
-    PoolsGridUI.lastRenderHash = null; // Force re-render by clearing hash
-    PoolsGridUI.render(true);
-    StatusUI.set('live', `${results.length} results for "${query}"`);
+    // Apply current filters to search results
+    if (minTVL > 0) results = results.filter(p => p.tvl >= minTVL);
+    if (minVol > 0) results = results.filter(p => p.volume >= minVol);
+    if (State.jupshieldEnabled) results = results.filter(p => p.safety !== 'danger');
+    if (sf === 'safe') results = results.filter(p => p.safety === 'safe');
+    else if (sf === 'exclude-danger') results = results.filter(p => p.safety !== 'danger');
+    if (farmFilter === 'active') results = results.filter(p => p.farmActive);
+    else if (farmFilter === 'has') results = results.filter(p => p.hasFarm || p.farmActive);
+    if (poolType === 'dlmm') results = results.filter(p => p.protocol === 'Meteora DLMM');
+    else if (poolType === 'damm') results = results.filter(p => p.protocol === 'Meteora DAMM v2');
+    
+    // Sort results
+    results.sort((a, b) => {
+      switch (sort) {
+        case 'fees1h': return (b.fees1h || 0) - (a.fees1h || 0);
+        case 'feeTvl1h': return (b.feeTvlRatio1h || 0) - (a.feeTvlRatio1h || 0);
+        case 'tvl': return b.tvl - a.tvl;
+        case 'volume': return b.volume - a.volume;
+        case 'apr': return parseFloat(b.apr) - parseFloat(a.apr);
+        case 'fees': return (b.fees || 0) - (a.fees || 0);
+        case 'feeTvl': return (b.feeTvlRatio || 0) - (a.feeTvlRatio || 0);
+        default: return b.score - a.score;
+      }
+    });
+    
+    // Limit to 50 results max
+    results = results.slice(0, 50);
+    this._searchResults = results;
+    
+    // Show results section
+    if (resultsSection) resultsSection.style.display = 'block';
+    if (resultsCount) resultsCount.textContent = `${results.length} Results for "${query}"`;
+    
+    // Render results using flexbox columns
+    this._renderSearchResults(results, resultsContainer);
+    StatusUI.set('live', `${results.length} search results`);
+  },
+  
+  _renderSearchResults(results, container) {
+    if (!container) return;
+    
+    if (results.length === 0) {
+      container.innerHTML = '<div class="alert-empty" style="text-align:center;padding:40px;width:100%"><p>No pools found matching your search criteria.</p></div>';
+      return;
+    }
+    
+    // Use same column logic as PoolsGridUI
+    const columnCount = window.innerWidth >= 1200 ? 3 : (window.innerWidth >= 768 ? 2 : 1);
+    const columns = Array.from({length: columnCount}, () => []);
+    
+    results.forEach((pool, index) => {
+      const rank = index + 1;
+      const columnIndex = index % columnCount;
+      columns[columnIndex].push(PoolCardUI.render(pool, rank));
+    });
+    
+    container.innerHTML = columns
+      .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
+      .join('');
+  },
+  
+  clearSearch() {
+    const searchInput = document.getElementById('poolSearch');
+    const resultsSection = document.getElementById('searchResultsSection');
+    
+    if (searchInput) searchInput.value = '';
+    if (resultsSection) resultsSection.style.display = 'none';
+    
+    this._lastSearchQuery = '';
+    this._searchResults = [];
+    StatusUI.set('live', `${State.filteredPools.length} pools`);
   },
   
   // Check alerts against current pool data

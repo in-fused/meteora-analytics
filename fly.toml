@@ -3,12 +3,11 @@ app = "meteora-analytics-main"
 primary_region = "lax"
 
 [build]
-  builder = "paketobuildpacks/builder:base"
+  dockerfile = "Dockerfile"
 
 [env]
   NODE_ENV = "production"
-  PREVIEW_MODE = "true"
-
+  DB_PATH = "/app/data/meteora.db"
 
 [http_service]
   internal_port = 8080
@@ -17,3 +16,12 @@ primary_region = "lax"
   auto_start_machines = true
   min_machines_running = 1
 
+# Persistent volume for SQLite database
+[mounts]
+  source = "meteora_data"
+  destination = "/app/data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

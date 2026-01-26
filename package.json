@@ -1,17 +1,21 @@
 {
   "name": "meteora-analytics",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "private": true,
+  "description": "High-performance Meteora DeFi analytics with real-time data streaming",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "better-sqlite3": "^11.7.0",
+    "ws": "^8.18.0"
   },
   "engines": {
-    "node": ">=18 <21"
+    "node": ">=18"
   }
 }

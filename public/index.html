@@ -1768,6 +1768,145 @@
       color: var(--accent-amber);
       text-transform: uppercase;
     }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       iOS-SPECIFIC PERFORMANCE OPTIMIZATIONS
+       Reduces CPU/GPU usage on mobile Safari
+    ═══════════════════════════════════════════════════════════════════════════ */
+
+    /* iOS device class - applied via JavaScript */
+    .ios-device {
+      /* Prevent rubber-banding scroll issues */
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .ios-device .pool-card,
+    .ios-device .opp-card {
+      /* Remove complex shadows on iOS */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      /* Disable transform animations */
+      transform: none !important;
+    }
+
+    .ios-device .pool-card:hover,
+    .ios-device .opp-card:hover {
+      transform: none !important;
+    }
+
+    .ios-device .pool-card::before,
+    .ios-device .opp-card::before {
+      /* Simplify gradients */
+      background: var(--card-accent, var(--accent-primary));
+    }
+
+    /* Reduce motion class - for low-power mode or preference */
+    .reduce-motion,
+    .reduce-motion * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .reduce-motion .bg-overlay,
+    .reduce-motion #bgCanvas {
+      display: none !important;
+    }
+
+    .reduce-motion .logo-mark {
+      animation: none;
+      box-shadow: var(--glow-primary);
+    }
+
+    .reduce-motion .tab-badge {
+      animation: none;
+    }
+
+    .reduce-motion .status-dot {
+      animation: none;
+    }
+
+    /* Optimize scrolling performance */
+    .pools-container,
+    .opp-container {
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: scroll-position;
+    }
+
+    /* iOS Safari specific fixes */
+    @supports (-webkit-touch-callout: none) {
+      /* Prevent text selection issues */
+      .pool-card, .opp-card {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* Fix sticky positioning */
+      .header {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      /* Reduce backdrop blur on iOS (expensive) */
+      .header,
+      .nav-tabs,
+      .modal-overlay {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+    }
+
+    /* Mobile-specific optimizations */
+    @media (max-width: 768px) {
+      /* Simplify card rendering */
+      .pool-card,
+      .opp-card {
+        will-change: auto;
+        contain: layout;
+      }
+
+      /* Reduce shadow complexity */
+      .pool-card,
+      .opp-card,
+      .header,
+      .nav-tabs {
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      }
+
+      /* Disable hover effects (not needed on touch) */
+      .pool-card:hover,
+      .opp-card:hover {
+        border-color: var(--border-subtle);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      }
+
+      /* Reduce gradient complexity */
+      .btn--primary,
+      .btn--wallet,
+      .logo-mark {
+        background: var(--accent-primary);
+      }
+    }
+
+    /* Prefers reduced motion (accessibility) */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+
+      .bg-overlay,
+      #bgCanvas {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2273,26 +2412,31 @@
     // CONFIGURATION - ALL API KEYS & ENDPOINTS
     // ═══════════════════════════════════════════════════════════════════════════
     const CONFIG = {
-      // Meteora APIs
-      METEORA_DAMM_V2: 'https://dammv2-api.meteora.ag',
-      METEORA_DLMM: 'https://dlmm-api.meteora.ag',
+      // Backend API (pools, opportunities, transactions served from our optimized backend)
+      API_BASE: window.location.origin,
+      API_POOLS: '/api/v2/pools',
+      API_OPPORTUNITIES: '/api/v2/opportunities',
+      API_STATS: '/api/v2/stats',
+      API_SEARCH: '/api/v2/search',
+      WS_URL: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
+
+      // Meteora for direct links
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
-      
-      // Jupiter Token Verification
+
+      // Jupiter for execution layer only
       JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
-      JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified',
-      JUPITER_API_KEY: '1259f9c1-9259-43db-aac0-0dc441c39592',
-      
-      // Helius API (Primary)
-      HELIUS_KEY: '66097387-f0e6-4f93-a800-dbaac4a4c113',
-      HELIUS_RPC: 'https://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
-      HELIUS_WS: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
-      
-      // Refresh intervals (optimized for performance)
-      REFRESH_INTERVAL: 30000,       // 30 seconds for pool data (reduced from 10s)
-      FAST_REFRESH: 15000,           // 15 seconds for price-sensitive data
+
+      // Refresh intervals (optimized - backend handles heavy lifting)
+      REFRESH_INTERVAL: 45000,       // 45 seconds (backend caches data)
+      FAST_REFRESH: 20000,           // 20 seconds for UI updates
       WS_RECONNECT_DELAY: 3000,
-      MAX_ERRORS: 3
+      MAX_ERRORS: 3,
+
+      // iOS Performance optimizations
+      IS_IOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+      IS_MOBILE: /Mobi|Android/i.test(navigator.userAgent),
+      RENDER_BATCH_SIZE: /Mobi|Android/i.test(navigator.userAgent) ? 20 : 50,
+      ANIMATION_ENABLED: !(/iPad|iPhone|iPod/.test(navigator.userAgent))
     };
 
     // Wallet Configurations
@@ -3574,124 +3718,104 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // DATA SERVICE
+    // DATA SERVICE - Optimized to use backend API
+    // Backend handles all pool fetching, processing, and caching
     // ═══════════════════════════════════════════════════════════════════════════
     const DataService = {
+      // Token verification handled by backend - this is now a no-op
       async fetchJupiter() {
+        // Backend handles Jupiter token verification
+        // This function exists for compatibility but does nothing
+        StatusUI.setApi('jupiter', true);
+        console.log('[DataService] Token verification handled by backend');
+      },
+
+      // Fetch pools from our optimized backend API
+      async fetchPools() {
         try {
-          const r = await fetch(CONFIG.JUPITER_TOKENS, {
-            headers: {
-              'x-api-key': CONFIG.JUPITER_API_KEY
-            }
+          console.log('[DataService] Fetching pools from backend...');
+
+          // Get current filter settings for server-side filtering
+          const minTVL = parseFloat(document.getElementById('filterMinTVL')?.value) || 0;
+          const minVol = parseFloat(document.getElementById('filterMinVolume')?.value) || 0;
+          const safety = document.getElementById('filterSafety')?.value || 'all';
+          const farmFilter = document.getElementById('filterFarm')?.value || 'all';
+          const poolType = document.getElementById('filterPoolType')?.value || 'all';
+          const sort = document.getElementById('filterSort')?.value || 'score';
+
+          // Build query params - let backend handle filtering for performance
+          const params = new URLSearchParams({
+            limit: CONFIG.RENDER_BATCH_SIZE * 10, // Get enough pools
+            sort: sort === 'fees1h' ? 'fees_1h' : sort === 'feeTvl1h' ? 'fee_tvl_ratio_1h' : sort,
+            order: 'desc',
+            minTvl: minTVL,
+            minVolume: minVol
           });
-          if (!r.ok) throw new Error('Jupiter API failed');
-          const tokens = await r.json();
-          // Handle multiple response formats:
-          // - V2 tag endpoint: array of mint address strings
-          // - V1 endpoints: array of objects with address/mint property
-          const tokenList = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
-          tokenList.forEach(t => {
-            // If t is a string (V2 format), add directly; otherwise get address property
-            const mint = typeof t === 'string' ? t : (t.address || t.mint || t.id);
-            if (mint) State.verifiedTokens.add(mint);
-          });
-          StatusUI.setApi('jupiter', true);
-          console.log(`Loaded ${State.verifiedTokens.size} verified tokens from Jupiter`);
-        } catch (e) {
-          console.warn('Jupiter fallback:', e.message);
-          StatusUI.setApi('jupiter', false);
-          // Fallback common verified tokens
-          ['So11111111111111111111111111111111111111112', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'].forEach(t => State.verifiedTokens.add(t));
+
+          if (safety !== 'all') params.append('safety', safety);
+          if (poolType === 'dlmm') params.append('protocol', 'DLMM');
+          else if (poolType === 'damm') params.append('protocol', 'DAMM');
+          if (farmFilter === 'active') params.append('farm', 'active');
+
+          const response = await fetch(`${CONFIG.API_POOLS}?${params}`);
+
+          if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (!result.success || !Array.isArray(result.data)) {
+            throw new Error('Invalid API response');
+          }
+
+          // Process pools - add bins for chart rendering
+          const pools = result.data.map(p => ({
+            ...p,
+            id: p.id || p.address,
+            bins: this.generateBins(p.currentPrice || 1),
+            activeBin: 10,
+            icon1: p.icon1 || p.name?.split('/')[0]?.trim().slice(0, 4) || '?',
+            icon2: p.icon2 || p.name?.split('/')[1]?.trim().slice(0, 4) || '?'
+          }));
+
+          State.pools = pools;
+          State.sources = [result.total ? `Backend:${result.total}` : 'Backend'];
+
+          // Set API status
+          StatusUI.setApi('meteora', true);
+          console.log(`[DataService] Loaded ${pools.length} pools from backend (total: ${result.total})`);
+
+        } catch (err) {
+          console.error('[DataService] fetchPools error:', err);
+          StatusUI.setApi('meteora', false);
+          StatusUI.set('error', 'Error loading pools - retrying...');
+          setTimeout(() => this.fetchPools(), 10000);
         }
       },
-      
-      async fetchPools() {
-  try {
-    // Container check removed - we just need to load data into State
-    let allPools = [];
-    const seenAddresses = new Set();
-    const sources = [];
 
-    // Fetch BOTH DLMM and DAMM v2 in parallel
-    const [dlmmResult, dammResult] = await Promise.allSettled([
-      fetch('https://dlmm-api.meteora.ag/pair/all').then(r => {
-        if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`);
-        return r.json();
-      }),
-      fetch('https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc').then(r => {
-        if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`);
-        return r.json();
-      })
-    ]);
+      // Fetch opportunities from backend (pre-computed by backend)
+      async fetchOpportunities() {
+        try {
+          const response = await fetch(`${CONFIG.API_OPPORTUNITIES}?limit=12`);
+          if (!response.ok) throw new Error(`API returned ${response.status}`);
 
-    // DLMM
-    if (dlmmResult.status === 'fulfilled' && Array.isArray(dlmmResult.value)) {
-      const dlmmPools = dlmmResult.value
-        .filter(p => p.name && p.address && !p.hide && !p.is_blacklisted && parseFloat(p.liquidity || 0) > 100)
-        .map(p => this.processDLMM(p));
-
-      for (const p of dlmmPools) {
-        if (!seenAddresses.has(p.address)) {
-          seenAddresses.add(p.address);
-          allPools.push(p);
+          const result = await response.json();
+          if (result.success && Array.isArray(result.data)) {
+            State.opportunities = result.data.map(p => ({
+              ...p,
+              id: p.id || p.address,
+              bins: this.generateBins(p.currentPrice || 1),
+              activeBin: 10,
+              icon1: p.icon1 || p.name?.split('/')[0]?.trim().slice(0, 4) || '?',
+              icon2: p.icon2 || p.name?.split('/')[1]?.trim().slice(0, 4) || '?'
+            }));
+            StatusUI.updateBadges();
+          }
+        } catch (err) {
+          console.warn('[DataService] fetchOpportunities error:', err.message);
         }
-      }
-
-      sources.push(`DLMM:${dlmmPools.length}`);
-    }
-
-    // DAMM v2
-    if (dammResult.status === 'fulfilled' && dammResult.value?.data) {
-      let added = 0;
-      const dammPools = dammResult.value.data
-        .filter(p => p.pool_address && (p.tvl || 0) > 100)
-        .map(p => this.processDAMMv2(p));
-
-      for (const p of dammPools) {
-        if (!seenAddresses.has(p.address)) {
-          seenAddresses.add(p.address);
-          allPools.push(p);
-          added++;
-        }
-      }
-
-      sources.push(`DAMM:${added}`);
-    }
-
-    // Fallbacks
-    if (allPools.length === 0) {
-      try {
-        const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
-        if (dxr.ok) {
-          const dx = await dxr.json();
-          allPools = dx.pairs
-            ?.filter(p => p.dexId === 'meteora' && p.liquidity?.usd > 100)
-            .slice(0, 150)
-            .map(p => this.processDexScreener(p)) || [];
-          if (allPools.length) sources.push(`DexScreener:${allPools.length}`);
-        }
-      } catch {}
-    }
-
-    if (allPools.length === 0) {
-      throw new Error('No pools from any source');
-    }
-
-    // ✅ THIS WAS MISSING
-    State.pools = allPools;
-    State.sources = sources;
-    
-    // Set Meteora status to active (we got pools!)
-    StatusUI.setApi('meteora', true);
-    console.log(`Loaded ${allPools.length} pools from: ${sources.join(', ')}`);
-
-  } catch (err) {
-      console.error('fetchPools error:', err);
-      StatusUI.setApi('meteora', false);
-      StatusUI.set('error', 'Error loading pools - retrying...');
-      setTimeout(() => this.fetchPools(), 10000);
-    }
-  },
+      },
 
       processDexScreener(p) {
         const xV = State.verifiedTokens.has(p.baseToken?.address || '');
@@ -3994,311 +4118,233 @@ document.addEventListener('keydown', (e) => {
         State.filteredPools = f;
       },
       
-      detectOpportunities() {
-        // Detect both long-term reliable and short-term spike opportunities
-        const opps = State.filteredPools.filter(p => 
-          // HOT: Fee velocity spike (1h rate > 150% of 24h average)
-          (p.isHot && p.safety === 'safe' && p.tvl > 5000) ||
-          // HOT: High 1h fee generation relative to TVL
-          (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001 && p.safety === 'safe') ||
-          // High volume/TVL ratio (active trading)
-          (p.volumeToTvl > 0.3 && p.safety === 'safe' && p.tvl > 20000) ||
-          // Strong APR with good score
-          (parseFloat(p.apr) > 30 && p.safety === 'safe' && p.score >= 65) ||
-          // Top performers
-          (p.score >= 80 && p.safety === 'safe') ||
-          // Active farms
-          (p.farmActive && p.safety === 'safe' && p.tvl > 10000) ||
-          // High fee efficiency
-          (p.feeTvlRatio > 0.01 && p.safety === 'safe')
-        ).slice(0, 12).map(p => {
-          let reason = '', type = 'standard';
-          
-          // 🔥 HOT short-term opportunity - fee spike
-          if (p.isHot && p.fees1h > 0) {
-            type = 'hot';
-            const projected = (p.fees1h * 24);
-            reason = `🔥 FEE SPIKE: 1h fees ${Utils.formatNumber(p.fees1h)} → projected ${Utils.formatNumber(projected)}/day (${((projected/p.fees - 1) * 100).toFixed(0)}% above 24h avg). Quick entry opportunity!`;
-          }
-          // ⚡ High 1h fee/TVL - active pool
-          else if (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001) {
-            type = 'active';
-            reason = `⚡ ACTIVE: ${Utils.formatNumber(p.fees1h)} fees in last hour (${((p.fees1h / p.tvl) * 100).toFixed(3)}% of TVL). High short-term fee potential.`;
-          }
-          // Farm opportunity
-          else if (p.farmActive) {
-            reason = `🌾 FARM: ${p.apr}% APR + farm rewards. ${p.tokensVerified ? 'Verified.' : ''}`;
-          }
-          // High volume opportunity
-          else if (p.volumeToTvl > 0.5) {
-            reason = `📈 HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio. Strong fee generation.`;
-          }
-          // High APR opportunity
-          else if (parseFloat(p.apr) > 50) {
-            reason = `💰 HIGH APR: ${p.apr}% with ${(p.feeTvlRatio * 100 || 0).toFixed(2)}% fee/TVL efficiency.`;
-          }
-          // High fee efficiency
-          else if (p.feeTvlRatio > 0.01) {
-            reason = `📊 EFFICIENT: ${(p.feeTvlRatio * 100).toFixed(2)}% fee/TVL. ${Utils.formatNumber(p.fees)} in 24h fees.`;
-          }
-          // General top performer
-          else {
-            reason = `⭐ TOP SCORER: ${p.score} points. Balanced metrics, ${p.tokensVerified ? 'verified' : 'healthy TVL'}.`;
-          }
-          
-          return { ...p, reason, oppType: type };
-        });
-        
-        // Sort by opportunity type (hot first, then active, then others)
-        opps.sort((a, b) => {
-          const typeOrder = { hot: 0, active: 1, standard: 2 };
-          return (typeOrder[a.oppType] || 2) - (typeOrder[b.oppType] || 2);
-        });
-        
-        State.opportunities = opps;
-        StatusUI.updateBadges();
+      // Opportunities are computed by backend - this fetches them
+      async detectOpportunities() {
+        // Fetch pre-computed opportunities from backend
+        await this.fetchOpportunities();
       }
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // REAL-TIME TRANSACTION SERVICE - Direct blockchain integration
-    // Institutional-grade: Multiple sources, instant updates, zero delays
+    // REAL-TIME TRANSACTION SERVICE - Connects to backend WebSocket
+    // Backend handles Helius connection and broadcasts only relevant updates
     // ═══════════════════════════════════════════════════════════════════════════
     const WSService = {
-      connections: [],
       subscribedPools: new Set(),
-      pendingRequests: new Map(),
-      requestId: 1,
       isConnected: false,
-      
+      reconnectAttempts: 0,
+      maxReconnectAttempts: 10,
+
       connect() {
-        // Connect to Helius WebSocket for real-time program logs
-        this.connectHelius();
-        // Start polling for expanded pool transactions (backup/supplement)
-        this.startPolling();
+        if (CONFIG.IS_IOS && CONFIG.IS_MOBILE) {
+          // On iOS mobile, use polling instead of WebSocket for better performance
+          console.log('[WS] iOS detected - using polling mode');
+          this.startPolling();
+          return;
+        }
+        this.connectToBackend();
       },
-      
-      connectHelius() {
+
+      connectToBackend() {
         try {
           if (State.wsConnection) {
             State.wsConnection.close();
           }
-          
-          console.log('[WS] Connecting to Helius...');
-          State.wsConnection = new WebSocket(CONFIG.HELIUS_WS);
-          
+
+          console.log('[WS] Connecting to backend WebSocket...');
+          State.wsConnection = new WebSocket(CONFIG.WS_URL);
+
           State.wsConnection.onopen = () => {
-            console.log('[WS] ✅ Connected to Helius');
+            console.log('[WS] Connected to backend');
             this.isConnected = true;
             State.wsConnected = true;
+            this.reconnectAttempts = 0;
             StatusUI.setApi('helius', true);
-            
-            // Subscribe to Meteora program logs immediately
-            this.subscribeToProgramLogs();
+
+            // Re-subscribe to any previously subscribed pools
+            if (this.subscribedPools.size > 0) {
+              this.sendSubscribe(Array.from(this.subscribedPools));
+            }
           };
-          
+
           State.wsConnection.onmessage = (e) => {
             try {
               const data = JSON.parse(e.data);
               this.handleMessage(data);
-            } catch (err) {}
+            } catch (err) {
+              console.warn('[WS] Message parse error:', err);
+            }
           };
-          
-          State.wsConnection.onerror = () => {
+
+          State.wsConnection.onerror = (err) => {
             console.warn('[WS] Connection error');
             this.isConnected = false;
             State.wsConnected = false;
             StatusUI.setApi('helius', false);
           };
-          
+
           State.wsConnection.onclose = () => {
-            console.log('[WS] Disconnected, reconnecting in 2s...');
+            console.log('[WS] Disconnected');
             this.isConnected = false;
             State.wsConnected = false;
             StatusUI.setApi('helius', false);
-            setTimeout(() => this.connectHelius(), 2000);
+
+            // Exponential backoff reconnection
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+              const delay = Math.min(30000, 1000 * Math.pow(2, this.reconnectAttempts));
+              this.reconnectAttempts++;
+              console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+              setTimeout(() => this.connectToBackend(), delay);
+            }
           };
-          
+
         } catch (e) {
           console.error('[WS] Setup error:', e);
-          setTimeout(() => this.connectHelius(), 3000);
+          setTimeout(() => this.connectToBackend(), CONFIG.WS_RECONNECT_DELAY);
         }
       },
-      
-      subscribeToProgramLogs() {
+
+      sendSubscribe(pools) {
         if (!State.wsConnection || State.wsConnection.readyState !== WebSocket.OPEN) return;
-        
-        const id = this.requestId++;
         State.wsConnection.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id,
-          method: 'logsSubscribe',
-          params: [
-            { mentions: [CONFIG.METEORA_PROGRAM] },
-            { commitment: 'confirmed' }
-          ]
+          type: 'subscribe',
+          pools: pools
         }));
-        console.log('[WS] Subscribed to Meteora program logs');
       },
-      
+
+      sendUnsubscribe(pools) {
+        if (!State.wsConnection || State.wsConnection.readyState !== WebSocket.OPEN) return;
+        State.wsConnection.send(JSON.stringify({
+          type: 'unsubscribe',
+          pools: pools
+        }));
+      },
+
       // Subscribe to specific pool for real-time updates
       subscribeToPool(poolAddress) {
-        if (!poolAddress || this.subscribedPools.has(poolAddress)) return;
-        this.subscribedPools.add(poolAddress);
-        
-        // Fetch recent transactions immediately
+        if (!poolAddress) return;
+
+        if (!this.subscribedPools.has(poolAddress)) {
+          this.subscribedPools.add(poolAddress);
+          this.sendSubscribe([poolAddress]);
+        }
+
+        // Also fetch transactions via REST as backup
         this.fetchPoolTransactions(poolAddress);
       },
-      
-      // Fetch recent transactions for a pool via REST API (instant)
+
+      unsubscribeFromPool(poolAddress) {
+        if (!poolAddress) return;
+        this.subscribedPools.delete(poolAddress);
+        this.sendUnsubscribe([poolAddress]);
+      },
+
+      // Fetch transactions via REST API (works on iOS/backup)
       async fetchPoolTransactions(poolAddress) {
         if (!poolAddress) return;
-        
+
         try {
-          const response = await fetch(CONFIG.HELIUS_RPC, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'getSignaturesForAddress',
-              params: [poolAddress, { limit: 10 }]
-            })
-          });
-          
-          const data = await response.json();
-          if (data.result && Array.isArray(data.result)) {
+          const response = await fetch(`/api/v2/pools/${poolAddress}/transactions?limit=10`);
+          if (!response.ok) return;
+
+          const result = await response.json();
+          if (result.success && Array.isArray(result.data)) {
             const pool = State.pools.find(p => p.address === poolAddress || p.id === poolAddress);
             if (!pool) return;
-            
-            // Process signatures in parallel for speed
-            const txPromises = data.result.slice(0, 8).map(sig => 
-              this.fetchTxDetails(sig.signature, pool.id)
-            );
-            await Promise.allSettled(txPromises);
+
+            result.data.forEach(tx => this.addTx(pool.id, tx));
           }
         } catch (err) {
           console.warn('[WS] Failed to fetch transactions:', err.message);
         }
       },
-      
-      // Fetch transaction details
-      async fetchTxDetails(signature, poolId) {
-        try {
-          const response = await fetch(CONFIG.HELIUS_RPC, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'getTransaction',
-              params: [signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
-            })
-          });
-          
-          const data = await response.json();
-          if (data.result) {
-            const tx = this.parseTx(data.result, signature);
-            if (tx) this.addTx(poolId, tx);
-          }
-        } catch (err) {}
-      },
-      
-      // Parse transaction data
-      parseTx(txData, signature) {
-        const logs = txData.meta?.logMessages || [];
-        const preBalances = txData.meta?.preBalances || [];
-        const postBalances = txData.meta?.postBalances || [];
-        
-        let type = 'swap';
-        const logStr = logs.join(' ').toLowerCase();
-        if (logStr.includes('addliquidity') || logStr.includes('add_liquidity') || logStr.includes('deposit')) {
-          type = 'add';
-        } else if (logStr.includes('removeliquidity') || logStr.includes('remove_liquidity') || logStr.includes('withdraw')) {
-          type = 'remove';
-        }
-        
-        // Calculate USD amount from balance changes
-        let amount = 0;
-        if (preBalances.length > 0 && postBalances.length > 0) {
-          const diff = Math.abs(postBalances[0] - preBalances[0]) / 1e9;
-          amount = diff * 180; // ~$180/SOL estimate
-        }
-        if (amount < 10) amount = Math.random() * 5000 + 100;
-        
-        return {
-          id: signature,
-          type,
-          signature,
-          amount: amount.toFixed(2),
-          timestamp: txData.blockTime ? txData.blockTime * 1000 : Date.now()
-        };
-      },
-      
+
       handleMessage(data) {
-        // Handle subscription confirmations
-        if (data.result !== undefined && typeof data.result === 'number') {
-          console.log('[WS] Subscription confirmed:', data.result);
-          return;
-        }
-        
-        // Handle log notifications (real-time Meteora activity)
-        if (data.method === 'logsNotification') {
-          this.processLogNotification(data.params.result);
+        switch (data.type) {
+          case 'connected':
+            console.log('[WS] Server confirmed connection, client:', data.clientId);
+            break;
+
+          case 'subscribed':
+            console.log('[WS] Subscribed to', data.count, 'pools');
+            break;
+
+          case 'transactions':
+            // Batch of transactions for a pool
+            if (data.poolAddress && Array.isArray(data.transactions)) {
+              const pool = State.pools.find(p => p.address === data.poolAddress || p.id === data.poolAddress);
+              if (pool) {
+                data.transactions.forEach(tx => this.addTx(pool.id, tx));
+              }
+            }
+            break;
+
+          case 'transaction':
+            // Single real-time transaction
+            if (data.transaction) {
+              const tx = data.transaction;
+              const pool = State.pools.find(p => p.address === tx.poolAddress || p.id === tx.poolAddress);
+              if (pool) {
+                this.addTx(pool.id, tx);
+              }
+            }
+            break;
+
+          case 'poolsUpdated':
+            // Backend notifies of pool data refresh
+            console.log('[WS] Pools updated:', data.count, 'pools');
+            // Trigger soft refresh if user isn't interacting
+            if (!State.expandedPoolId && !State.expandedOppId) {
+              DataService.fetchPools().then(() => {
+                DataService.applyFilters();
+                StatusUI.updateBadges();
+              });
+            }
+            break;
+
+          case 'pong':
+            // Heartbeat response
+            break;
         }
       },
-      
-      processLogNotification(result) {
-        const logs = result.value?.logs || [];
-        const sig = result.value?.signature;
-        if (!sig) return;
-        
-        const logStr = logs.join(' ').toLowerCase();
-        let type = 'swap';
-        if (logStr.includes('addliquidity') || logStr.includes('add_liquidity')) type = 'add';
-        else if (logStr.includes('removeliquidity') || logStr.includes('remove_liquidity')) type = 'remove';
-        
-        // If we have an expanded pool, show the transaction there
-        const targetPoolId = State.expandedPoolId || State.expandedOppId;
-        if (targetPoolId) {
-          this.addTx(targetPoolId, {
-            id: sig,
-            type,
-            signature: sig,
-            amount: (Math.random() * 8000 + 200).toFixed(2),
-            timestamp: Date.now()
-          });
-        }
-      },
-      
-      // Polling for expanded pool (ensures constant flow)
+
+      // Polling mode for iOS (more reliable than WebSocket on mobile Safari)
       startPolling() {
         setInterval(() => {
           const poolId = State.expandedPoolId || State.expandedOppId;
           if (!poolId) return;
-          
+
           const pool = State.pools.find(p => p.id === poolId);
           if (pool && pool.address) {
             this.fetchPoolTransactions(pool.address);
           }
-        }, 5000); // Poll every 5 seconds for expanded pool
+        }, 8000); // Poll every 8 seconds on mobile
       },
-      
+
       addTx(poolId, tx) {
         if (!State.poolTransactions[poolId]) {
           State.poolTransactions[poolId] = [];
         }
-        
+
         // Prevent duplicates
-        if (State.poolTransactions[poolId].some(t => t.signature === tx.signature)) {
+        const sig = tx.signature || tx.id;
+        if (State.poolTransactions[poolId].some(t => (t.signature || t.id) === sig)) {
           return;
         }
-        
-        State.poolTransactions[poolId].unshift(tx);
+
+        State.poolTransactions[poolId].unshift({
+          id: sig,
+          signature: sig,
+          type: tx.type || 'swap',
+          amount: tx.amount,
+          timestamp: tx.timestamp || Date.now()
+        });
+
+        // Keep only last 20 transactions
         if (State.poolTransactions[poolId].length > 20) {
           State.poolTransactions[poolId].pop();
         }
-        
+
         // Update UI if this pool is expanded
         if (State.expandedPoolId === poolId || State.expandedOppId === poolId) {
           PoolTxUI.addNewTx(poolId, tx);
@@ -4455,70 +4501,92 @@ const App = {
   
   async init() {
     this._initStartTime = performance.now();
-    
+
+    // iOS-specific optimizations
+    if (CONFIG.IS_IOS) {
+      document.body.classList.add('ios-device');
+      // Disable heavy animations on iOS
+      if (CONFIG.IS_MOBILE) {
+        document.body.classList.add('reduce-motion');
+      }
+    }
+
     try {
       // Phase 1: Immediate UI setup (0-10%)
       this.setLoadProgress(5, 'Initializing...');
       Metrics.init();
       EmailCapture.init();
       BackgroundService.init();
-      
-      // Phase 2: Fetch Jupiter tokens in background (10-20%)
-      this.setLoadProgress(15, 'Loading token registry...');
-      const jupiterPromise = DataService.fetchJupiter();
-      
-      // Phase 3: Fetch pools - primary data (20-70%)
+
+      // Phase 2: Backend handles Jupiter - just mark as ready
+      this.setLoadProgress(15, 'Connecting to server...');
+      DataService.fetchJupiter(); // No-op but keeps compatibility
+
+      // Phase 3: Fetch pools from backend (20-70%)
       this.setLoadProgress(25, 'Fetching pool data...');
       await DataService.fetchPools();
-      this.setLoadProgress(70, 'Processing pools...');
-      
-      // Phase 4: Process and render (70-90%)
+      this.setLoadProgress(60, 'Loading opportunities...');
+
+      // Phase 4: Fetch pre-computed opportunities from backend
+      await DataService.detectOpportunities();
+      this.setLoadProgress(75, 'Processing data...');
+
+      // Apply client-side filters
       DataService.applyFilters();
-      DataService.detectOpportunities();
-      this.setLoadProgress(80, 'Rendering opportunities...');
-      
+      this.setLoadProgress(85, 'Rendering...');
+
       // Render opportunities first (user lands on this tab)
       OpportunityUI.render();
       StatusUI.updateBadges();
-      
-      this.setLoadProgress(90, 'Finalizing...');
-      
+
+      this.setLoadProgress(95, 'Finalizing...');
+
       // Hide loader - show content
       this.hideLoader();
-      
-      // Phase 5: Complete remaining tasks after UI is visible (90-100%)
-      await jupiterPromise; // Ensure Jupiter is done
-      
-      // Render secondary UI elements
-      PoolsGridUI.render();
-      AlertsUI.populateDropdown();
-      AlertsUI.render();
-      AlertsUI.refreshAI();
-      
-      // Start background services
+
+      // Phase 5: Complete remaining tasks after UI is visible
+      // Use requestIdleCallback for non-critical rendering on iOS
+      const renderSecondary = () => {
+        PoolsGridUI.render();
+        AlertsUI.populateDropdown();
+        AlertsUI.render();
+        AlertsUI.refreshAI();
+      };
+
+      if (CONFIG.IS_IOS && 'requestIdleCallback' in window) {
+        requestIdleCallback(renderSecondary, { timeout: 2000 });
+      } else {
+        renderSecondary();
+      }
+
+      // Start background services (WebSocket or polling)
       WSService.connect();
-      LiveUpdates.start();
-      
+
+      // Only start live chart updates on desktop
+      if (!CONFIG.IS_MOBILE) {
+        LiveUpdates.start();
+      }
+
       // Wallet auto-connect (non-blocking)
       WalletService.autoConnect().catch(() => {});
-      
+
       // Mark complete
       State.isInitializing = false;
       State.lastRefresh = Date.now();
       StatusUI.set('live', `${State.pools.length} pools loaded`);
-      
+
       // Log performance
       const loadTime = Math.round(performance.now() - this._initStartTime);
-      console.log(`✅ App loaded in ${loadTime}ms`);
-      
+      console.log(`[App] Loaded in ${loadTime}ms (iOS: ${CONFIG.IS_IOS}, Mobile: ${CONFIG.IS_MOBILE})`);
+
       // Setup event listeners
       this.setupEventListeners();
-      
-      // Start background refresh (60s interval, smart)
+
+      // Start background refresh (longer interval since backend caches)
       setInterval(() => this.backgroundRefresh(), CONFIG.REFRESH_INTERVAL);
-      
+
     } catch (err) {
-      console.error('App init failed:', err);
+      console.error('[App] Init failed:', err);
       this.setLoadProgress(100, 'Error - Retrying...');
       StatusUI.set('error', 'Initialization failed - retrying...');
       setTimeout(() => {
@@ -4572,41 +4640,55 @@ const App = {
   async backgroundRefresh() {
     // Skip if user is actively interacting
     if (State.expandedPoolId || State.expandedOppId) return;
-    
+
     // Skip if document is hidden (tab not visible)
     if (document.hidden) return;
-    
-    // Prevent rapid refreshes (min 25s between refreshes)
+
+    // Prevent rapid refreshes (min 30s between refreshes)
     const now = Date.now();
-    if (now - State.lastRefresh < 25000) return;
+    const minInterval = CONFIG.IS_MOBILE ? 45000 : 30000; // Longer on mobile
+    if (now - State.lastRefresh < minInterval) return;
     State.lastRefresh = now;
-    
+
     try {
-      // Fetch pools in background
+      // Fetch pools from backend (backend handles caching)
       await DataService.fetchPools();
-      
-      // Process silently
+
+      // Fetch updated opportunities
+      await DataService.detectOpportunities();
+
+      // Apply client-side filters
       DataService.applyFilters();
-      DataService.detectOpportunities();
-      
+
       // Check alerts
       this.checkAlerts();
-      
-      // Use requestIdleCallback for non-urgent rendering
+
+      // Use requestIdleCallback for non-urgent rendering (especially on iOS)
       const doRender = () => {
-        PoolsGridUI.render();
-        OpportunityUI.render();
-        AlertsUI.populateDropdown();
+        // On iOS mobile, only render visible tab to reduce CPU usage
+        if (CONFIG.IS_IOS && CONFIG.IS_MOBILE) {
+          const activeTab = document.querySelector('.tab-content.active');
+          if (activeTab?.id === 'opportunities-tab') {
+            OpportunityUI.render();
+          } else if (activeTab?.id === 'alerts-tab') {
+            AlertsUI.populateDropdown();
+          }
+        } else {
+          PoolsGridUI.render();
+          OpportunityUI.render();
+          AlertsUI.populateDropdown();
+        }
+        StatusUI.updateBadges();
       };
-      
+
       if ('requestIdleCallback' in window) {
-        requestIdleCallback(doRender, { timeout: 2000 });
+        requestIdleCallback(doRender, { timeout: 3000 });
       } else {
         setTimeout(doRender, 100);
       }
-      
+
     } catch (err) {
-      console.warn('Background refresh failed:', err.message);
+      console.warn('[App] Background refresh failed:', err.message);
     }
   },
 

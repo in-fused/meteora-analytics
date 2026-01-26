@@ -932,6 +932,39 @@
       min-height: 200px;
     }
     
+    /* Filter Results Section */
+    .filter-results-section {
+      background: linear-gradient(135deg, rgba(129,140,248,0.08), rgba(16,185,129,0.06));
+      border: 1px solid rgba(129,140,248,0.25);
+      border-radius: var(--radius-xl);
+      padding: 20px;
+      margin-bottom: 20px;
+      animation: filterResultsIn 0.3s ease;
+    }
+    @keyframes filterResultsIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .filter-results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .filter-results-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent-primary);
+    }
+    #filterResultsContainer {
+      min-height: 200px;
+    }
+    
     .ai-alerts-section { background: linear-gradient(135deg, rgba(129,140,248,0.1), rgba(34,211,238,0.1)); border: 1px solid rgba(129,140,248,0.25); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; }
     .ai-alerts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .ai-alerts-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-primary); }
@@ -991,6 +1024,89 @@
 
     /* Utilities */
     .loading-spinner { width: 18px; height: 18px; border: 2px solid var(--border-subtle); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto; }
+    
+    /* Progressive Loading States */
+    .skeleton-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      animation: skeletonPulse 1.5s ease-in-out infinite;
+    }
+    .skeleton-line {
+      height: 14px;
+      background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-hover) 50%, var(--bg-elevated) 75%);
+      background-size: 200% 100%;
+      animation: skeletonShimmer 1.5s infinite;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .skeleton-line.short { width: 60%; }
+    .skeleton-line.medium { width: 80%; }
+    @keyframes skeletonPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 0.4; }
+    }
+    @keyframes skeletonShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    /* Loading overlay for initial load */
+    .init-loader {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-void);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+    .init-loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .init-loader-logo {
+      width: 80px;
+      height: 80px;
+      background: var(--gradient-primary);
+      border-radius: var(--radius-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+      box-shadow: var(--glow-primary);
+      margin-bottom: 24px;
+      animation: loaderPulse 2s ease-in-out infinite;
+    }
+    @keyframes loaderPulse {
+      0%, 100% { transform: scale(1); box-shadow: var(--glow-primary); }
+      50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(129,140,248,0.6); }
+    }
+    .init-loader-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .init-loader-progress {
+      width: 200px;
+      height: 4px;
+      background: var(--bg-elevated);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .init-loader-bar {
+      height: 100%;
+      background: var(--gradient-primary);
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 2px;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg-secondary); }
@@ -1195,6 +1311,186 @@
     @media (max-width: 600px) {
       .hero-stats { flex-direction: column; }
       .hero-stat { width: 100%; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ALERT BELL & NOTIFICATIONS
+    ═══════════════════════════════════════════════════════════════════════════ */
+    .alert-bell {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-normal);
+    }
+    .alert-bell:hover {
+      border-color: var(--accent-amber);
+      background: rgba(245,158,11,0.1);
+      box-shadow: var(--glow-gold);
+    }
+    .alert-bell.has-alerts {
+      border-color: var(--accent-amber);
+      animation: bellShake 0.5s ease-in-out;
+    }
+    @keyframes bellShake {
+      0%, 100% { transform: rotate(0); }
+      25% { transform: rotate(-10deg); }
+      75% { transform: rotate(10deg); }
+    }
+    .alert-bell svg {
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+      transition: color var(--transition-fast);
+    }
+    .alert-bell:hover svg,
+    .alert-bell.has-alerts svg {
+      color: var(--accent-amber);
+    }
+    .alert-bell-count {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      min-width: 18px;
+      height: 18px;
+      background: var(--gradient-hot);
+      border-radius: 9px;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      box-shadow: 0 2px 8px rgba(244,63,94,0.5);
+      animation: countPulse 2s ease-in-out infinite;
+    }
+    @keyframes countPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    /* Alert Notifications Dropdown */
+    .alert-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      width: 360px;
+      max-height: 400px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-float);
+      z-index: 1000;
+      display: none;
+      overflow: hidden;
+    }
+    .alert-dropdown.visible { display: block; animation: dropdownIn 0.2s ease; }
+    @keyframes dropdownIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .alert-dropdown-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+    }
+    .alert-dropdown-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .alert-dropdown-clear {
+      font-size: 11px;
+      color: var(--accent-rose);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+    .alert-dropdown-clear:hover {
+      background: rgba(244,63,94,0.15);
+    }
+    .alert-dropdown-list {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .alert-notification {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background var(--transition-fast);
+      cursor: pointer;
+    }
+    .alert-notification:hover {
+      background: var(--bg-elevated);
+    }
+    .alert-notification:last-child { border-bottom: none; }
+    .alert-notification-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: rgba(245,158,11,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .alert-notification-content { flex: 1; min-width: 0; }
+    .alert-notification-pool {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .alert-notification-msg {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .alert-notification-time {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .alert-dropdown-empty {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    @media (max-width: 480px) {
+      .alert-dropdown {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 60vh;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        margin-top: 0;
+      }
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -1452,6 +1748,15 @@
   </style>
 </head>
 <body>
+  <!-- Initial Loading Overlay -->
+  <div class="init-loader" id="initLoader">
+    <div class="init-loader-logo">LP</div>
+    <div class="init-loader-text" id="initLoaderText">Connecting to Meteora...</div>
+    <div class="init-loader-progress">
+      <div class="init-loader-bar" id="initLoaderBar"></div>
+    </div>
+  </div>
+  
   <canvas id="bgCanvas"></canvas>
   <div class="bg-overlay"></div>
   <div class="toast-container" id="toastContainer"></div>
@@ -1605,6 +1910,22 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="alert-bell-wrapper" style="position:relative">
+          <button class="alert-bell" id="alertBell" onclick="AlertNotifications.toggle()" title="Alert Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span class="alert-bell-count" id="alertBellCount" style="display:none">0</span>
+          </button>
+          <!-- Alert Notifications Dropdown -->
+          <div class="alert-dropdown" id="alertDropdown">
+            <div class="alert-dropdown-header">
+              <span class="alert-dropdown-title">🔔 Triggered Alerts</span>
+              <button class="alert-dropdown-clear" onclick="AlertNotifications.clearAll()">Clear All</button>
+            </div>
+            <div class="alert-dropdown-list" id="alertDropdownList">
+              <div class="alert-dropdown-empty">No triggered alerts yet</div>
+            </div>
+          </div>
+        </div>
         <button class="tip-btn" onclick="TipJar.show()" title="Support Development">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           Tip SOL
@@ -1781,11 +2102,28 @@
               <span style="font-size:10px;color:var(--text-secondary)">Filter unsafe</span>
             </div>
           </div>
-          <div class="filter-group" style="justify-content:flex-end">
-            <button class="btn btn--primary" onclick="App.applyFilters()">Apply</button>
+          <div class="filter-group" style="justify-content:flex-end;gap:8px;flex-direction:row">
+            <button class="btn btn--secondary" onclick="App.hideFilterResults()">Hide Results</button>
+            <button class="btn btn--primary" onclick="App.applyFilters()">Apply Filters</button>
           </div>
         </div>
       </div>
+      
+      <!-- Filter Results Section (shown when Apply is clicked) -->
+      <div id="filterResultsSection" class="filter-results-section" style="display:none">
+        <div class="filter-results-header">
+          <div class="filter-results-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            <span id="filterResultsCount">0 Filtered Pools</span>
+          </div>
+          <button class="btn btn--ghost" onclick="App.hideFilterResults()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Hide
+          </button>
+        </div>
+        <div class="pools-container" id="filterResultsContainer"></div>
+      </div>
+      
       <div class="ai-alerts-section">
         <div class="ai-alerts-header">
           <div class="ai-alerts-title">
@@ -1965,6 +2303,7 @@
   opportunities: [],
   verifiedTokens: new Set(),
   alerts: [],
+  triggeredAlerts: [], // Alerts that have fired - shown in bell notification
   aiSuggestions: [],
   expandedPoolId: null,
   expandedOppId: null,
@@ -1973,6 +2312,8 @@
   wsConnected: false,
   currentSource: null,
   jupshieldEnabled: true,
+  isInitializing: true, // Track init state for progressive loading
+  lastRefresh: 0,
   wallet: {
     connected: false,
     publicKey: null,
@@ -2421,7 +2762,7 @@ document.addEventListener('keydown', (e) => {
           // Redirect to Meteora with amount context
           const meteoraUrl = isDLMM 
             ? `https://app.meteora.ag/dlmm/${addr}` 
-            : `https://app.meteora.ag/dammv2/${addr}`;
+            : `https://app.meteora.ag/pools/${addr}`;
           
           ToastUI.success('Redirecting...', 'Opening Meteora to complete deposit');
           
@@ -2735,7 +3076,7 @@ document.addEventListener('keydown', (e) => {
         const isDLMM = pool.protocol === 'Meteora DLMM';
         const meteoraUrl = isDLMM 
           ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
+          : `https://app.meteora.ag/pools/${addr}`;
         
         // Pool type short label
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
@@ -2957,7 +3298,7 @@ document.addEventListener('keydown', (e) => {
         const isDLMM = opp.protocol === 'Meteora DLMM';
         const meteoraUrl = isDLMM 
           ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
+          : `https://app.meteora.ag/pools/${addr}`;
         const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
         const oppTypeClass = opp.oppType ? `opp-${opp.oppType}` : 'opp-standard';
         const rankClass = rank <= 3 ? 'top3' : '';
@@ -3836,12 +4177,54 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // BACKGROUND SERVICE - Optimize background tasks
+    // ═══════════════════════════════════════════════════════════════════════════
+    const BackgroundService = {
+      _isVisible: true,
+      _pendingUpdate: false,
+      
+      init() {
+        // Track page visibility for smart refresh
+        document.addEventListener('visibilitychange', () => {
+          this._isVisible = !document.hidden;
+          
+          // If returning to visible and update was pending, do it now
+          if (this._isVisible && this._pendingUpdate) {
+            this._pendingUpdate = false;
+            setTimeout(() => App.backgroundRefresh(), 1000);
+          }
+        }, { passive: true });
+        
+        // Reduce animations when page not visible
+        if ('requestIdleCallback' in window) {
+          // Use idle time for non-critical tasks
+          requestIdleCallback(() => {
+            ParticleBackground.init();
+          }, { timeout: 3000 });
+        } else {
+          setTimeout(() => ParticleBackground.init(), 1000);
+        }
+      },
+      
+      isActive() {
+        return this._isVisible;
+      },
+      
+      markPendingUpdate() {
+        this._pendingUpdate = true;
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // LIVE BIN UPDATES - Isolated chart updates only
     // ═══════════════════════════════════════════════════════════════════════════
     const LiveUpdates = {
       start() {
         // Update charts only every 5 seconds, and only for expanded cards
         setInterval(() => {
+          // Skip if page not visible
+          if (document.hidden) return;
+          
           // Only update if there's an expanded card
           if (State.expandedPoolId) {
             const pool = State.pools.find(p => p.id === State.expandedPoolId);
@@ -3871,94 +4254,260 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-// APP CONTROLLER (PRODUCTION-SAFE)
+// APP CONTROLLER (PERFORMANCE-OPTIMIZED)
 // ═══════════════════════════════════════════════════════════════════════════
 const App = {
+  _initStartTime: 0,
+  
+  // Update loading progress
+  setLoadProgress(percent, text) {
+    const bar = document.getElementById('initLoaderBar');
+    const txt = document.getElementById('initLoaderText');
+    if (bar) bar.style.width = `${percent}%`;
+    if (txt) txt.textContent = text;
+  },
+  
+  // Hide loading overlay
+  hideLoader() {
+    const loader = document.getElementById('initLoader');
+    if (loader) {
+      loader.classList.add('hidden');
+      // Remove from DOM after transition
+      setTimeout(() => loader.remove(), 500);
+    }
+  },
+  
   async init() {
+    this._initStartTime = performance.now();
+    
     try {
-      // Initialize core services
+      // Phase 1: Immediate UI setup (0-10%)
+      this.setLoadProgress(5, 'Initializing...');
       Metrics.init();
       EmailCapture.init();
-
-      // Fetch initial data (order matters)
-      await DataService.fetchJupiter();
-      await DataService.fetchPools();
+      BackgroundService.init();
       
-      // Process pools into filteredPools and opportunities
+      // Phase 2: Fetch Jupiter tokens in background (10-20%)
+      this.setLoadProgress(15, 'Loading token registry...');
+      const jupiterPromise = DataService.fetchJupiter();
+      
+      // Phase 3: Fetch pools - primary data (20-70%)
+      this.setLoadProgress(25, 'Fetching pool data...');
+      await DataService.fetchPools();
+      this.setLoadProgress(70, 'Processing pools...');
+      
+      // Phase 4: Process and render (70-90%)
       DataService.applyFilters();
       DataService.detectOpportunities();
-
-      // Auto-connect wallet AFTER data loads
-      await WalletService.autoConnect();
-
-      // Render UI
-      PoolsGridUI.render();
+      this.setLoadProgress(80, 'Rendering opportunities...');
+      
+      // Render opportunities first (user lands on this tab)
       OpportunityUI.render();
+      StatusUI.updateBadges();
+      
+      this.setLoadProgress(90, 'Finalizing...');
+      
+      // Hide loader - show content
+      this.hideLoader();
+      
+      // Phase 5: Complete remaining tasks after UI is visible (90-100%)
+      await jupiterPromise; // Ensure Jupiter is done
+      
+      // Render secondary UI elements
+      PoolsGridUI.render();
       AlertsUI.populateDropdown();
       AlertsUI.render();
       AlertsUI.refreshAI();
-
-      // Live services
+      
+      // Start background services
       WSService.connect();
       LiveUpdates.start();
-
-      // Timers
-      setInterval(() => this.refresh(), CONFIG.REFRESH_INTERVAL);
-      setInterval(() => {
-        if (State.wallet.connected) WalletService.fetchBalance();
-      }, 30000);
-      setInterval(() => Metrics.updateDisplay(), 15000);
-
-      // Re-render on resize to update column ordering (debounced)
-      let resizeTimeout, lastColumnCount = PoolsGridUI.getColumnCount();
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-          const newColumnCount = PoolsGridUI.getColumnCount();
-          if (newColumnCount !== lastColumnCount) {
-            lastColumnCount = newColumnCount;
-            PoolsGridUI.render(true);
-            OpportunityUI.render(true);
-          }
-        }, 150);
-      });
-
+      
+      // Wallet auto-connect (non-blocking)
+      WalletService.autoConnect().catch(() => {});
+      
+      // Mark complete
+      State.isInitializing = false;
+      State.lastRefresh = Date.now();
       StatusUI.set('live', `${State.pools.length} pools loaded`);
+      
+      // Log performance
+      const loadTime = Math.round(performance.now() - this._initStartTime);
+      console.log(`✅ App loaded in ${loadTime}ms`);
+      
+      // Setup event listeners
+      this.setupEventListeners();
+      
+      // Start background refresh (60s interval, smart)
+      setInterval(() => this.backgroundRefresh(), CONFIG.REFRESH_INTERVAL);
+      
     } catch (err) {
       console.error('App init failed:', err);
-      StatusUI.set('error', 'Initialization failed');
+      this.setLoadProgress(100, 'Error - Retrying...');
+      StatusUI.set('error', 'Initialization failed - retrying...');
+      setTimeout(() => {
+        this.hideLoader();
+        this.init();
+      }, 3000);
+    }
+  },
+  
+  setupEventListeners() {
+    // Debounced resize handler
+    let resizeTimeout, lastColumnCount = PoolsGridUI.getColumnCount();
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const newColumnCount = PoolsGridUI.getColumnCount();
+        if (newColumnCount !== lastColumnCount) {
+          lastColumnCount = newColumnCount;
+          PoolsGridUI.render(true);
+          OpportunityUI.render(true);
+        }
+      }, 300);
+    }, { passive: true });
+
+    // Click outside to close alert dropdown
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('alertDropdown');
+      const bell = document.getElementById('alertBell');
+      if (dropdown?.classList.contains('visible') && 
+          !dropdown.contains(e.target) && 
+          !bell?.contains(e.target)) {
+        dropdown.classList.remove('visible');
+      }
+    }, { passive: true });
+    
+    // Prevent pull-to-refresh on mobile (interferes with scrolling)
+    document.body.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) return; // Allow pinch zoom
+    }, { passive: true });
+    
+    // Wallet balance check (only if connected, 60s)
+    setInterval(() => {
+      if (State.wallet.connected) WalletService.fetchBalance();
+    }, 60000);
+    
+    // Metrics update (15s)
+    setInterval(() => Metrics.updateDisplay(), 15000);
+  },
+
+  // Background refresh - optimized for minimal UI disruption
+  async backgroundRefresh() {
+    // Skip if user is actively interacting
+    if (State.expandedPoolId || State.expandedOppId) return;
+    
+    // Skip if document is hidden (tab not visible)
+    if (document.hidden) return;
+    
+    // Prevent rapid refreshes (min 25s between refreshes)
+    const now = Date.now();
+    if (now - State.lastRefresh < 25000) return;
+    State.lastRefresh = now;
+    
+    try {
+      // Fetch pools in background
+      await DataService.fetchPools();
+      
+      // Process silently
+      DataService.applyFilters();
+      DataService.detectOpportunities();
+      
+      // Check alerts
+      this.checkAlerts();
+      
+      // Use requestIdleCallback for non-urgent rendering
+      const doRender = () => {
+        PoolsGridUI.render();
+        OpportunityUI.render();
+        AlertsUI.populateDropdown();
+      };
+      
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(doRender, { timeout: 2000 });
+      } else {
+        setTimeout(doRender, 100);
+      }
+      
+    } catch (err) {
+      console.warn('Background refresh failed:', err.message);
     }
   },
 
+  // Manual refresh
   async refresh() {
-    // Silent background refresh - don't interrupt user interaction
+    StatusUI.set('loading', 'Refreshing...');
     try {
       await DataService.fetchPools();
       DataService.applyFilters();
       DataService.detectOpportunities();
-      
-      // Check alerts against new data
       this.checkAlerts();
-      
-      // Only re-render if user isn't interacting (no expanded card)
-      // Smart render will skip if nothing changed anyway
-      PoolsGridUI.render();
-      OpportunityUI.render();
+      PoolsGridUI.render(true);
+      OpportunityUI.render(true);
       AlertsUI.populateDropdown();
+      State.lastRefresh = Date.now();
+      StatusUI.set('live', `${State.filteredPools.length} pools refreshed`);
+      ToastUI.success('Refreshed', 'Pool data updated');
     } catch (err) {
-      console.warn('Background refresh failed:', err.message);
-      // Silent fail - don't disrupt user experience
+      StatusUI.set('error', 'Refresh failed');
     }
   },
 
+  // Apply filters and show results in alerts tab
   applyFilters() {
     DataService.applyFilters();
     DataService.detectOpportunities();
-    PoolsGridUI.render();
-    OpportunityUI.render();
+    
+    // Show filter results section in alerts tab
+    const resultsSection = document.getElementById('filterResultsSection');
+    const resultsContainer = document.getElementById('filterResultsContainer');
+    const resultsCount = document.getElementById('filterResultsCount');
+    
+    if (resultsSection && resultsContainer) {
+      resultsSection.style.display = 'block';
+      if (resultsCount) {
+        resultsCount.textContent = `${State.filteredPools.length} Filtered Pools`;
+      }
+      
+      // Render results with flexbox columns (same as PoolsGridUI)
+      this._renderFilterResults(State.filteredPools.slice(0, 50), resultsContainer);
+    }
+    
+    // Update other UI
+    PoolsGridUI.render(true);
+    OpportunityUI.render(true);
     AlertsUI.populateDropdown();
-    TabsUI.switch('pools');
-    StatusUI.set('live', `${State.filteredPools.length} pools`);
+    StatusUI.set('live', `${State.filteredPools.length} pools match filters`);
+  },
+  
+  _renderFilterResults(pools, container) {
+    if (!container) return;
+    
+    if (pools.length === 0) {
+      container.innerHTML = '<div class="alert-empty" style="text-align:center;padding:40px;width:100%"><p>No pools match your filter criteria.</p></div>';
+      return;
+    }
+    
+    // Flexbox columns - left-to-right numbering
+    const columnCount = window.innerWidth >= 1200 ? 3 : (window.innerWidth >= 768 ? 2 : 1);
+    const columns = Array.from({length: columnCount}, () => []);
+    
+    pools.forEach((pool, index) => {
+      const rank = index + 1;
+      const columnIndex = index % columnCount; // 1,2,3 | 4,5,6 | 7,8,9
+      columns[columnIndex].push(PoolCardUI.render(pool, rank));
+    });
+    
+    container.innerHTML = columns
+      .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
+      .join('');
+  },
+  
+  hideFilterResults() {
+    const resultsSection = document.getElementById('filterResultsSection');
+    if (resultsSection) {
+      resultsSection.style.display = 'none';
+    }
   },
 
   toggleJupShield() {
@@ -4108,7 +4657,7 @@ const App = {
   checkAlerts() {
     if (!State.alerts || State.alerts.length === 0) return;
     
-    const triggered = [];
+    const newlyTriggered = [];
     
     State.alerts.forEach(alert => {
       if (!alert.active) return;
@@ -4151,23 +4700,141 @@ const App = {
       }
       
       if (condMet && !alert.lastTriggered) {
-        triggered.push({ alert, pool, value });
+        const formattedValue = alert.condition.includes('tvl') || alert.condition.includes('volume') 
+          ? Utils.formatNumber(value)
+          : value.toFixed(2);
+        
+        newlyTriggered.push({
+          id: Date.now() + Math.random(),
+          alertId: alert.id,
+          poolId: pool.id,
+          poolName: pool.name,
+          condition: alert.condition,
+          value: formattedValue,
+          timestamp: Date.now()
+        });
         alert.lastTriggered = Date.now();
       } else if (!condMet) {
         alert.lastTriggered = null; // Reset for re-trigger
       }
     });
     
-    // Show notifications for triggered alerts
-    triggered.forEach(({ alert, pool, value }) => {
-      const formattedValue = alert.condition.includes('tvl') || alert.condition.includes('volume') 
-        ? Utils.formatNumber(value)
-        : value.toFixed(2);
-      ToastUI.success(
-        `🔔 Alert: ${pool.name}`,
-        `${alert.condition.replace('-', ' ')} - Current: ${formattedValue}`
-      );
-    });
+    // Add newly triggered to State and update bell
+    if (newlyTriggered.length > 0) {
+      State.triggeredAlerts = [...newlyTriggered, ...State.triggeredAlerts].slice(0, 50);
+      AlertNotifications.updateBell();
+      AlertNotifications.render();
+      
+      // Show toast for each new alert
+      newlyTriggered.forEach(t => {
+        ToastUI.success(
+          `🔔 Alert: ${t.poolName}`,
+          `${t.condition.replace(/-/g, ' ')} - Current: ${t.value}`
+        );
+      });
+      
+      // Shake bell animation
+      const bell = document.getElementById('alertBell');
+      if (bell) {
+        bell.classList.add('has-alerts');
+        setTimeout(() => bell.classList.remove('has-alerts'), 500);
+      }
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ALERT NOTIFICATIONS - Bell dropdown management
+// ═══════════════════════════════════════════════════════════════════════════
+const AlertNotifications = {
+  toggle() {
+    const dropdown = document.getElementById('alertDropdown');
+    if (dropdown) {
+      dropdown.classList.toggle('visible');
+      if (dropdown.classList.contains('visible')) {
+        this.render();
+      }
+    }
+  },
+  
+  updateBell() {
+    const countEl = document.getElementById('alertBellCount');
+    const bellEl = document.getElementById('alertBell');
+    const count = State.triggeredAlerts.length;
+    
+    if (countEl) {
+      if (count > 0) {
+        countEl.textContent = count > 99 ? '99+' : count;
+        countEl.style.display = 'flex';
+      } else {
+        countEl.style.display = 'none';
+      }
+    }
+    
+    if (bellEl) {
+      bellEl.classList.toggle('has-alerts', count > 0);
+    }
+  },
+  
+  render() {
+    const list = document.getElementById('alertDropdownList');
+    if (!list) return;
+    
+    if (State.triggeredAlerts.length === 0) {
+      list.innerHTML = '<div class="alert-dropdown-empty">No triggered alerts yet.<br><span style="font-size:11px;color:var(--text-dim)">Configure alerts in Search & Alerts tab</span></div>';
+      return;
+    }
+    
+    list.innerHTML = State.triggeredAlerts.map(t => {
+      const timeAgo = this.formatTimeAgo(t.timestamp);
+      return `
+        <div class="alert-notification" onclick="AlertNotifications.goToPool('${t.poolId}')">
+          <div class="alert-notification-icon">🔔</div>
+          <div class="alert-notification-content">
+            <div class="alert-notification-pool">${t.poolName}</div>
+            <div class="alert-notification-msg">${t.condition.replace(/-/g, ' ')}: ${t.value}</div>
+            <div class="alert-notification-time">${timeAgo}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+  
+  formatTimeAgo(timestamp) {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  },
+  
+  goToPool(poolId) {
+    // Close dropdown
+    const dropdown = document.getElementById('alertDropdown');
+    if (dropdown) dropdown.classList.remove('visible');
+    
+    // Switch to alerts tab and search for pool
+    TabsUI.switch('alerts');
+    const pool = State.pools.find(p => p.id === poolId);
+    if (pool) {
+      const searchInput = document.getElementById('poolSearch');
+      if (searchInput) {
+        searchInput.value = pool.name;
+        App.handleSearch(pool.name);
+      }
+    }
+    
+    // Mark as viewed (remove from list)
+    State.triggeredAlerts = State.triggeredAlerts.filter(t => t.poolId !== poolId);
+    this.updateBell();
+    this.render();
+  },
+  
+  clearAll() {
+    State.triggeredAlerts = [];
+    this.updateBell();
+    this.render();
+    ToastUI.success('Cleared', 'All notifications cleared');
   }
 };
 

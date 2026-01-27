@@ -12,6 +12,10 @@
       "dest": "/api/proxy/damm.js"
     },
     {
+      "src": "/api/proxy/raydium",
+      "dest": "/api/proxy/raydium.js"
+    },
+    {
       "src": "/api/proxy/jupiter-tokens",
       "dest": "/api/proxy/jupiter-tokens.js"
     },

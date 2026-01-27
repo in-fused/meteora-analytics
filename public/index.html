@@ -443,7 +443,6 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      contain: layout; /* Isolate layout recalculations */
     }
     @media (max-width: 1200px) {
       .pools-container { flex-wrap: wrap; }
@@ -465,6 +464,9 @@
       contain: layout style paint; /* Full CSS containment */
       -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight */
       touch-action: manipulation; /* Optimize touch response */
+    }
+    .pool-card.expanded {
+      contain: style; /* Relax containment when expanded to allow layout reflow */
     }
     .pool-card:active {
       transform: scale(0.995);
@@ -649,7 +651,6 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
-      contain: layout;
     }
     @media (max-width: 1200px) {
       #opportunitiesList { flex-wrap: wrap; }
@@ -672,6 +673,9 @@
       contain: layout style paint;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+    }
+    .opp-card.expanded {
+      contain: style; /* Relax containment when expanded to allow layout reflow */
     }
     .opp-card::before {
       content: '';
@@ -990,7 +994,7 @@
     /* Ensure card expansion works in filter/search results */
     #filterResultsContainer .pool-card,
     #searchResultsContainer .pool-card {
-      contain: style paint; /* Remove layout containment for expansion animation */
+      contain: none; /* No containment - allow full expansion animation */
     }
     #filterResultsContainer .pool-card.expanded,
     #searchResultsContainer .pool-card.expanded {
@@ -2077,7 +2081,7 @@
           <span class="api-badge" id="meteoraApi">Meteora</span>
           <span class="api-badge" id="jupiterApi">Jupiter</span>
           <span class="api-badge" id="heliusApi">Helius WS</span>
-          <span class="api-badge" id="birdeyeApi">Birdeye</span>
+          <span class="api-badge" id="raydiumApi">Raydium</span>
         </div>
       </div>
       <div class="header-actions">
@@ -2426,6 +2430,9 @@
       METEORA_DAMM_V2: '/api/proxy/damm',
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
 
+      // Raydium Concentrated Liquidity Pools
+      RAYDIUM_CLMM: '/api/proxy/raydium',
+
       // Jupiter Token Verification (via proxy)
       JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
       JUPITER_TOKENS: '/api/proxy/jupiter-tokens',
@@ -2438,9 +2445,9 @@
         return `${proto}//${location.host}/ws`;
       },
 
-      // Refresh intervals (optimized)
-      REFRESH_INTERVAL: 45000,       // 45 seconds
-      FAST_REFRESH: 20000,           // 20 seconds
+      // Refresh intervals (optimized - longer to reduce API load)
+      REFRESH_INTERVAL: 60000,       // 60 seconds
+      FAST_REFRESH: 30000,           // 30 seconds
       WS_RECONNECT_DELAY: 3000,
       MAX_ERRORS: 3,
 
@@ -2505,7 +2512,7 @@
     meteora: false,
     jupiter: false,
     helius: false,
-    birdeye: false
+    raydium: false
   }
 };
 
@@ -2515,13 +2522,11 @@
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (State.expandedPoolId) {
-      const card = document.getElementById(`pool-${State.expandedPoolId}`);
-      if (card) card.classList.remove('expanded');
+      document.querySelectorAll(`[data-pool-id="${State.expandedPoolId}"]`).forEach(el => el.classList.remove('expanded'));
       State.expandedPoolId = null;
     }
     if (State.expandedOppId) {
-      const card = document.getElementById(`opp-${State.expandedOppId}`);
-      if (card) card.classList.remove('expanded');
+      document.querySelectorAll(`[data-opp-id="${State.expandedOppId}"]`).forEach(el => el.classList.remove('expanded'));
       State.expandedOppId = null;
     }
   }
@@ -2939,22 +2944,25 @@ document.addEventListener('keydown', (e) => {
             }
           }
           
-          // Redirect to Meteora with amount context
-          const meteoraUrl = isDLMM 
-            ? `https://app.meteora.ag/dlmm/${addr}` 
-            : `https://app.meteora.ag/dammv2/${addr}`;
+          // Redirect to pool DEX with amount context
+          const isRaydium = pool.protocol === 'Raydium CLMM';
+          const poolUrl = isRaydium
+            ? `https://raydium.io/clmm/create-position/?pool_id=${addr}`
+            : isDLMM
+              ? `https://app.meteora.ag/dlmm/${addr}`
+              : `https://app.meteora.ag/dammv2/${addr}`;
+
+          ToastUI.success('Redirecting...', `Opening ${isRaydium ? 'Raydium' : 'Meteora'} to complete deposit`);
           
-          ToastUI.success('Redirecting...', 'Opening Meteora to complete deposit');
-          
-          Metrics.track('execution_attempted', { 
-            pool: pool.name, 
-            amount, 
+          Metrics.track('execution_attempted', {
+            pool: pool.name,
+            amount,
             fee: platformFee,
-            route: 'meteora_redirect'
+            route: isRaydium ? 'raydium_redirect' : 'meteora_redirect'
           });
-          
+
           setTimeout(() => {
-            window.open(meteoraUrl, '_blank');
+            window.open(poolUrl, '_blank');
             this.close();
           }, 1500);
           
@@ -3228,7 +3236,9 @@ document.addEventListener('keydown', (e) => {
           </div>`).join('');
       },
       addNewTx(poolId, tx) {
-        const el = document.getElementById(`tx-list-${poolId}`);
+        // Find the tx-list inside the currently expanded card to avoid duplicate ID issues
+        const expandedCard = document.querySelector(`[data-pool-id="${poolId}"].expanded`) || document.querySelector(`[data-opp-id="${poolId}"].expanded`);
+        const el = expandedCard ? expandedCard.querySelector('.pool-tx-list') : null;
         if (!el) return;
         
         // Remove "waiting" message if present
@@ -3257,7 +3267,8 @@ document.addEventListener('keydown', (e) => {
         }
       },
       update(poolId) {
-        const el = document.getElementById(`tx-list-${poolId}`);
+        const expandedCard = document.querySelector(`[data-pool-id="${poolId}"].expanded`) || document.querySelector(`[data-opp-id="${poolId}"].expanded`);
+        const el = expandedCard ? expandedCard.querySelector('.pool-tx-list') : null;
         if (el) el.innerHTML = this.renderList(poolId, false);
       }
     };
@@ -3271,24 +3282,27 @@ document.addEventListener('keydown', (e) => {
         const isExp = State.expandedPoolId === pool.id;
         const addr = pool.address || pool.id;
         
-        // Determine correct Meteora URL based on pool type
+        // Determine correct URL based on pool type
         const isDLMM = pool.protocol === 'Meteora DLMM';
-        const meteoraUrl = isDLMM 
-          ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
-        
+        const isRaydium = pool.protocol === 'Raydium CLMM';
+        const poolUrl = isRaydium
+          ? `https://raydium.io/clmm/create-position/?pool_id=${addr}`
+          : isDLMM
+            ? `https://app.meteora.ag/dlmm/${addr}`
+            : `https://app.meteora.ag/dammv2/${addr}`;
+
         // Pool type short label
-        const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
+        const typeLabel = isRaydium ? 'CLMM' : isDLMM ? 'DLMM' : 'DAMM';
         
         // Only show farm badge on collapsed view (bin step shown in details)
         const farmBadge = pool.farmActive ? '<span class="mini-badge farm">🌾 Active</span>' : 
                          pool.hasFarm ? '<span class="mini-badge farm">🌾 Farm</span>' : '';
         
         return `
-          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''} ${pool.isHot ? 'is-hot' : ''}" id="pool-${pool.id}">
+          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''} ${pool.isHot ? 'is-hot' : ''}" data-pool-id="${pool.id}">
             <div class="pool-rank ${rank <= 3 ? 'top3' : ''}">${rank}</div>
             ${pool.isHot ? '<div class="hot-indicator">🔥</div>' : ''}
-            <div class="pool-card-main" onclick="PoolCardUI.toggle('${pool.id}')">
+            <div class="pool-card-main" onclick="PoolCardUI.toggle('${pool.id}', event)">
               <div class="pool-header">
                 <div class="pool-pair">
                   <div class="pool-icons"><div class="pool-icon">${pool.icon1}</div><div class="pool-icon">${pool.icon2}</div></div>
@@ -3317,9 +3331,9 @@ document.addEventListener('keydown', (e) => {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
                     Quick Deposit
                   </button>
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
+                  <a href="${poolUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Meteora
+                    ${isRaydium ? 'Raydium' : 'Meteora'}
                   </a>
                   <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -3371,34 +3385,36 @@ document.addEventListener('keydown', (e) => {
       // Debounce flag to prevent rapid clicks
       _toggling: false,
       
-      toggle(poolId) {
+      toggle(poolId, event) {
         // Prevent rapid toggling (debounce)
         if (this._toggling) return;
         this._toggling = true;
         setTimeout(() => { this._toggling = false; }, 200);
-        
-        // Close previously expanded pool card
+
+        // Find the clicked card element via event target (handles duplicate data-pool-id across containers)
+        const clickedCard = event ? event.target.closest('.pool-card') : document.querySelector(`[data-pool-id="${poolId}"]`);
+
+        // Close previously expanded pool card(s) - close ALL instances across all containers
         if (State.expandedPoolId && State.expandedPoolId !== poolId) {
-          const prev = document.getElementById(`pool-${State.expandedPoolId}`);
-          if (prev) prev.classList.remove('expanded');
+          document.querySelectorAll(`[data-pool-id="${State.expandedPoolId}"]`).forEach(el => el.classList.remove('expanded'));
         }
         // Close any expanded opportunity card
         if (State.expandedOppId) {
-          const prevOpp = document.getElementById(`opp-${State.expandedOppId}`);
-          if (prevOpp) prevOpp.classList.remove('expanded');
+          document.querySelectorAll(`[data-opp-id="${State.expandedOppId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedOppId = null;
         }
         // Toggle current
-        const card = document.getElementById(`pool-${poolId}`);
-        if (!card) {
+        if (!clickedCard) {
           console.warn('Card not found:', poolId);
           return;
         }
         if (State.expandedPoolId === poolId) {
-          card.classList.remove('expanded');
+          // Collapse all instances of this pool card
+          document.querySelectorAll(`[data-pool-id="${poolId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedPoolId = null;
         } else {
-          card.classList.add('expanded');
+          // Expand the clicked card specifically
+          clickedCard.classList.add('expanded');
           State.expandedPoolId = poolId;
           // Track expansion - search in ALL pools, not just filtered
           const pool = State.pools.find(p => p.id === poolId) || State.filteredPools.find(p => p.id === poolId);
@@ -3477,9 +3493,9 @@ document.addEventListener('keydown', (e) => {
           .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
           .join('');
         
-        // Restore expanded state if card still exists
+        // Restore expanded state if card still exists (in this container)
         if (expandedPoolId) {
-          const card = document.getElementById(`pool-${expandedPoolId}`);
+          const card = container.querySelector(`[data-pool-id="${expandedPoolId}"]`);
           if (card && !card.classList.contains('expanded')) {
             card.classList.add('expanded');
           }
@@ -3502,17 +3518,20 @@ document.addEventListener('keydown', (e) => {
         const isExp = State.expandedOppId === opp.id;
         const addr = opp.address || opp.id;
         const isDLMM = opp.protocol === 'Meteora DLMM';
-        const meteoraUrl = isDLMM 
-          ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
-        const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
+        const isRaydium = opp.protocol === 'Raydium CLMM';
+        const poolUrl = isRaydium
+          ? `https://raydium.io/clmm/create-position/?pool_id=${addr}`
+          : isDLMM
+            ? `https://app.meteora.ag/dlmm/${addr}`
+            : `https://app.meteora.ag/dammv2/${addr}`;
+        const typeLabel = isRaydium ? 'CLMM' : isDLMM ? 'DLMM' : 'DAMM';
         const oppTypeClass = opp.oppType ? `opp-${opp.oppType}` : 'opp-standard';
         const rankClass = rank <= 3 ? 'top3' : '';
         
         return `
-          <div class="opp-card ${oppTypeClass} ${isExp ? 'expanded' : ''}" id="opp-${opp.id}">
+          <div class="opp-card ${oppTypeClass} ${isExp ? 'expanded' : ''}" data-opp-id="${opp.id}">
             ${rank > 0 ? `<div class="opp-rank ${rankClass}">${rank}</div>` : ''}
-            <div class="opp-card-main" onclick="OppCardUI.toggle('${opp.id}')">
+            <div class="opp-card-main" onclick="OppCardUI.toggle('${opp.id}', event)">
               <div class="opp-header">
                 <div class="opp-pool">
                   <div class="opp-pool-icons"><div class="opp-pool-icon">${opp.icon1}</div><div class="opp-pool-icon">${opp.icon2}</div></div>
@@ -3536,9 +3555,9 @@ document.addEventListener('keydown', (e) => {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
                     Quick Deposit
                   </button>
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
+                  <a href="${poolUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Meteora
+                    ${isRaydium ? 'Raydium' : 'Meteora'}
                   </a>
                   <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -3555,31 +3574,30 @@ document.addEventListener('keydown', (e) => {
             </div>
           </div>`;
       },
-      toggle(oppId) {
+      toggle(oppId, event) {
         // Prevent rapid toggling (debounce)
         if (this._toggling) return;
         this._toggling = true;
         setTimeout(() => { this._toggling = false; }, 200);
-        
+
+        const clickedCard = event ? event.target.closest('.opp-card') : document.querySelector(`[data-opp-id="${oppId}"]`);
+
         // Close previously expanded opportunity card
         if (State.expandedOppId && State.expandedOppId !== oppId) {
-          const prev = document.getElementById(`opp-${State.expandedOppId}`);
-          if (prev) prev.classList.remove('expanded');
+          document.querySelectorAll(`[data-opp-id="${State.expandedOppId}"]`).forEach(el => el.classList.remove('expanded'));
         }
         // Close any expanded pool card
         if (State.expandedPoolId) {
-          const prevPool = document.getElementById(`pool-${State.expandedPoolId}`);
-          if (prevPool) prevPool.classList.remove('expanded');
+          document.querySelectorAll(`[data-pool-id="${State.expandedPoolId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedPoolId = null;
         }
         // Toggle current
-        const card = document.getElementById(`opp-${oppId}`);
-        if (!card) return;
+        if (!clickedCard) return;
         if (State.expandedOppId === oppId) {
-          card.classList.remove('expanded');
+          document.querySelectorAll(`[data-opp-id="${oppId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedOppId = null;
         } else {
-          card.classList.add('expanded');
+          clickedCard.classList.add('expanded');
           State.expandedOppId = oppId;
         }
       },
@@ -3648,7 +3666,7 @@ document.addEventListener('keydown', (e) => {
         
         // Restore expanded state
         if (expandedOppId) {
-          const card = document.getElementById(`opp-${expandedOppId}`);
+          const card = document.querySelector(`[data-opp-id="${expandedOppId}"]`);
           if (card && !card.classList.contains('expanded')) {
             card.classList.add('expanded');
           }
@@ -3767,14 +3785,18 @@ document.addEventListener('keydown', (e) => {
           // Limit pools on mobile for better performance
           const poolLimit = CONFIG.IS_MOBILE ? 200 : 500;
 
-          // Fetch DLMM and DAMM v2 in parallel
-          const [dlmmResult, dammResult] = await Promise.allSettled([
+          // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
+          const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
             fetch(CONFIG.METEORA_DLMM).then(r => {
               if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`);
               return r.json();
             }),
             fetch(CONFIG.METEORA_DAMM_V2).then(r => {
               if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`);
+              return r.json();
+            }),
+            fetch(CONFIG.RAYDIUM_CLMM).then(r => {
+              if (!r.ok) throw new Error(`Raydium HTTP ${r.status}`);
               return r.json();
             })
           ]);
@@ -3813,7 +3835,26 @@ document.addEventListener('keydown', (e) => {
             sources.push(`DAMM:${added}`);
           }
 
-          // Fallback to DexScreener if both fail
+          // Process Raydium CLMM
+          if (raydiumResult.status === 'fulfilled' && raydiumResult.value?.data?.data) {
+            let added = 0;
+            const raydiumPools = raydiumResult.value.data.data
+              .filter(p => p.id && (p.tvl || 0) > 100)
+              .slice(0, poolLimit)
+              .map(p => this.processRaydiumCLMM(p));
+
+            for (const p of raydiumPools) {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+                added++;
+              }
+            }
+            if (added > 0) sources.push(`Raydium:${added}`);
+            StatusUI.setApi('raydium', true);
+          }
+
+          // Fallback to DexScreener if all primary sources fail
           if (allPools.length === 0) {
             try {
               const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
@@ -3900,6 +3941,48 @@ document.addEventListener('keydown', (e) => {
         };
       },
       
+      processRaydiumCLMM(p) {
+        const tvl = parseFloat(p.tvl) || 0;
+        const volume = parseFloat(p.day?.volume) || 0;
+        const fees = parseFloat(p.day?.volumeFee) || 0;
+        const apr = parseFloat(p.day?.apr) || (tvl > 0 ? (fees / tvl * 365 * 100) : 0);
+        const mintX = p.mintA?.address || '', mintY = p.mintB?.address || '';
+        const xV = State.verifiedTokens.has(mintX), yV = State.verifiedTokens.has(mintY);
+
+        let safety = 'warning';
+        if (xV && yV) safety = 'safe';
+        else if (!xV && !yV && tvl < 10000) safety = 'danger';
+
+        let score = 50;
+        if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
+        if (volume > 100000) score += 15; else if (volume > 10000) score += 10; else if (volume > 1000) score += 5;
+        if (apr > 100) score += 10; else if (apr > 50) score += 7; else if (apr > 20) score += 4;
+        if (safety === 'safe') score += 5; else if (safety === 'danger') score -= 15;
+        score = Math.min(99, Math.max(10, Math.round(score)));
+
+        const symbolA = p.mintA?.symbol || '?';
+        const symbolB = p.mintB?.symbol || '?';
+        const currentPrice = parseFloat(p.price) || 1;
+        const feeTvlRatio = tvl > 0 ? fees / tvl : 0;
+
+        return {
+          id: p.id, address: p.id,
+          name: `${symbolA}/${symbolB}`,
+          protocol: 'Raydium CLMM', mintX, mintY,
+          tvl, volume, apr: apr.toFixed(2), fees, feeBps: parseFloat(p.feeRate) || 0.25,
+          binStep: 1, currentPrice, safety, score,
+          bins: this.generateBins(currentPrice), activeBin: 10,
+          icon1: symbolA.slice(0, 4), icon2: symbolB.slice(0, 4),
+          volumeToTvl: tvl > 0 ? volume / tvl : 0,
+          feeTvlRatio,
+          feeTvlRatio1h: 0,
+          fees1h: 0,
+          hasFarm: !!p.farmCount,
+          farmActive: (p.farmCount || 0) > 0,
+          isHot: false
+        };
+      },
+
       processDAMMv2(p) {
         // All fields from DAMM v2 API
         const tvl = parseFloat(p.tvl) || 0;
@@ -4199,16 +4282,29 @@ document.addEventListener('keydown', (e) => {
       isConnected: false,
       ws: null,
       useWebSocket: !CONFIG.IS_MOBILE, // WebSocket for desktop, polling for mobile
+      _initialized: false,
 
       connect() {
-        if (this.useWebSocket) {
-          this.connectWebSocket();
+        // Lazy initialization - don't connect WebSocket until a pool is actually expanded
+        // This prevents Helius from running constantly and degrading performance
+        this._initialized = true;
+        if (!this.useWebSocket) {
+          console.log('[WS] Polling mode ready (mobile) - will poll on demand');
         } else {
-          console.log('[WS] Using polling mode for transactions (mobile)');
+          console.log('[WS] WebSocket ready - will connect on first pool expansion');
+        }
+        StatusUI.setApi('helius', true);
+        this.isConnected = true;
+        State.wsConnected = true;
+      },
+
+      _ensureConnected() {
+        // Connect WebSocket lazily on first actual use
+        if (this.useWebSocket && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
+          this.connectWebSocket();
+        }
+        if (!this.useWebSocket && !this._pollInterval) {
           this.startPolling();
-          StatusUI.setApi('helius', true);
-          this.isConnected = true;
-          State.wsConnected = true;
         }
       },
 
@@ -4267,6 +4363,9 @@ document.addEventListener('keydown', (e) => {
       subscribeToPool(poolAddress) {
         if (!poolAddress) return;
         this.subscribedPools.add(poolAddress);
+
+        // Lazily connect on first subscription
+        this._ensureConnected();
 
         // Subscribe via WebSocket if connected
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -4585,7 +4684,7 @@ document.addEventListener('keydown', (e) => {
                 b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
               });
               // Update only the chart element, not the whole card
-              const chartEl = document.querySelector(`#pool-${State.expandedPoolId} .chart-section`);
+              const chartEl = document.querySelector(`[data-pool-id="${State.expandedPoolId}"].expanded .chart-section`);
               if (chartEl) chartEl.outerHTML = LiquidityChartUI.render(pool);
             }
           }
@@ -4596,7 +4695,7 @@ document.addEventListener('keydown', (e) => {
               opp.bins.forEach(b => {
                 b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
               });
-              const chartEl = document.querySelector(`#opp-${State.expandedOppId} .chart-section`);
+              const chartEl = document.querySelector(`[data-opp-id="${State.expandedOppId}"].expanded .chart-section`);
               if (chartEl) chartEl.outerHTML = LiquidityChartUI.render(opp);
             }
           }

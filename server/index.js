@@ -35,6 +35,7 @@ const cache = new Map();
 const CACHE_TTLS = {
   dlmm: 30000,        // 30 seconds - pool list
   damm: 30000,        // 30 seconds
+  raydium: 30000,     // 30 seconds - Raydium CLMM pools
   jupiter: 300000,    // 5 minutes - token list rarely changes
   balance: 10000,     // 10 seconds
   signatures: 5000,   // 5 seconds - recent transactions
@@ -151,6 +152,23 @@ app.get('/api/proxy/damm', async (req, res) => {
   } catch (err) {
     console.error('[Proxy] DAMM error:', err.message);
     res.status(502).json({ error: 'Failed to fetch DAMM data' });
+  }
+});
+
+app.get('/api/proxy/raydium', async (req, res) => {
+  try {
+    const cached = getCached('raydium', CACHE_TTLS.raydium);
+    if (cached) return res.json(cached);
+
+    const response = await fetch('https://api-v3.raydium.io/pools/info/list?poolType=concentrated&poolSortField=liquidity&sortType=desc&pageSize=200&page=1');
+    if (!response.ok) throw new Error(`Raydium API returned ${response.status}`);
+
+    const data = await response.json();
+    setCache('raydium', data);
+    res.json(data);
+  } catch (err) {
+    console.error('[Proxy] Raydium error:', err.message);
+    res.status(502).json({ error: 'Failed to fetch Raydium data' });
   }
 });
 
@@ -325,9 +343,11 @@ function connectToHelius() {
     console.log('[WS] Helius connection closed');
     heliusConnected = false;
 
-    // Reconnect after delay
+    // Only reconnect if there are active clients
     clearTimeout(reconnectTimeout);
-    reconnectTimeout = setTimeout(connectToHelius, 5000);
+    if (wss.clients.size > 0) {
+      reconnectTimeout = setTimeout(connectToHelius, 5000);
+    }
   });
 
   heliusWs.on('error', (err) => {
@@ -396,6 +416,16 @@ wss.on('connection', (ws) => {
         clientSubscriptions.delete(address);
       }
     });
+
+    // Disconnect Helius WS if no clients remain with active subscriptions
+    if (wss.clients.size === 0 && heliusWs && heliusWs.readyState === WebSocket.OPEN) {
+      console.log('[WS] No clients remaining, closing Helius connection to save resources');
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
+      heliusWs.close();
+      heliusWs = null;
+      heliusConnected = false;
+    }
   });
 
   // Send initial connected message
@@ -474,9 +504,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
   console.log(`[Server] WebSocket: ws://0.0.0.0:${PORT}/ws`);
   console.log(`[Server] Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-
-  // Start Helius connection
-  connectToHelius();
+  // Helius WebSocket connects lazily on first client connection (not at startup)
 });
 
 // Graceful shutdown

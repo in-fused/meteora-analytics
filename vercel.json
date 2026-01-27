@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "routes": [
+    {
+      "src": "/api/proxy/dlmm",
+      "dest": "/api/proxy/dlmm.js"
+    },
+    {
+      "src": "/api/proxy/damm",
+      "dest": "/api/proxy/damm.js"
+    },
+    {
+      "src": "/api/proxy/jupiter-tokens",
+      "dest": "/api/proxy/jupiter-tokens.js"
+    },
+    {
+      "src": "/api/helius/rpc",
+      "dest": "/api/helius/rpc.js"
+    },
+    {
+      "src": "/api/helius/batch",
+      "dest": "/api/helius/batch.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "memory": 256,
+      "maxDuration": 10
+    }
+  }
+}

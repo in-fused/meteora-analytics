@@ -3192,13 +3192,15 @@ document.addEventListener('keydown', (e) => {
     // ═══════════════════════════════════════════════════════════════════════════
     const PoolTxUI = {
       render(poolId) {
-        // Immediately trigger transaction fetch when card expands
-        const pool = State.pools.find(p => p.id === poolId);
-        if (pool && pool.address) {
-          // Fetch transactions immediately (non-blocking)
-          setTimeout(() => WSService.fetchPoolTransactions(pool.address), 50);
+        // Only fetch transactions if THIS pool is actually expanded
+        // This prevents fetching for every card during render
+        if (State.expandedPoolId === poolId) {
+          const pool = State.pools.find(p => p.id === poolId);
+          if (pool && pool.address) {
+            setTimeout(() => WSService.fetchPoolTransactions(pool.address), 100);
+          }
         }
-        
+
         return `
           <div class="pool-tx-section">
             <div class="pool-tx-header">
@@ -4285,8 +4287,22 @@ document.addEventListener('keydown', (e) => {
         }
       },
 
+      _errorCount: 0,
+      _lastFetch: 0,
+
       async fetchPoolTransactions(poolAddress) {
         if (!poolAddress) return;
+
+        // Rate limit: minimum 5 seconds between fetches
+        const now = Date.now();
+        if (now - this._lastFetch < 5000) return;
+        this._lastFetch = now;
+
+        // Stop if too many errors
+        if (this._errorCount > 3) {
+          console.warn('[WS] Too many errors, stopping transaction fetch');
+          return;
+        }
 
         try {
           const response = await fetch(CONFIG.HELIUS_RPC, {
@@ -4298,7 +4314,20 @@ document.addEventListener('keydown', (e) => {
             })
           });
 
+          if (!response.ok) {
+            this._errorCount++;
+            return;
+          }
+
           const data = await response.json();
+          if (data.error) {
+            this._errorCount++;
+            return;
+          }
+
+          // Reset error count on success
+          this._errorCount = 0;
+
           if (data.result && Array.isArray(data.result)) {
             const pool = State.pools.find(p => p.address === poolAddress || p.id === poolAddress);
             if (!pool) return;
@@ -4308,12 +4337,13 @@ document.addEventListener('keydown', (e) => {
             await this.fetchTxDetailsBatch(signatures, pool.id);
           }
         } catch (err) {
-          console.warn('[WS] Failed to fetch transactions:', err.message);
+          this._errorCount++;
+          // Silently fail to avoid console spam
         }
       },
 
       async fetchTxDetailsBatch(signatures, poolId) {
-        if (!signatures.length) return;
+        if (!signatures.length || this._errorCount > 3) return;
 
         try {
           // Use batch endpoint for efficiency
@@ -4328,8 +4358,14 @@ document.addEventListener('keydown', (e) => {
             })
           });
 
+          if (!response.ok) {
+            this._errorCount++;
+            return;
+          }
+
           const results = await response.json();
           if (Array.isArray(results)) {
+            this._errorCount = 0; // Reset on success
             results.forEach((data, i) => {
               if (data.result) {
                 const tx = this.parseTx(data.result, signatures[i]);
@@ -4338,7 +4374,8 @@ document.addEventListener('keydown', (e) => {
             });
           }
         } catch (err) {
-          console.warn('[WS] Batch tx fetch error:', err.message);
+          this._errorCount++;
+          // Silently fail to avoid console spam
         }
       },
 
@@ -4388,16 +4425,24 @@ document.addEventListener('keydown', (e) => {
       },
 
       startPolling() {
-        const pollInterval = CONFIG.IS_MOBILE ? 10000 : 6000;
-        setInterval(() => {
-          const poolId = State.expandedPoolId || State.expandedOppId;
-          if (!poolId) return;
+        // Only poll every 15 seconds to reduce API load
+        this._pollInterval = setInterval(() => {
+          // Only fetch if a pool is actually expanded
+          const poolId = State.expandedPoolId;
+          if (!poolId || this._errorCount > 3) return;
 
           const pool = State.pools.find(p => p.id === poolId);
           if (pool && pool.address) {
             this.fetchPoolTransactions(pool.address);
           }
-        }, 8000); // Poll every 8 seconds on mobile
+        }, 15000); // Poll every 15 seconds
+      },
+
+      stopPolling() {
+        if (this._pollInterval) {
+          clearInterval(this._pollInterval);
+          this._pollInterval = null;
+        }
       },
 
       addTx(poolId, tx) {

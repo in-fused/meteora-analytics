@@ -1,9 +1,9 @@
 {
   "name": "meteora-analytics",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "private": true,
-  "description": "High-performance Meteora DeFi analytics",
+  "description": "High-performance Meteora DeFi analytics with secure API proxy",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js"
@@ -11,7 +11,8 @@
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0"
   },
   "engines": {
     "node": ">=18"

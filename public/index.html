@@ -987,6 +987,15 @@
       flex-direction: column;
       gap: 16px;
     }
+    /* Ensure card expansion works in filter/search results */
+    #filterResultsContainer .pool-card,
+    #searchResultsContainer .pool-card {
+      contain: style paint; /* Remove layout containment for expansion animation */
+    }
+    #filterResultsContainer .pool-card.expanded,
+    #searchResultsContainer .pool-card.expanded {
+      z-index: 10; /* Ensure expanded card is above others */
+    }
     
     .ai-alerts-section { background: linear-gradient(135deg, rgba(129,140,248,0.1), rgba(34,211,238,0.1)); border: 1px solid rgba(129,140,248,0.25); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; }
     .ai-alerts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -2412,19 +2421,22 @@
     // CONFIGURATION - ALL API KEYS & ENDPOINTS
     // ═══════════════════════════════════════════════════════════════════════════
     const CONFIG = {
-      // Meteora APIs (direct or via proxy for caching)
-      METEORA_DLMM: 'https://dlmm-api.meteora.ag/pair/all',
-      METEORA_DAMM_V2: 'https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc',
+      // Use backend proxy for all API calls (caching + security)
+      METEORA_DLMM: '/api/proxy/dlmm',
+      METEORA_DAMM_V2: '/api/proxy/damm',
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
 
-      // Jupiter Token Verification
+      // Jupiter Token Verification (via proxy)
       JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
-      JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified',
+      JUPITER_TOKENS: '/api/proxy/jupiter-tokens',
 
-      // Helius API for transactions
-      HELIUS_KEY: '66097387-f0e6-4f93-a800-dbaac4a4c113',
-      get HELIUS_RPC() { return `https://mainnet.helius-rpc.com/?api-key=${this.HELIUS_KEY}`; },
-      get HELIUS_WS() { return `wss://mainnet.helius-rpc.com/?api-key=${this.HELIUS_KEY}`; },
+      // Helius API via secure backend proxy (API key hidden server-side)
+      HELIUS_RPC: '/api/helius/rpc',
+      HELIUS_BATCH: '/api/helius/batch',
+      get WS_URL() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${proto}//${location.host}/ws`;
+      },
 
       // Refresh intervals (optimized)
       REFRESH_INTERVAL: 45000,       // 45 seconds
@@ -2637,8 +2649,8 @@ document.addEventListener('keydown', (e) => {
           const provider = window.phantom?.solana || window.solflare || window.backpack;
           if (!provider) throw new Error('No wallet provider');
           
-          // Create transfer transaction
-          const connection = new (window.solanaWeb3?.Connection || class{})(CONFIG.HELIUS_RPC);
+          // Create transfer transaction (use public RPC for wallet operations)
+          const connection = new (window.solanaWeb3?.Connection || class{})('https://api.mainnet-beta.solana.com');
           const fromPubkey = provider.publicKey;
           const toPubkey = new (window.solanaWeb3?.PublicKey || class{})(this.WALLET);
           
@@ -3125,7 +3137,11 @@ document.addEventListener('keydown', (e) => {
       async fetchBalance() {
         if (!State.wallet.publicKey) return;
         try {
-          const r = await fetch(CONFIG.HELIUS_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [State.wallet.publicKey] }) });
+          const r = await fetch(CONFIG.HELIUS_RPC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ method: 'getBalance', params: [State.wallet.publicKey] })
+          });
           const d = await r.json();
           if (d.result?.value !== undefined) State.wallet.balance = d.result.value / 1e9;
         } catch (e) { console.warn('Balance fetch error:', e); }
@@ -4173,31 +4189,100 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // REAL-TIME TRANSACTION SERVICE - Polling-based for reliability
-    // Uses Helius RPC for transaction fetching (optimized for mobile)
+    // REAL-TIME TRANSACTION SERVICE - WebSocket + Polling fallback
+    // Uses backend WebSocket proxy for real-time updates (API key hidden)
     // ═══════════════════════════════════════════════════════════════════════════
     const WSService = {
       subscribedPools: new Set(),
       isConnected: false,
+      ws: null,
+      useWebSocket: !CONFIG.IS_MOBILE, // WebSocket for desktop, polling for mobile
 
       connect() {
-        // Use polling for all devices (more reliable, less memory)
-        console.log('[WS] Using polling mode for transactions');
-        this.startPolling();
-        StatusUI.setApi('helius', true);
-        this.isConnected = true;
-        State.wsConnected = true;
+        if (this.useWebSocket) {
+          this.connectWebSocket();
+        } else {
+          console.log('[WS] Using polling mode for transactions (mobile)');
+          this.startPolling();
+          StatusUI.setApi('helius', true);
+          this.isConnected = true;
+          State.wsConnected = true;
+        }
+      },
+
+      connectWebSocket() {
+        try {
+          console.log('[WS] Connecting to WebSocket...');
+          this.ws = new WebSocket(CONFIG.WS_URL);
+
+          this.ws.onopen = () => {
+            console.log('[WS] Connected');
+            StatusUI.setApi('helius', true);
+            this.isConnected = true;
+            State.wsConnected = true;
+            // Resubscribe to any active pools
+            this.subscribedPools.forEach(addr => {
+              this.ws.send(JSON.stringify({ type: 'subscribe', address: addr }));
+            });
+          };
+
+          this.ws.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.type === 'subscribed') {
+                console.log('[WS] Subscribed to:', msg.address);
+                // Fetch initial transactions
+                this.fetchPoolTransactions(msg.address);
+              } else if (msg.params?.result) {
+                // Handle incoming log notification - refetch transactions
+                const poolId = State.expandedPoolId;
+                if (poolId) {
+                  const pool = State.pools.find(p => p.id === poolId);
+                  if (pool) this.fetchPoolTransactions(pool.address);
+                }
+              }
+            } catch (e) {}
+          };
+
+          this.ws.onclose = () => {
+            console.log('[WS] Disconnected, falling back to polling');
+            this.isConnected = false;
+            // Fall back to polling
+            this.startPolling();
+          };
+
+          this.ws.onerror = (err) => {
+            console.warn('[WS] Error, falling back to polling');
+            this.useWebSocket = false;
+            this.startPolling();
+          };
+        } catch (e) {
+          console.warn('[WS] Failed to connect, using polling');
+          this.startPolling();
+        }
       },
 
       subscribeToPool(poolAddress) {
         if (!poolAddress) return;
         this.subscribedPools.add(poolAddress);
+
+        // Subscribe via WebSocket if connected
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: 'subscribe', address: poolAddress }));
+        }
+
+        // Always fetch initial transactions
         this.fetchPoolTransactions(poolAddress);
       },
 
       unsubscribeFromPool(poolAddress) {
         if (!poolAddress) return;
         this.subscribedPools.delete(poolAddress);
+
+        // Unsubscribe via WebSocket if connected
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: 'unsubscribe', address: poolAddress }));
+        }
       },
 
       async fetchPoolTransactions(poolAddress) {
@@ -4208,8 +4293,6 @@ document.addEventListener('keydown', (e) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
               method: 'getSignaturesForAddress',
               params: [poolAddress, { limit: 8 }]
             })
@@ -4220,12 +4303,42 @@ document.addEventListener('keydown', (e) => {
             const pool = State.pools.find(p => p.address === poolAddress || p.id === poolAddress);
             if (!pool) return;
 
-            for (const sig of data.result.slice(0, 6)) {
-              await this.fetchTxDetails(sig.signature, pool.id);
-            }
+            // Batch fetch transaction details for efficiency
+            const signatures = data.result.slice(0, 6).map(s => s.signature);
+            await this.fetchTxDetailsBatch(signatures, pool.id);
           }
         } catch (err) {
           console.warn('[WS] Failed to fetch transactions:', err.message);
+        }
+      },
+
+      async fetchTxDetailsBatch(signatures, poolId) {
+        if (!signatures.length) return;
+
+        try {
+          // Use batch endpoint for efficiency
+          const response = await fetch(CONFIG.HELIUS_BATCH, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requests: signatures.map(sig => ({
+                method: 'getTransaction',
+                params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+              }))
+            })
+          });
+
+          const results = await response.json();
+          if (Array.isArray(results)) {
+            results.forEach((data, i) => {
+              if (data.result) {
+                const tx = this.parseTx(data.result, signatures[i]);
+                if (tx) this.addTx(poolId, tx);
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('[WS] Batch tx fetch error:', err.message);
         }
       },
 
@@ -4235,8 +4348,6 @@ document.addEventListener('keydown', (e) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
               method: 'getTransaction',
               params: [signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
             })

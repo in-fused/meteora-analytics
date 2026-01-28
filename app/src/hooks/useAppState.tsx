@@ -20,6 +20,11 @@ interface AppState {
   loadProgress: number;
   loadMessage: string;
 
+  // Modals
+  showWalletModal: boolean;
+  showExecModal: boolean;
+  execPool: Pool | null;
+
   // Alerts
   alerts: Alert[];
   triggeredAlerts: TriggeredAlert[];
@@ -58,11 +63,15 @@ interface AppState {
   setActiveTab: (tab: string) => void;
   setIsInitializing: (init: boolean) => void;
   setLoadProgress: (progress: number, message: string) => void;
+  setShowWalletModal: (show: boolean) => void;
+  setShowExecModal: (show: boolean) => void;
+  setExecPool: (pool: Pool | null) => void;
   setAlerts: (alerts: Alert[]) => void;
   addAlert: (alert: Alert) => void;
   removeAlert: (id: string) => void;
   addTriggeredAlert: (alert: TriggeredAlert) => void;
   clearTriggeredAlerts: () => void;
+  markTriggeredAlertsRead: () => void;
   setAiSuggestions: (suggestions: AiSuggestion[]) => void;
   setPoolTransactions: (poolId: string, txs: PoolTransaction[]) => void;
   addPoolTransaction: (poolId: string, tx: PoolTransaction) => void;
@@ -77,6 +86,9 @@ interface AppState {
   // Toggle pool expansion (handles mutual exclusion)
   togglePool: (poolId: string) => void;
   toggleOpp: (oppId: string) => void;
+
+  // Alert checking
+  checkAlerts: () => void;
 }
 
 export const useAppState = create<AppState>((set, get) => ({
@@ -92,6 +104,9 @@ export const useAppState = create<AppState>((set, get) => ({
   isInitializing: true,
   loadProgress: 0,
   loadMessage: 'Initializing...',
+  showWalletModal: false,
+  showExecModal: false,
+  execPool: null,
   alerts: [],
   triggeredAlerts: [],
   aiSuggestions: [],
@@ -134,11 +149,17 @@ export const useAppState = create<AppState>((set, get) => ({
   setActiveTab: (activeTab) => set({ activeTab }),
   setIsInitializing: (isInitializing) => set({ isInitializing }),
   setLoadProgress: (loadProgress, loadMessage) => set({ loadProgress, loadMessage }),
+  setShowWalletModal: (showWalletModal) => set({ showWalletModal }),
+  setShowExecModal: (showExecModal) => set({ showExecModal }),
+  setExecPool: (execPool) => set({ execPool }),
   setAlerts: (alerts) => set({ alerts }),
   addAlert: (alert) => set((s) => ({ alerts: [...s.alerts, alert] })),
   removeAlert: (id) => set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) })),
   addTriggeredAlert: (alert) => set((s) => ({ triggeredAlerts: [alert, ...s.triggeredAlerts].slice(0, 50) })),
   clearTriggeredAlerts: () => set({ triggeredAlerts: [] }),
+  markTriggeredAlertsRead: () => set((s) => ({
+    triggeredAlerts: s.triggeredAlerts.map(a => ({ ...a, read: true })),
+  })),
   setAiSuggestions: (aiSuggestions) => set({ aiSuggestions }),
   setPoolTransactions: (poolId, txs) =>
     set((s) => ({ poolTransactions: { ...s.poolTransactions, [poolId]: txs } })),
@@ -175,6 +196,40 @@ export const useAppState = create<AppState>((set, get) => ({
       set({ expandedOppId: null });
     } else {
       set({ expandedOppId: oppId, expandedPoolId: null });
+    }
+  },
+
+  // Check alerts against current pool data
+  checkAlerts: () => {
+    const { alerts, pools, addTriggeredAlert } = get();
+    if (alerts.length === 0 || pools.length === 0) return;
+
+    for (const alert of alerts) {
+      if (!alert.enabled) continue;
+      const pool = pools.find(p => p.id === alert.poolId);
+      if (!pool) continue;
+
+      let currentValue = 0;
+      switch (alert.metric) {
+        case 'apr': currentValue = parseFloat(pool.apr); break;
+        case 'tvl': currentValue = pool.tvl; break;
+        case 'volume': currentValue = pool.volume; break;
+        case 'score': currentValue = pool.score; break;
+        case 'fees': currentValue = pool.fees; break;
+      }
+
+      const triggered =
+        (alert.condition === 'above' && currentValue > alert.value) ||
+        (alert.condition === 'below' && currentValue < alert.value);
+
+      if (triggered) {
+        addTriggeredAlert({
+          ...alert,
+          triggeredAt: Date.now(),
+          currentValue,
+          read: false,
+        });
+      }
     }
   },
 }));

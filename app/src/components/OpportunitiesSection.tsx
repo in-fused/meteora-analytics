@@ -4,8 +4,6 @@ import { PoolCard } from './PoolCard';
 
 export function OpportunitiesSection() {
   const opportunities = useAppState((s) => s.opportunities);
-  const expandedOppId = useAppState((s) => s.expandedOppId);
-  const toggleOpp = useAppState((s) => s.toggleOpp);
 
   const columns = useMemo(() => {
     const colCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
@@ -34,9 +32,7 @@ export function OpportunitiesSection() {
               key={opp.id}
               pool={opp}
               rank={ci === 0 ? i + 1 : ci * Math.ceil(opportunities.length / columns.length) + i + 1}
-              isExpanded={expandedOppId === opp.id}
-              onToggle={() => toggleOpp(opp.id)}
-              variant="opportunity"
+              isOpp
             />
           ))}
         </div>

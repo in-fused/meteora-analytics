@@ -1,5 +1,5 @@
 import { CONFIG } from '@/config';
-import type { Pool, Bin } from '@/types';
+import type { Pool } from '@/types';
 import { calculateSafety, calculateScore, generateBins, isHotPool } from '@/lib/utils';
 import { useAppState } from '@/hooks/useAppState';
 
@@ -123,56 +123,71 @@ export const dataService = {
     } catch (err) {
       console.error('[DataService] fetchPools error:', err);
       store.setApiStatus('meteora', false);
+      // Retry after 10 seconds on failure
+      setTimeout(() => this.fetchPools(), 10000);
     }
   },
 
-  processDLMM(p: any, verifiedTokens: Set<string>): Pool {
-    const tvl = parseFloat(p.liquidity) || 0;
-    const volume = parseFloat(p.trade_volume_24h) || 0;
-    const apr = parseFloat(p.apr) || 0;
-    const fees = parseFloat(p.fees_24h) || 0;
-    const todayFees = parseFloat(p.today_fees) || 0;
-    const mintX = p.mint_x || '', mintY = p.mint_y || '';
+  processDLMM(raw: any, verifiedTokens: Set<string>): Pool {
+    const tvl = parseFloat(raw.liquidity) || 0;
+    const volume = parseFloat(raw.trade_volume_24h) || 0;
+    const apr = parseFloat(raw.apr) || 0;
+    const apy = parseFloat(raw.apy) || 0;
+    const fees = parseFloat(raw.fees_24h) || 0;
+    const todayFees = parseFloat(raw.today_fees) || 0;
+    const mintX = raw.mint_x || '', mintY = raw.mint_y || '';
 
-    const safety = calculateSafety(mintX, mintY, tvl, verifiedTokens, p.is_verified, p.is_blacklisted);
-    const hasFarm = !!p.farm_apr;
-    const farmActive = hasFarm && parseFloat(p.farm_apr || 0) > 0;
-    const score = calculateScore(tvl, volume, apr, safety, hasFarm, farmActive);
-    const currentPrice = parseFloat(p.current_price) || 1;
+    const apiVerified = raw.is_verified === true;
+    const safety = calculateSafety(mintX, mintY, tvl, verifiedTokens, apiVerified, raw.is_blacklisted);
 
-    const feeTvlRatio = tvl > 0 ? fees / tvl : 0;
-    const fees1h = todayFees > 0 ? todayFees / Math.max(1, new Date().getHours()) : 0;
-    const projectedFees24h = fees1h * 24;
+    const farmApr = parseFloat(raw.farm_apr) || 0;
+    const farmApy = parseFloat(raw.farm_apy) || 0;
+    const hasFarm = farmApr > 0 || farmApy > 0 || !!raw.reward_mint_x || !!raw.reward_mint_y;
+    const farmActive = farmApr > 0;
+
+    // Use API-provided fee/TVL ratios (multiple timeframes)
+    const feeTvlRatio = raw.fee_tvl_ratio?.hour_24 || 0;
+    const feeTvlRatio1h = raw.fee_tvl_ratio?.hour_1 || 0;
+
+    // Use API-provided fees per timeframe (NOT extrapolated)
+    const fees1h = parseFloat(raw.fees?.hour_1) || 0;
+    const fees4h = parseFloat(raw.fees?.hour_4) || 0;
+    const fees12h = parseFloat(raw.fees?.hour_12) || 0;
+
+    const score = calculateScore(tvl, volume, apr, safety, hasFarm, farmActive, 0, apiVerified);
+    const currentPrice = parseFloat(raw.current_price) || 1;
+    const binStep = parseInt(raw.bin_step) || 1;
 
     const pool: Pool = {
-      id: p.address, address: p.address,
-      name: p.name,
+      id: raw.address, address: raw.address,
+      name: raw.name || 'Unknown',
       protocol: 'Meteora DLMM', mintX, mintY,
       tvl, volume, apr: apr.toFixed(2),
-      apy: p.apy ? parseFloat(p.apy).toFixed(2) : undefined,
-      fees, feeBps: parseFloat(p.base_fee_percentage) || 0.25,
-      binStep: parseInt(p.bin_step) || 1,
+      apy: apy.toFixed(2),
+      fees, feeBps: parseFloat(raw.base_fee_percentage) || 0,
+      binStep,
       currentPrice, safety, score,
-      bins: generateBins(currentPrice), activeBin: 10,
-      icon1: (p.name?.split(/[-\/]/)[0] || '?').trim().slice(0, 4),
-      icon2: (p.name?.split(/[-\/]/)[1] || '?').trim().slice(0, 4),
+      bins: generateBins(currentPrice),
+      activeBin: parseInt(raw.active_id) || 10,
+      icon1: raw.name?.split('/')[0]?.trim().slice(0, 4) || '?',
+      icon2: raw.name?.split('/')[1]?.trim().slice(0, 4) || '?',
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
       feeTvlRatio,
-      feeTvlRatio1h: tvl > 0 ? fees1h / tvl : 0,
+      feeTvlRatio1h,
       fees1h,
-      fees4h: fees1h * 4,
-      fees12h: fees1h * 12,
+      fees4h,
+      fees12h,
       fees24h: fees,
       todayFees,
-      projectedFees24h,
+      projectedFees24h: fees1h > 0 ? fees1h * 24 : undefined,
       hasFarm,
       farmActive,
-      farmApr: parseFloat(p.farm_apr || 0),
-      farmApy: parseFloat(p.farm_apy || 0),
-      tags: p.tags || [],
-      isVerified: p.is_verified,
-      cumulativeFeeVolume: parseFloat(p.cumulative_fee_volume || 0),
-      cumulativeTradeVolume: parseFloat(p.cumulative_trade_volume || 0),
+      farmApr,
+      farmApy,
+      tags: raw.tags || [],
+      isVerified: apiVerified,
+      cumulativeFeeVolume: parseFloat(raw.cumulative_fee_volume || 0),
+      cumulativeTradeVolume: parseFloat(raw.cumulative_trade_volume || 0),
     };
 
     pool.isHot = isHotPool(pool);
@@ -198,13 +213,14 @@ export const dataService = {
       name,
       protocol: 'Meteora DAMM v2', mintX, mintY,
       tvl, volume, apr: apr.toFixed(2),
-      fees, feeBps: parseFloat(p.base_fee || 0),
+      fees,
+      feeBps: parseFloat(p.base_fee) || 0,
+      feeTvlRatio: parseFloat(p.fee_tvl_ratio) || 0,
       binStep: 1, currentPrice, safety, score,
       bins: generateBins(currentPrice), activeBin: 10,
       icon1: (p.token_a_symbol || name.split(/[-\/]/)[0] || '?').trim().slice(0, 4),
       icon2: (p.token_b_symbol || name.split(/[-\/]/)[1] || '?').trim().slice(0, 4),
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
-      feeTvlRatio: tvl > 0 ? fees / tvl : 0,
       hasFarm, farmActive,
       permanentLockLiquidity: parseFloat(p.permanent_lock_liquidity || 0),
       creator: p.creator,
@@ -233,6 +249,7 @@ export const dataService = {
     const currentPrice = parseFloat(p.price) || 1;
     const symbolA = p.mintA?.symbol || '?';
     const symbolB = p.mintB?.symbol || '?';
+    const feeTvlRatio = tvl > 0 ? fees / tvl : 0;
 
     return {
       id: p.id, address: p.id,
@@ -244,7 +261,9 @@ export const dataService = {
       bins: generateBins(currentPrice), activeBin: 10,
       icon1: symbolA.slice(0, 4), icon2: symbolB.slice(0, 4),
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
-      feeTvlRatio: tvl > 0 ? fees / tvl : 0,
+      feeTvlRatio,
+      feeTvlRatio1h: 0,
+      fees1h: 0,
       hasFarm: !!p.farmCount,
       farmActive: (p.farmCount || 0) > 0,
       isHot: false,
@@ -285,6 +304,9 @@ export const dataService = {
 
     let filtered = [...pools];
 
+    // Only show active pools with trading activity (volume > 0)
+    filtered = filtered.filter(p => p.volume > 0);
+
     // JupShield filter
     if (jupshieldEnabled) {
       filtered = filtered.filter(p => p.safety !== 'danger');
@@ -320,13 +342,16 @@ export const dataService = {
       filtered = filtered.filter(p => p.protocol === typeMap[filters.poolType]);
     }
 
-    // Sort
+    // Sort — matches original monolith sort options
     const sortFns: Record<string, (a: Pool, b: Pool) => number> = {
       score: (a, b) => b.score - a.score,
       tvl: (a, b) => b.tvl - a.tvl,
       volume: (a, b) => b.volume - a.volume,
       apr: (a, b) => parseFloat(b.apr) - parseFloat(a.apr),
       fees: (a, b) => b.fees - a.fees,
+      fees1h: (a, b) => (b.fees1h || 0) - (a.fees1h || 0),
+      feeTvl1h: (a, b) => (b.feeTvlRatio1h || 0) - (a.feeTvlRatio1h || 0),
+      feeTvl: (a, b) => (b.feeTvlRatio || 0) - (a.feeTvlRatio || 0),
     };
     filtered.sort(sortFns[filters.sortBy] || sortFns.score);
 

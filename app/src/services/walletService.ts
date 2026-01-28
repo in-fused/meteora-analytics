@@ -1,5 +1,7 @@
 import { CONFIG } from '@/config';
 import { useAppState } from '@/hooks/useAppState';
+import { shortenAddress } from '@/lib/utils';
+import { toastService } from '@/services/toastService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // WALLET SERVICE - Phantom, Solflare, Backpack integration
@@ -14,6 +16,7 @@ class WalletService {
     const provider = walletConfig.getProvider();
     if (!provider) {
       window.open(walletConfig.downloadUrl, '_blank');
+      toastService.error('Not Found', `Install ${walletConfig.name}`);
       return false;
     }
 
@@ -29,16 +32,21 @@ class WalletService {
           name: walletConfig.name,
         });
 
+        // Listen for disconnect events
+        (provider as any).on?.('disconnect', () => this.handleDisconnect());
+
         // Fetch balance
         await this.fetchBalance();
 
         // Save for auto-connect
         localStorage.setItem('lp_wallet_provider', walletKey);
 
+        toastService.success('Connected', shortenAddress(publicKey));
         return true;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Wallet] Connect error:', err);
+      toastService.error('Failed', err.message || 'Rejected');
     }
     return false;
   }
@@ -52,6 +60,11 @@ class WalletService {
       }
     } catch { /* ignore */ }
 
+    this.handleDisconnect();
+  }
+
+  private handleDisconnect(): void {
+    const store = useAppState.getState();
     store.setWallet({
       connected: false,
       publicKey: null,
@@ -59,8 +72,8 @@ class WalletService {
       name: null,
       balance: 0,
     });
-
     localStorage.removeItem('lp_wallet_provider');
+    toastService.success('Disconnected', 'Wallet disconnected');
   }
 
   async fetchBalance(): Promise<void> {
@@ -88,9 +101,24 @@ class WalletService {
   }
 
   async autoConnect(): Promise<void> {
-    const savedProvider = localStorage.getItem('lp_wallet_provider');
-    if (savedProvider) {
-      await this.connect(savedProvider);
+    // Use onlyIfTrusted to avoid popup — only auto-connect if already trusted
+    const p = (window as any).phantom?.solana;
+    if (p?.isConnected) {
+      try {
+        const r = await p.connect({ onlyIfTrusted: true });
+        if (r.publicKey) {
+          const store = useAppState.getState();
+          store.setWallet({
+            connected: true,
+            publicKey: r.publicKey.toString(),
+            provider: CONFIG.WALLETS.phantom as any,
+            name: 'Phantom',
+          });
+          await this.fetchBalance();
+        }
+      } catch {
+        // User hasn't trusted this site yet - don't show popup
+      }
     }
   }
 }

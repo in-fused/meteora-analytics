@@ -35,6 +35,8 @@ export function shortenAddress(a: string | null | undefined, c = 4): string {
   return `${a.slice(0, c)}...${a.slice(-c)}`;
 }
 
+export const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SCORING & SAFETY
 // ═══════════════════════════════════════════════════════════════════════════
@@ -62,7 +64,8 @@ export function calculateScore(
   safety: SafetyLevel,
   hasFarm?: boolean,
   farmActive?: boolean,
-  permanentLockLiquidity?: number
+  permanentLockLiquidity?: number,
+  apiVerified?: boolean
 ): number {
   let score = 50;
   if (tvl > 500000) score += 20;
@@ -83,13 +86,14 @@ export function calculateScore(
   if (hasFarm) score += 3;
   if (farmActive) score += 5;
   if ((permanentLockLiquidity ?? 0) > 0) score += 3;
+  if (apiVerified) score += 3;
 
   return Math.min(99, Math.max(10, Math.round(score)));
 }
 
 export function getScoreClass(score: number): string {
   if (score >= 75) return 'high';
-  if (score >= 50) return 'medium';
+  if (score >= 55) return 'medium';
   return 'low';
 }
 
@@ -99,83 +103,72 @@ export function isHotPool(pool: Pool): boolean {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// BINS / CHART
+// BINS / CHART — matches original monolith formula exactly
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function generateBins(currentPrice: number): Bin[] {
+export function generateBins(basePrice: number): Bin[] {
   const bins: Bin[] = [];
-  const spread = currentPrice * 0.1;
   for (let i = 0; i < 21; i++) {
-    const price = currentPrice - spread + (spread * 2 * i) / 20;
-    const distFromCenter = Math.abs(i - 10) / 10;
-    const liquidity = Math.max(5, 80 * (1 - distFromCenter * 0.7) + Math.random() * 20);
-    bins.push({ id: i, price, liquidity, isActive: i === 10 });
+    const dist = Math.abs(i - 10);
+    bins.push({
+      id: 1000 + i,
+      price: basePrice + (i - 10) * basePrice * 0.0025,
+      liquidity: Math.max(5, 100 - dist * 6 + Math.random() * 12),
+      isActive: i === 10,
+    });
   }
   return bins;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// OPPORTUNITY DETECTION
+// OPPORTUNITY DETECTION — matches original monolith logic exactly
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function detectOpportunities(pools: Pool[]): Opportunity[] {
-  const opps: Opportunity[] = [];
+export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
+  const opps: Opportunity[] = filteredPools
+    .filter(
+      (p) =>
+        (p.isHot && p.safety === 'safe' && p.tvl > 5000) ||
+        ((p.fees1h ?? 0) > 0 && p.tvl > 0 && ((p.fees1h ?? 0) / p.tvl) > 0.001 && p.safety === 'safe') ||
+        (p.volumeToTvl > 0.3 && p.safety === 'safe' && p.tvl > 20000) ||
+        (parseFloat(p.apr) > 30 && p.safety === 'safe' && p.score >= 65) ||
+        (p.score >= 80 && p.safety === 'safe') ||
+        (p.farmActive && p.safety === 'safe' && p.tvl > 10000) ||
+        ((p.feeTvlRatio ?? 0) > 0.01 && p.safety === 'safe')
+    )
+    .slice(0, 12)
+    .map((p) => {
+      let reason = '';
+      let oppType: OppType = 'standard';
 
-  for (const pool of pools) {
-    if (pool.safety === 'danger') continue;
+      if (p.isHot && (p.fees1h ?? 0) > 0) {
+        oppType = 'hot';
+        const projected = (p.fees1h ?? 0) * 24;
+        reason = `🔥 FEE SPIKE: 1h fees ${formatNumber(p.fees1h)} → projected ${formatNumber(projected)}/day`;
+      } else if ((p.fees1h ?? 0) > 0 && p.tvl > 0 && ((p.fees1h ?? 0) / p.tvl) > 0.001) {
+        oppType = 'active';
+        reason = `⚡ ACTIVE: ${formatNumber(p.fees1h)} fees in last hour`;
+      } else if (p.farmActive) {
+        reason = `🌾 FARM: ${p.apr}% APR + farm rewards`;
+      } else if (p.volumeToTvl > 0.5) {
+        reason = `📈 HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
+      } else if (parseFloat(p.apr) > 50) {
+        reason = `💰 HIGH APR: ${p.apr}%`;
+      } else if ((p.feeTvlRatio ?? 0) > 0.01) {
+        reason = `📊 EFFICIENT: ${((p.feeTvlRatio ?? 0) * 100).toFixed(2)}% fee/TVL`;
+      } else {
+        reason = `⭐ TOP SCORER: ${p.score} points`;
+      }
 
-    let reason = '';
-    let oppType: OppType = 'standard';
+      return { ...p, reason, oppType };
+    });
 
-    // Hot + safe + decent TVL
-    if (pool.isHot && pool.safety === 'safe' && pool.tvl > 5000) {
-      reason = `Hot pool with ${pool.fees1h ? formatNumber(pool.fees1h) : 'high'} fees/1h and ${formatNumber(pool.tvl)} TVL`;
-      oppType = 'hot';
-    }
-    // High fee velocity
-    else if ((pool.feeTvlRatio ?? 0) > 0.001 && pool.safety === 'safe') {
-      reason = `Fee/TVL ratio of ${((pool.feeTvlRatio ?? 0) * 100).toFixed(2)}% indicates high fee velocity`;
-      oppType = 'active';
-    }
-    // High volume-to-TVL
-    else if (pool.volumeToTvl > 0.3 && pool.safety === 'safe') {
-      reason = `Volume/TVL ratio of ${(pool.volumeToTvl * 100).toFixed(0)}% shows strong trading activity`;
-      oppType = 'active';
-    }
-    // High APR + safe + good score
-    else if (parseFloat(pool.apr) > 30 && pool.safety === 'safe' && pool.score >= 65) {
-      reason = `${pool.apr}% APR with safety verified and score of ${pool.score}`;
-      oppType = 'standard';
-    }
-    // Excellent score
-    else if (pool.score >= 80 && pool.safety === 'safe') {
-      reason = `Elite score of ${pool.score} with verified tokens and strong metrics`;
-      oppType = 'standard';
-    }
-    // Active farms
-    else if (pool.farmActive && pool.safety === 'safe' && pool.tvl > 10000) {
-      reason = `Active farming rewards with ${pool.farmApr ? pool.farmApr.toFixed(1) + '% farm APR' : 'boosted yields'}`;
-      oppType = 'standard';
-    }
-    // Excellent fee/TVL
-    else if ((pool.feeTvlRatio ?? 0) > 0.01 && pool.safety !== 'danger') {
-      reason = `Outstanding fee/TVL ratio generating exceptional returns`;
-      oppType = 'active';
-    } else {
-      continue;
-    }
-
-    opps.push({ ...pool, reason, oppType });
-  }
-
-  // Sort: hot first, then by score
-  return opps.sort((a, b) => {
+  opps.sort((a, b) => {
     const typeOrder: Record<OppType, number> = { hot: 0, active: 1, standard: 2 };
-    if (typeOrder[a.oppType] !== typeOrder[b.oppType]) {
-      return typeOrder[a.oppType] - typeOrder[b.oppType];
-    }
-    return b.score - a.score;
+    return (typeOrder[a.oppType] ?? 2) - (typeOrder[b.oppType] ?? 2);
   });
+
+  return opps;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -144,7 +144,7 @@ export interface ApiStatus {
 // FILTER STATE
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type SortField = 'score' | 'tvl' | 'volume' | 'apr' | 'fees';
+export type SortField = 'score' | 'tvl' | 'volume' | 'apr' | 'fees' | 'fees1h' | 'feeTvl1h' | 'feeTvl';
 
 export interface FilterState {
   minTvl: number;

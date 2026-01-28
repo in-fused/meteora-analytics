@@ -16,12 +16,15 @@ class WSService {
   private initialized = false;
 
   connect(): void {
-    // Lazy: don't connect WS until a pool is actually expanded
     this.initialized = true;
     const store = useAppState.getState();
-    store.setWsConnected(true);
+    if (!this.useWebSocket) {
+      console.log('[WS] Polling mode ready (mobile) - will poll on demand');
+    } else {
+      console.log('[WS] WebSocket ready - will connect on first pool expansion');
+    }
     store.setApiStatus('helius', true);
-    console.log('[WS] Ready - will connect on first pool expansion');
+    store.setWsConnected(true);
   }
 
   private ensureConnected(): void {
@@ -35,6 +38,7 @@ class WSService {
 
   private connectWebSocket(): void {
     try {
+      console.log('[WS] Connecting to WebSocket...');
       this.ws = new WebSocket(CONFIG.WS_URL);
 
       this.ws.onopen = () => {
@@ -42,7 +46,7 @@ class WSService {
         const store = useAppState.getState();
         store.setApiStatus('helius', true);
         store.setWsConnected(true);
-        // Resubscribe
+        // Resubscribe to any active pools
         this.subscribedPools.forEach(addr => {
           this.ws?.send(JSON.stringify({ type: 'subscribe', address: addr }));
         });
@@ -50,9 +54,19 @@ class WSService {
 
       this.ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.params?.result?.value) {
-            this.handleTransaction(data.params.result.value);
+          const msg = JSON.parse(event.data);
+          // Handle subscription confirmation
+          if (msg.type === 'subscribed') {
+            console.log('[WS] Subscribed to:', msg.address);
+            this.fetchPoolTransactions(msg.address);
+          } else if (msg.params?.result) {
+            // Handle incoming log notification - refetch transactions
+            const store = useAppState.getState();
+            const poolId = store.expandedPoolId;
+            if (poolId) {
+              const pool = store.pools.find(p => p.id === poolId);
+              if (pool) this.fetchPoolTransactions(pool.address);
+            }
           }
         } catch { /* ignore parse errors */ }
       };
@@ -64,10 +78,12 @@ class WSService {
       };
 
       this.ws.onerror = () => {
+        console.warn('[WS] Error, falling back to polling');
         this.useWebSocket = false;
         this.startPolling();
       };
     } catch {
+      console.warn('[WS] Failed to connect, using polling');
       this.useWebSocket = false;
       this.startPolling();
     }
@@ -82,6 +98,7 @@ class WSService {
       this.ws.send(JSON.stringify({ type: 'subscribe', address: poolAddress }));
     }
 
+    // Always fetch initial transactions
     this.fetchPoolTransactions(poolAddress);
   }
 
@@ -102,22 +119,38 @@ class WSService {
   }
 
   async fetchPoolTransactions(poolAddress: string): Promise<void> {
+    if (!poolAddress) return;
+
     // Rate limit: min 5s between fetches
     const now = Date.now();
     if (now - this.lastFetchTime < 5000) return;
     this.lastFetchTime = now;
 
+    // Stop if too many errors
+    if (this.errorCount > CONFIG.MAX_ERRORS) {
+      console.warn('[WS] Too many errors, stopping transaction fetch');
+      return;
+    }
+
     try {
       const sigResponse = await fetch(CONFIG.HELIUS_RPC, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'getSignaturesForAddress', params: [poolAddress, { limit: 10 }] }),
+        body: JSON.stringify({ method: 'getSignaturesForAddress', params: [poolAddress, { limit: 8 }] }),
       });
 
-      if (!sigResponse.ok) throw new Error(`RPC error ${sigResponse.status}`);
-      const sigData = await sigResponse.json();
-      const signatures = sigData.result || [];
+      if (!sigResponse.ok) {
+        this.errorCount++;
+        return;
+      }
 
+      const sigData = await sigResponse.json();
+      if (sigData.error) {
+        this.errorCount++;
+        return;
+      }
+
+      const signatures = sigData.result || [];
       if (signatures.length === 0) return;
 
       // Batch fetch transaction details
@@ -132,7 +165,11 @@ class WSService {
         }),
       });
 
-      if (!batchResponse.ok) throw new Error(`Batch error ${batchResponse.status}`);
+      if (!batchResponse.ok) {
+        this.errorCount++;
+        return;
+      }
+
       const batchData = await batchResponse.json();
 
       const txs: PoolTransaction[] = (Array.isArray(batchData) ? batchData : [])
@@ -141,7 +178,6 @@ class WSService {
         .filter(Boolean) as PoolTransaction[];
 
       if (txs.length > 0) {
-        // Find which pool ID corresponds to this address
         const store = useAppState.getState();
         const pool = store.pools.find(p => p.address === poolAddress);
         if (pool) {
@@ -149,6 +185,7 @@ class WSService {
         }
       }
 
+      // Reset error count on success
       this.errorCount = 0;
     } catch (err) {
       this.errorCount++;
@@ -162,7 +199,6 @@ class WSService {
     const signature = tx.transaction.signatures[0];
     const timestamp = (tx.blockTime || Math.floor(Date.now() / 1000)) * 1000;
 
-    // Determine transaction type from logs
     const logs: string[] = tx.meta?.logMessages || [];
     let type: TxType = 'swap';
     let amount = '0';
@@ -173,7 +209,6 @@ class WSService {
       if (log.includes('Swap')) { type = 'swap'; break; }
     }
 
-    // Extract SOL amount from balance changes
     const preBalances = tx.meta?.preBalances || [];
     const postBalances = tx.meta?.postBalances || [];
     if (preBalances.length > 0 && postBalances.length > 0) {
@@ -184,24 +219,12 @@ class WSService {
     return { signature, type, amount, timestamp };
   }
 
-  private handleTransaction(value: any): void {
-    const address = value.accountId;
-    if (!address) return;
-
-    const store = useAppState.getState();
-    const pool = store.pools.find(p => p.address === address);
-    if (!pool) return;
-
-    // Refresh transactions for this pool
-    this.fetchPoolTransactions(address);
-  }
-
   private startPolling(): void {
     if (this.pollInterval) return;
     this.pollInterval = setInterval(() => {
       const store = useAppState.getState();
       const poolId = store.expandedPoolId;
-      if (!poolId || this.errorCount > 3) return;
+      if (!poolId || this.errorCount > CONFIG.MAX_ERRORS) return;
 
       const pool = store.pools.find(p => p.id === poolId);
       if (pool?.address) {

@@ -1,0 +1,553 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CSS VARIABLES - Premium Institutional Dark Theme
+═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Deep space background tones - refined for premium feel */
+  --bg-void: #020204;
+  --bg-primary: #050508;
+  --bg-secondary: #08090d;
+  --bg-card: #0c0d12;
+  --bg-elevated: #111218;
+  --bg-hover: #16181f;
+  --bg-glass: rgba(12, 13, 18, 0.92);
+  
+  /* Premium accent palette - more refined */
+  --accent-primary: #6366f1;
+  --accent-secondary: #8b5cf6;
+  --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  --accent-amber: #d97706;
+  --accent-rose: #f43f5e;
+  --accent-gold: #f59e0b;
+  --accent-neon: #00d4aa;
+  
+  /* Enhanced text hierarchy */
+  --text-primary: #ffffff;
+  --text-secondary: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  
+  /* Refined border system */
+  --border-subtle: rgba(255, 255, 255, 0.03);
+  --border-medium: rgba(255, 255, 255, 0.06);
+  --border-active: rgba(99, 102, 241, 0.4);
+  --border-glow: rgba(6, 182, 212, 0.3);
+  
+  /* Premium glow effects */
+  --glow-primary: 0 0 40px rgba(99, 102, 241, 0.25);
+  --glow-cyan: 0 0 30px rgba(6, 182, 212, 0.3);
+  --glow-emerald: 0 0 25px rgba(16, 185, 129, 0.35);
+  --glow-hot: 0 0 30px rgba(244, 63, 94, 0.3);
+  --glow-gold: 0 0 25px rgba(245, 158, 11, 0.35);
+  
+  /* Premium shadows */
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  --shadow-elevated: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  --shadow-float: 0 24px 80px rgba(0, 0, 0, 0.7);
+  
+  /* Radius - more refined */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  
+  /* Smooth transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE STYLES
+═══════════════════════════════════════════════════════════════════════════ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 14px;
+}
+
+@media (min-width: 1536px) {
+  html { font-size: 15px; }
+}
+
+@media (min-width: 1920px) {
+  html { font-size: 16px; }
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR - Premium thin scrollbar
+═══════════════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar { display: none; }
+  body { scrollbar-width: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS - Premium smooth animations
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes logoPulse {
+  0%, 100% { box-shadow: var(--glow-primary); }
+  50% { box-shadow: 0 0 50px rgba(99, 102, 241, 0.4); }
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes hotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes txIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loaderPulse {
+  0%, 100% { transform: scale(1); box-shadow: var(--glow-primary); }
+  50% { transform: scale(1.03); box-shadow: 0 0 60px rgba(99, 102, 241, 0.5); }
+}
+
+@keyframes dots {
+  0%, 33% { content: '.'; }
+  34%, 66% { content: '..'; }
+  67%, 100% { content: '...'; }
+}
+
+@keyframes heroGlow {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  50% { transform: translate(-30px, 20px) scale(1.1); opacity: 0.6; }
+}
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(5, 150, 105, 0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BIN ACTIVITY FLASH ANIMATIONS - Real-time liquidity flow
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes binFlashAdd {
+  0% { 
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+  20% { 
+    filter: brightness(1.5);
+    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.6);
+  }
+  100% { 
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes binFlashRemove {
+  0% { 
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+  20% { 
+    filter: brightness(1.5);
+    box-shadow: 0 0 20px 4px rgba(244, 63, 94, 0.6);
+  }
+  100% { 
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+@keyframes binLiquidityGrow {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(1.1); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes binLiquidityShrink {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(0.9); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes pulseActiveBin {
+  0%, 100% { 
+    box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.5);
+  }
+  50% { 
+    box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.8);
+  }
+}
+
+.bin-flash-add {
+  animation: binFlashAdd 0.8s ease-out;
+}
+
+.bin-flash-remove {
+  animation: binFlashRemove 0.8s ease-out;
+}
+
+.bin-active {
+  animation: pulseActiveBin 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GRADIENTS
+═══════════════════════════════════════════════════════════════════════════ */
+.gradient-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+  background-size: 200% 200%;
+}
+
+.gradient-hot {
+  background: linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%);
+}
+
+.gradient-active {
+  background: linear-gradient(135deg, #06b6d4 0%, #6366f1 100%);
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.gradient-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASS EFFECT - Premium frosted glass
+═══════════════════════════════════════════════════════════════════════════ */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOW EFFECTS
+═══════════════════════════════════════════════════════════════════════════ */
+.glow-primary { box-shadow: var(--glow-primary); }
+.glow-cyan { box-shadow: var(--glow-cyan); }
+.glow-emerald { box-shadow: var(--glow-emerald); }
+.glow-hot { box-shadow: var(--glow-hot); }
+.glow-gold { box-shadow: var(--glow-gold); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEXT GRADIENTS
+═══════════════════════════════════════════════════════════════════════════ */
+.text-gradient {
+  background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOADING SPINNER
+═══════════════════════════════════════════════════════════════════════════ */
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-spinner-lg {
+  width: 48px;
+  height: 48px;
+  border-width: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON LOADING - Premium shimmer
+═══════════════════════════════════════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.03) 0%, 
+    rgba(255, 255, 255, 0.08) 50%, 
+    rgba(255, 255, 255, 0.03) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOCUS STATES - Accessible focus rings
+═══════════════════════════════════════════════════════════════════════════ */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH TARGETS - Mobile optimized
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDUCE MOTION
+═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CUSTOM COMPONENTS - Premium UI components
+═══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-lg font-semibold text-white transition-all duration-300;
+    background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+  }
+  
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+  }
+  
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+  
+  .btn-secondary {
+    @apply px-5 py-2.5 rounded-lg font-medium transition-all duration-300;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+  }
+  
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+  }
+  
+  /* Sleek Scorecard Styles */
+  .scorecard {
+    @apply rounded-2xl overflow-hidden transition-all duration-500;
+    background: linear-gradient(145deg, rgba(12, 13, 18, 0.95) 0%, rgba(8, 9, 13, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 
+      0 4px 24px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+    transform: translateZ(0);
+    will-change: transform, box-shadow;
+  }
+  
+  .scorecard:hover {
+    border-color: rgba(99, 102, 241, 0.2);
+    box-shadow: 
+      0 8px 40px rgba(0, 0, 0, 0.5),
+      0 0 30px rgba(99, 102, 241, 0.1),
+      0 0 0 1px rgba(99, 102, 241, 0.15) inset;
+    transform: translateY(-3px);
+  }
+  
+  .scorecard-expanded {
+    border-color: rgba(99, 102, 241, 0.25);
+    box-shadow: 
+      0 12px 48px rgba(0, 0, 0, 0.6),
+      0 0 40px rgba(99, 102, 241, 0.15),
+      0 0 0 1px rgba(99, 102, 241, 0.2) inset;
+  }
+  
+  .scorecard-premium {
+    position: relative;
+  }
+  
+  .scorecard-premium::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), transparent 50%, rgba(6, 182, 212, 0.2));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  
+  .scorecard-premium:hover::before {
+    opacity: 1;
+  }
+  
+  .input-premium {
+    @apply px-4 py-3 rounded-lg transition-all duration-200;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+  }
+  
+  .input-premium:focus {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+  
+  .input-premium::placeholder {
+    color: var(--text-dim);
+  }
+  
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium;
+  }
+  
+  .badge-safe {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+  
+  .badge-warning {
+    background: rgba(217, 119, 6, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(217, 119, 6, 0.2);
+  }
+  
+  .badge-danger {
+    background: rgba(244, 63, 94, 0.12);
+    color: #f43f5e;
+    border: 1px solid rgba(244, 63, 94, 0.2);
+  }
+  
+  .score-high { border-color: rgba(16, 185, 129, 0.25); }
+  .score-medium { border-color: rgba(217, 119, 6, 0.25); }
+  .score-low { border-color: rgba(244, 63, 94, 0.25); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE UTILITIES
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: block !important; }
+  .text-mobile-sm { font-size: 12px !important; }
+  .text-mobile-xs { font-size: 10px !important; }
+}
+
+@media (min-width: 641px) {
+  .hide-desktop { display: none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERFORMANCE OPTIMIZATIONS
+═══════════════════════════════════════════════════════════════════════════ */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Content visibility for off-screen elements */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select, .scorecard, .bin-bar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

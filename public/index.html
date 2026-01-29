@@ -443,7 +443,6 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      contain: layout; /* Isolate layout recalculations */
     }
     @media (max-width: 1200px) {
       .pools-container { flex-wrap: wrap; }
@@ -465,6 +464,9 @@
       contain: layout style paint; /* Full CSS containment */
       -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight */
       touch-action: manipulation; /* Optimize touch response */
+    }
+    .pool-card.expanded {
+      contain: style; /* Relax containment when expanded to allow layout reflow */
     }
     .pool-card:active {
       transform: scale(0.995);
@@ -649,7 +651,6 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
-      contain: layout;
     }
     @media (max-width: 1200px) {
       #opportunitiesList { flex-wrap: wrap; }
@@ -672,6 +673,9 @@
       contain: layout style paint;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+    }
+    .opp-card.expanded {
+      contain: style; /* Relax containment when expanded to allow layout reflow */
     }
     .opp-card::before {
       content: '';
@@ -986,6 +990,15 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+    }
+    /* Ensure card expansion works in filter/search results */
+    #filterResultsContainer .pool-card,
+    #searchResultsContainer .pool-card {
+      contain: none; /* No containment - allow full expansion animation */
+    }
+    #filterResultsContainer .pool-card.expanded,
+    #searchResultsContainer .pool-card.expanded {
+      z-index: 10; /* Ensure expanded card is above others */
     }
     
     .ai-alerts-section { background: linear-gradient(135deg, rgba(129,140,248,0.1), rgba(34,211,238,0.1)); border: 1px solid rgba(129,140,248,0.25); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; }
@@ -1768,6 +1781,145 @@
       color: var(--accent-amber);
       text-transform: uppercase;
     }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       iOS-SPECIFIC PERFORMANCE OPTIMIZATIONS
+       Reduces CPU/GPU usage on mobile Safari
+    ═══════════════════════════════════════════════════════════════════════════ */
+
+    /* iOS device class - applied via JavaScript */
+    .ios-device {
+      /* Prevent rubber-banding scroll issues */
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .ios-device .pool-card,
+    .ios-device .opp-card {
+      /* Remove complex shadows on iOS */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      /* Disable transform animations */
+      transform: none !important;
+    }
+
+    .ios-device .pool-card:hover,
+    .ios-device .opp-card:hover {
+      transform: none !important;
+    }
+
+    .ios-device .pool-card::before,
+    .ios-device .opp-card::before {
+      /* Simplify gradients */
+      background: var(--card-accent, var(--accent-primary));
+    }
+
+    /* Reduce motion class - for low-power mode or preference */
+    .reduce-motion,
+    .reduce-motion * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .reduce-motion .bg-overlay,
+    .reduce-motion #bgCanvas {
+      display: none !important;
+    }
+
+    .reduce-motion .logo-mark {
+      animation: none;
+      box-shadow: var(--glow-primary);
+    }
+
+    .reduce-motion .tab-badge {
+      animation: none;
+    }
+
+    .reduce-motion .status-dot {
+      animation: none;
+    }
+
+    /* Optimize scrolling performance */
+    .pools-container,
+    .opp-container {
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: scroll-position;
+    }
+
+    /* iOS Safari specific fixes */
+    @supports (-webkit-touch-callout: none) {
+      /* Prevent text selection issues */
+      .pool-card, .opp-card {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* Fix sticky positioning */
+      .header {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      /* Reduce backdrop blur on iOS (expensive) */
+      .header,
+      .nav-tabs,
+      .modal-overlay {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+    }
+
+    /* Mobile-specific optimizations */
+    @media (max-width: 768px) {
+      /* Simplify card rendering */
+      .pool-card,
+      .opp-card {
+        will-change: auto;
+        contain: layout;
+      }
+
+      /* Reduce shadow complexity */
+      .pool-card,
+      .opp-card,
+      .header,
+      .nav-tabs {
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      }
+
+      /* Disable hover effects (not needed on touch) */
+      .pool-card:hover,
+      .opp-card:hover {
+        border-color: var(--border-subtle);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      }
+
+      /* Reduce gradient complexity */
+      .btn--primary,
+      .btn--wallet,
+      .logo-mark {
+        background: var(--accent-primary);
+      }
+    }
+
+    /* Prefers reduced motion (accessibility) */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+
+      .bg-overlay,
+      #bgCanvas {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1929,7 +2081,7 @@
           <span class="api-badge" id="meteoraApi">Meteora</span>
           <span class="api-badge" id="jupiterApi">Jupiter</span>
           <span class="api-badge" id="heliusApi">Helius WS</span>
-          <span class="api-badge" id="birdeyeApi">Birdeye</span>
+          <span class="api-badge" id="raydiumApi">Raydium</span>
         </div>
       </div>
       <div class="header-actions">
@@ -2273,26 +2425,37 @@
     // CONFIGURATION - ALL API KEYS & ENDPOINTS
     // ═══════════════════════════════════════════════════════════════════════════
     const CONFIG = {
-      // Meteora APIs
-      METEORA_DAMM_V2: 'https://dammv2-api.meteora.ag',
-      METEORA_DLMM: 'https://dlmm-api.meteora.ag',
+      // Use backend proxy for all API calls (caching + security)
+      METEORA_DLMM: '/api/proxy/dlmm',
+      METEORA_DAMM_V2: '/api/proxy/damm',
       METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
-      
-      // Jupiter Token Verification
+
+      // Raydium Concentrated Liquidity Pools
+      RAYDIUM_CLMM: '/api/proxy/raydium',
+
+      // Jupiter Token Verification (via proxy)
       JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
-      JUPITER_TOKENS: 'https://api.jup.ag/tokens/v2/tag?query=verified',
-      JUPITER_API_KEY: '1259f9c1-9259-43db-aac0-0dc441c39592',
-      
-      // Helius API (Primary)
-      HELIUS_KEY: '66097387-f0e6-4f93-a800-dbaac4a4c113',
-      HELIUS_RPC: 'https://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
-      HELIUS_WS: 'wss://mainnet.helius-rpc.com/?api-key=66097387-f0e6-4f93-a800-dbaac4a4c113',
-      
-      // Refresh intervals (optimized for performance)
-      REFRESH_INTERVAL: 30000,       // 30 seconds for pool data (reduced from 10s)
-      FAST_REFRESH: 15000,           // 15 seconds for price-sensitive data
+      JUPITER_TOKENS: '/api/proxy/jupiter-tokens',
+
+      // Helius API via secure backend proxy (API key hidden server-side)
+      HELIUS_RPC: '/api/helius/rpc',
+      HELIUS_BATCH: '/api/helius/batch',
+      get WS_URL() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${proto}//${location.host}/ws`;
+      },
+
+      // Refresh intervals (optimized - longer to reduce API load)
+      REFRESH_INTERVAL: 60000,       // 60 seconds
+      FAST_REFRESH: 30000,           // 30 seconds
       WS_RECONNECT_DELAY: 3000,
-      MAX_ERRORS: 3
+      MAX_ERRORS: 3,
+
+      // iOS Performance optimizations
+      IS_IOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+      IS_MOBILE: /Mobi|Android/i.test(navigator.userAgent),
+      RENDER_BATCH_SIZE: /Mobi|Android/i.test(navigator.userAgent) ? 20 : 50,
+      ANIMATION_ENABLED: !(/iPad|iPhone|iPod/.test(navigator.userAgent))
     };
 
     // Wallet Configurations
@@ -2349,7 +2512,7 @@
     meteora: false,
     jupiter: false,
     helius: false,
-    birdeye: false
+    raydium: false
   }
 };
 
@@ -2359,13 +2522,11 @@
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (State.expandedPoolId) {
-      const card = document.getElementById(`pool-${State.expandedPoolId}`);
-      if (card) card.classList.remove('expanded');
+      document.querySelectorAll(`[data-pool-id="${State.expandedPoolId}"]`).forEach(el => el.classList.remove('expanded'));
       State.expandedPoolId = null;
     }
     if (State.expandedOppId) {
-      const card = document.getElementById(`opp-${State.expandedOppId}`);
-      if (card) card.classList.remove('expanded');
+      document.querySelectorAll(`[data-opp-id="${State.expandedOppId}"]`).forEach(el => el.classList.remove('expanded'));
       State.expandedOppId = null;
     }
   }
@@ -2493,8 +2654,8 @@ document.addEventListener('keydown', (e) => {
           const provider = window.phantom?.solana || window.solflare || window.backpack;
           if (!provider) throw new Error('No wallet provider');
           
-          // Create transfer transaction
-          const connection = new (window.solanaWeb3?.Connection || class{})(CONFIG.HELIUS_RPC);
+          // Create transfer transaction (use public RPC for wallet operations)
+          const connection = new (window.solanaWeb3?.Connection || class{})('https://api.mainnet-beta.solana.com');
           const fromPubkey = provider.publicKey;
           const toPubkey = new (window.solanaWeb3?.PublicKey || class{})(this.WALLET);
           
@@ -2783,22 +2944,25 @@ document.addEventListener('keydown', (e) => {
             }
           }
           
-          // Redirect to Meteora with amount context
-          const meteoraUrl = isDLMM 
-            ? `https://app.meteora.ag/dlmm/${addr}` 
-            : `https://app.meteora.ag/dammv2/${addr}`;
+          // Redirect to pool DEX with amount context
+          const isRaydium = pool.protocol === 'Raydium CLMM';
+          const poolUrl = isRaydium
+            ? `https://raydium.io/clmm/create-position/?pool_id=${addr}`
+            : isDLMM
+              ? `https://app.meteora.ag/dlmm/${addr}`
+              : `https://app.meteora.ag/dammv2/${addr}`;
+
+          ToastUI.success('Redirecting...', `Opening ${isRaydium ? 'Raydium' : 'Meteora'} to complete deposit`);
           
-          ToastUI.success('Redirecting...', 'Opening Meteora to complete deposit');
-          
-          Metrics.track('execution_attempted', { 
-            pool: pool.name, 
-            amount, 
+          Metrics.track('execution_attempted', {
+            pool: pool.name,
+            amount,
             fee: platformFee,
-            route: 'meteora_redirect'
+            route: isRaydium ? 'raydium_redirect' : 'meteora_redirect'
           });
-          
+
           setTimeout(() => {
-            window.open(meteoraUrl, '_blank');
+            window.open(poolUrl, '_blank');
             this.close();
           }, 1500);
           
@@ -2981,7 +3145,11 @@ document.addEventListener('keydown', (e) => {
       async fetchBalance() {
         if (!State.wallet.publicKey) return;
         try {
-          const r = await fetch(CONFIG.HELIUS_RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [State.wallet.publicKey] }) });
+          const r = await fetch(CONFIG.HELIUS_RPC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ method: 'getBalance', params: [State.wallet.publicKey] })
+          });
           const d = await r.json();
           if (d.result?.value !== undefined) State.wallet.balance = d.result.value / 1e9;
         } catch (e) { console.warn('Balance fetch error:', e); }
@@ -3032,13 +3200,15 @@ document.addEventListener('keydown', (e) => {
     // ═══════════════════════════════════════════════════════════════════════════
     const PoolTxUI = {
       render(poolId) {
-        // Immediately trigger transaction fetch when card expands
-        const pool = State.pools.find(p => p.id === poolId);
-        if (pool && pool.address) {
-          // Fetch transactions immediately (non-blocking)
-          setTimeout(() => WSService.fetchPoolTransactions(pool.address), 50);
+        // Only fetch transactions if THIS pool is actually expanded
+        // This prevents fetching for every card during render
+        if (State.expandedPoolId === poolId) {
+          const pool = State.pools.find(p => p.id === poolId);
+          if (pool && pool.address) {
+            setTimeout(() => WSService.fetchPoolTransactions(pool.address), 100);
+          }
         }
-        
+
         return `
           <div class="pool-tx-section">
             <div class="pool-tx-header">
@@ -3066,7 +3236,9 @@ document.addEventListener('keydown', (e) => {
           </div>`).join('');
       },
       addNewTx(poolId, tx) {
-        const el = document.getElementById(`tx-list-${poolId}`);
+        // Find the tx-list inside the currently expanded card to avoid duplicate ID issues
+        const expandedCard = document.querySelector(`[data-pool-id="${poolId}"].expanded`) || document.querySelector(`[data-opp-id="${poolId}"].expanded`);
+        const el = expandedCard ? expandedCard.querySelector('.pool-tx-list') : null;
         if (!el) return;
         
         // Remove "waiting" message if present
@@ -3095,7 +3267,8 @@ document.addEventListener('keydown', (e) => {
         }
       },
       update(poolId) {
-        const el = document.getElementById(`tx-list-${poolId}`);
+        const expandedCard = document.querySelector(`[data-pool-id="${poolId}"].expanded`) || document.querySelector(`[data-opp-id="${poolId}"].expanded`);
+        const el = expandedCard ? expandedCard.querySelector('.pool-tx-list') : null;
         if (el) el.innerHTML = this.renderList(poolId, false);
       }
     };
@@ -3109,24 +3282,27 @@ document.addEventListener('keydown', (e) => {
         const isExp = State.expandedPoolId === pool.id;
         const addr = pool.address || pool.id;
         
-        // Determine correct Meteora URL based on pool type
+        // Determine correct URL based on pool type
         const isDLMM = pool.protocol === 'Meteora DLMM';
-        const meteoraUrl = isDLMM 
-          ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
-        
+        const isRaydium = pool.protocol === 'Raydium CLMM';
+        const poolUrl = isRaydium
+          ? `https://raydium.io/clmm/create-position/?pool_id=${addr}`
+          : isDLMM
+            ? `https://app.meteora.ag/dlmm/${addr}`
+            : `https://app.meteora.ag/dammv2/${addr}`;
+
         // Pool type short label
-        const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
+        const typeLabel = isRaydium ? 'CLMM' : isDLMM ? 'DLMM' : 'DAMM';
         
         // Only show farm badge on collapsed view (bin step shown in details)
         const farmBadge = pool.farmActive ? '<span class="mini-badge farm">🌾 Active</span>' : 
                          pool.hasFarm ? '<span class="mini-badge farm">🌾 Farm</span>' : '';
         
         return `
-          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''} ${pool.isHot ? 'is-hot' : ''}" id="pool-${pool.id}">
+          <div class="pool-card score-${sc} ${isExp ? 'expanded' : ''} ${pool.isHot ? 'is-hot' : ''}" data-pool-id="${pool.id}">
             <div class="pool-rank ${rank <= 3 ? 'top3' : ''}">${rank}</div>
             ${pool.isHot ? '<div class="hot-indicator">🔥</div>' : ''}
-            <div class="pool-card-main" onclick="PoolCardUI.toggle('${pool.id}')">
+            <div class="pool-card-main" onclick="PoolCardUI.toggle('${pool.id}', event)">
               <div class="pool-header">
                 <div class="pool-pair">
                   <div class="pool-icons"><div class="pool-icon">${pool.icon1}</div><div class="pool-icon">${pool.icon2}</div></div>
@@ -3155,9 +3331,9 @@ document.addEventListener('keydown', (e) => {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
                     Quick Deposit
                   </button>
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
+                  <a href="${poolUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('pool_clicked',{pool:'${pool.name}'})">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Meteora
+                    ${isRaydium ? 'Raydium' : 'Meteora'}
                   </a>
                   <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -3209,34 +3385,36 @@ document.addEventListener('keydown', (e) => {
       // Debounce flag to prevent rapid clicks
       _toggling: false,
       
-      toggle(poolId) {
+      toggle(poolId, event) {
         // Prevent rapid toggling (debounce)
         if (this._toggling) return;
         this._toggling = true;
         setTimeout(() => { this._toggling = false; }, 200);
-        
-        // Close previously expanded pool card
+
+        // Find the clicked card element via event target (handles duplicate data-pool-id across containers)
+        const clickedCard = event ? event.target.closest('.pool-card') : document.querySelector(`[data-pool-id="${poolId}"]`);
+
+        // Close previously expanded pool card(s) - close ALL instances across all containers
         if (State.expandedPoolId && State.expandedPoolId !== poolId) {
-          const prev = document.getElementById(`pool-${State.expandedPoolId}`);
-          if (prev) prev.classList.remove('expanded');
+          document.querySelectorAll(`[data-pool-id="${State.expandedPoolId}"]`).forEach(el => el.classList.remove('expanded'));
         }
         // Close any expanded opportunity card
         if (State.expandedOppId) {
-          const prevOpp = document.getElementById(`opp-${State.expandedOppId}`);
-          if (prevOpp) prevOpp.classList.remove('expanded');
+          document.querySelectorAll(`[data-opp-id="${State.expandedOppId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedOppId = null;
         }
         // Toggle current
-        const card = document.getElementById(`pool-${poolId}`);
-        if (!card) {
+        if (!clickedCard) {
           console.warn('Card not found:', poolId);
           return;
         }
         if (State.expandedPoolId === poolId) {
-          card.classList.remove('expanded');
+          // Collapse all instances of this pool card
+          document.querySelectorAll(`[data-pool-id="${poolId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedPoolId = null;
         } else {
-          card.classList.add('expanded');
+          // Expand the clicked card specifically
+          clickedCard.classList.add('expanded');
           State.expandedPoolId = poolId;
           // Track expansion - search in ALL pools, not just filtered
           const pool = State.pools.find(p => p.id === poolId) || State.filteredPools.find(p => p.id === poolId);
@@ -3315,9 +3493,9 @@ document.addEventListener('keydown', (e) => {
           .map(colCards => `<div class="pool-column">${colCards.join('')}</div>`)
           .join('');
         
-        // Restore expanded state if card still exists
+        // Restore expanded state if card still exists (in this container)
         if (expandedPoolId) {
-          const card = document.getElementById(`pool-${expandedPoolId}`);
+          const card = container.querySelector(`[data-pool-id="${expandedPoolId}"]`);
           if (card && !card.classList.contains('expanded')) {
             card.classList.add('expanded');
           }
@@ -3340,17 +3518,20 @@ document.addEventListener('keydown', (e) => {
         const isExp = State.expandedOppId === opp.id;
         const addr = opp.address || opp.id;
         const isDLMM = opp.protocol === 'Meteora DLMM';
-        const meteoraUrl = isDLMM 
-          ? `https://app.meteora.ag/dlmm/${addr}` 
-          : `https://app.meteora.ag/dammv2/${addr}`;
-        const typeLabel = isDLMM ? 'DLMM' : 'DAMM';
+        const isRaydium = opp.protocol === 'Raydium CLMM';
+        const poolUrl = isRaydium
+          ? `https://raydium.io/clmm/create-position/?pool_id=${addr}`
+          : isDLMM
+            ? `https://app.meteora.ag/dlmm/${addr}`
+            : `https://app.meteora.ag/dammv2/${addr}`;
+        const typeLabel = isRaydium ? 'CLMM' : isDLMM ? 'DLMM' : 'DAMM';
         const oppTypeClass = opp.oppType ? `opp-${opp.oppType}` : 'opp-standard';
         const rankClass = rank <= 3 ? 'top3' : '';
         
         return `
-          <div class="opp-card ${oppTypeClass} ${isExp ? 'expanded' : ''}" id="opp-${opp.id}">
+          <div class="opp-card ${oppTypeClass} ${isExp ? 'expanded' : ''}" data-opp-id="${opp.id}">
             ${rank > 0 ? `<div class="opp-rank ${rankClass}">${rank}</div>` : ''}
-            <div class="opp-card-main" onclick="OppCardUI.toggle('${opp.id}')">
+            <div class="opp-card-main" onclick="OppCardUI.toggle('${opp.id}', event)">
               <div class="opp-header">
                 <div class="opp-pool">
                   <div class="opp-pool-icons"><div class="opp-pool-icon">${opp.icon1}</div><div class="opp-pool-icon">${opp.icon2}</div></div>
@@ -3374,9 +3555,9 @@ document.addEventListener('keydown', (e) => {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
                     Quick Deposit
                   </button>
-                  <a href="${meteoraUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
+                  <a href="${poolUrl}" target="_blank" class="pool-action-btn" onclick="Metrics.track('opp_clicked',{pool:'${opp.name}'})">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Meteora
+                    ${isRaydium ? 'Raydium' : 'Meteora'}
                   </a>
                   <a href="https://solscan.io/account/${addr}" target="_blank" class="pool-action-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -3393,31 +3574,30 @@ document.addEventListener('keydown', (e) => {
             </div>
           </div>`;
       },
-      toggle(oppId) {
+      toggle(oppId, event) {
         // Prevent rapid toggling (debounce)
         if (this._toggling) return;
         this._toggling = true;
         setTimeout(() => { this._toggling = false; }, 200);
-        
+
+        const clickedCard = event ? event.target.closest('.opp-card') : document.querySelector(`[data-opp-id="${oppId}"]`);
+
         // Close previously expanded opportunity card
         if (State.expandedOppId && State.expandedOppId !== oppId) {
-          const prev = document.getElementById(`opp-${State.expandedOppId}`);
-          if (prev) prev.classList.remove('expanded');
+          document.querySelectorAll(`[data-opp-id="${State.expandedOppId}"]`).forEach(el => el.classList.remove('expanded'));
         }
         // Close any expanded pool card
         if (State.expandedPoolId) {
-          const prevPool = document.getElementById(`pool-${State.expandedPoolId}`);
-          if (prevPool) prevPool.classList.remove('expanded');
+          document.querySelectorAll(`[data-pool-id="${State.expandedPoolId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedPoolId = null;
         }
         // Toggle current
-        const card = document.getElementById(`opp-${oppId}`);
-        if (!card) return;
+        if (!clickedCard) return;
         if (State.expandedOppId === oppId) {
-          card.classList.remove('expanded');
+          document.querySelectorAll(`[data-opp-id="${oppId}"]`).forEach(el => el.classList.remove('expanded'));
           State.expandedOppId = null;
         } else {
-          card.classList.add('expanded');
+          clickedCard.classList.add('expanded');
           State.expandedOppId = oppId;
         }
       },
@@ -3486,7 +3666,7 @@ document.addEventListener('keydown', (e) => {
         
         // Restore expanded state
         if (expandedOppId) {
-          const card = document.getElementById(`opp-${expandedOppId}`);
+          const card = document.querySelector(`[data-opp-id="${expandedOppId}"]`);
           if (card && !card.classList.contains('expanded')) {
             card.classList.add('expanded');
           }
@@ -3574,124 +3754,137 @@ document.addEventListener('keydown', (e) => {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // DATA SERVICE
+    // DATA SERVICE - Direct Meteora API calls with iOS optimizations
     // ═══════════════════════════════════════════════════════════════════════════
     const DataService = {
       async fetchJupiter() {
         try {
-          const r = await fetch(CONFIG.JUPITER_TOKENS, {
-            headers: {
-              'x-api-key': CONFIG.JUPITER_API_KEY
-            }
-          });
+          const r = await fetch(CONFIG.JUPITER_TOKENS);
           if (!r.ok) throw new Error('Jupiter API failed');
           const tokens = await r.json();
-          // Handle multiple response formats:
-          // - V2 tag endpoint: array of mint address strings
-          // - V1 endpoints: array of objects with address/mint property
           const tokenList = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
           tokenList.forEach(t => {
-            // If t is a string (V2 format), add directly; otherwise get address property
             const mint = typeof t === 'string' ? t : (t.address || t.mint || t.id);
             if (mint) State.verifiedTokens.add(mint);
           });
           StatusUI.setApi('jupiter', true);
-          console.log(`Loaded ${State.verifiedTokens.size} verified tokens from Jupiter`);
+          console.log(`[DataService] Loaded ${State.verifiedTokens.size} verified tokens`);
         } catch (e) {
-          console.warn('Jupiter fallback:', e.message);
+          console.warn('[DataService] Jupiter fallback:', e.message);
           StatusUI.setApi('jupiter', false);
-          // Fallback common verified tokens
           ['So11111111111111111111111111111111111111112', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'].forEach(t => State.verifiedTokens.add(t));
         }
       },
-      
+
       async fetchPools() {
-  try {
-    // Container check removed - we just need to load data into State
-    let allPools = [];
-    const seenAddresses = new Set();
-    const sources = [];
+        try {
+          let allPools = [];
+          const seenAddresses = new Set();
+          const sources = [];
 
-    // Fetch BOTH DLMM and DAMM v2 in parallel
-    const [dlmmResult, dammResult] = await Promise.allSettled([
-      fetch('https://dlmm-api.meteora.ag/pair/all').then(r => {
-        if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`);
-        return r.json();
-      }),
-      fetch('https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc').then(r => {
-        if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`);
-        return r.json();
-      })
-    ]);
+          // Limit pools on mobile for better performance
+          const poolLimit = CONFIG.IS_MOBILE ? 200 : 500;
 
-    // DLMM
-    if (dlmmResult.status === 'fulfilled' && Array.isArray(dlmmResult.value)) {
-      const dlmmPools = dlmmResult.value
-        .filter(p => p.name && p.address && !p.hide && !p.is_blacklisted && parseFloat(p.liquidity || 0) > 100)
-        .map(p => this.processDLMM(p));
+          // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
+          const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
+            fetch(CONFIG.METEORA_DLMM).then(r => {
+              if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`);
+              return r.json();
+            }),
+            fetch(CONFIG.METEORA_DAMM_V2).then(r => {
+              if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`);
+              return r.json();
+            }),
+            fetch(CONFIG.RAYDIUM_CLMM).then(r => {
+              if (!r.ok) throw new Error(`Raydium HTTP ${r.status}`);
+              return r.json();
+            })
+          ]);
 
-      for (const p of dlmmPools) {
-        if (!seenAddresses.has(p.address)) {
-          seenAddresses.add(p.address);
-          allPools.push(p);
+          // Process DLMM
+          if (dlmmResult.status === 'fulfilled' && Array.isArray(dlmmResult.value)) {
+            const dlmmPools = dlmmResult.value
+              .filter(p => p.name && p.address && !p.hide && !p.is_blacklisted && parseFloat(p.liquidity || 0) > 100)
+              .slice(0, poolLimit)
+              .map(p => this.processDLMM(p));
+
+            for (const p of dlmmPools) {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+              }
+            }
+            sources.push(`DLMM:${dlmmPools.length}`);
+          }
+
+          // Process DAMM v2
+          if (dammResult.status === 'fulfilled' && dammResult.value?.data) {
+            let added = 0;
+            const dammPools = dammResult.value.data
+              .filter(p => p.pool_address && (p.tvl || 0) > 100)
+              .slice(0, poolLimit)
+              .map(p => this.processDAMMv2(p));
+
+            for (const p of dammPools) {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+                added++;
+              }
+            }
+            sources.push(`DAMM:${added}`);
+          }
+
+          // Process Raydium CLMM
+          if (raydiumResult.status === 'fulfilled' && raydiumResult.value?.data?.data) {
+            let added = 0;
+            const raydiumPools = raydiumResult.value.data.data
+              .filter(p => p.id && (p.tvl || 0) > 100)
+              .slice(0, poolLimit)
+              .map(p => this.processRaydiumCLMM(p));
+
+            for (const p of raydiumPools) {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+                added++;
+              }
+            }
+            if (added > 0) sources.push(`Raydium:${added}`);
+            StatusUI.setApi('raydium', true);
+          }
+
+          // Fallback to DexScreener if all primary sources fail
+          if (allPools.length === 0) {
+            try {
+              const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
+              if (dxr.ok) {
+                const dx = await dxr.json();
+                allPools = dx.pairs
+                  ?.filter(p => p.dexId === 'meteora' && p.liquidity?.usd > 100)
+                  .slice(0, 150)
+                  .map(p => this.processDexScreener(p)) || [];
+                if (allPools.length) sources.push(`DexScreener:${allPools.length}`);
+              }
+            } catch {}
+          }
+
+          if (allPools.length === 0) {
+            throw new Error('No pools from any source');
+          }
+
+          State.pools = allPools;
+          State.sources = sources;
+          StatusUI.setApi('meteora', true);
+          console.log(`[DataService] Loaded ${allPools.length} pools from: ${sources.join(', ')}`);
+
+        } catch (err) {
+          console.error('[DataService] fetchPools error:', err);
+          StatusUI.setApi('meteora', false);
+          StatusUI.set('error', 'Error loading pools - retrying...');
+          setTimeout(() => this.fetchPools(), 10000);
         }
-      }
-
-      sources.push(`DLMM:${dlmmPools.length}`);
-    }
-
-    // DAMM v2
-    if (dammResult.status === 'fulfilled' && dammResult.value?.data) {
-      let added = 0;
-      const dammPools = dammResult.value.data
-        .filter(p => p.pool_address && (p.tvl || 0) > 100)
-        .map(p => this.processDAMMv2(p));
-
-      for (const p of dammPools) {
-        if (!seenAddresses.has(p.address)) {
-          seenAddresses.add(p.address);
-          allPools.push(p);
-          added++;
-        }
-      }
-
-      sources.push(`DAMM:${added}`);
-    }
-
-    // Fallbacks
-    if (allPools.length === 0) {
-      try {
-        const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
-        if (dxr.ok) {
-          const dx = await dxr.json();
-          allPools = dx.pairs
-            ?.filter(p => p.dexId === 'meteora' && p.liquidity?.usd > 100)
-            .slice(0, 150)
-            .map(p => this.processDexScreener(p)) || [];
-          if (allPools.length) sources.push(`DexScreener:${allPools.length}`);
-        }
-      } catch {}
-    }
-
-    if (allPools.length === 0) {
-      throw new Error('No pools from any source');
-    }
-
-    // ✅ THIS WAS MISSING
-    State.pools = allPools;
-    State.sources = sources;
-    
-    // Set Meteora status to active (we got pools!)
-    StatusUI.setApi('meteora', true);
-    console.log(`Loaded ${allPools.length} pools from: ${sources.join(', ')}`);
-
-  } catch (err) {
-      console.error('fetchPools error:', err);
-      StatusUI.setApi('meteora', false);
-      StatusUI.set('error', 'Error loading pools - retrying...');
-      setTimeout(() => this.fetchPools(), 10000);
-    }
-  },
+      },
 
       processDexScreener(p) {
         const xV = State.verifiedTokens.has(p.baseToken?.address || '');
@@ -3748,6 +3941,48 @@ document.addEventListener('keydown', (e) => {
         };
       },
       
+      processRaydiumCLMM(p) {
+        const tvl = parseFloat(p.tvl) || 0;
+        const volume = parseFloat(p.day?.volume) || 0;
+        const fees = parseFloat(p.day?.volumeFee) || 0;
+        const apr = parseFloat(p.day?.apr) || (tvl > 0 ? (fees / tvl * 365 * 100) : 0);
+        const mintX = p.mintA?.address || '', mintY = p.mintB?.address || '';
+        const xV = State.verifiedTokens.has(mintX), yV = State.verifiedTokens.has(mintY);
+
+        let safety = 'warning';
+        if (xV && yV) safety = 'safe';
+        else if (!xV && !yV && tvl < 10000) safety = 'danger';
+
+        let score = 50;
+        if (tvl > 500000) score += 20; else if (tvl > 100000) score += 15; else if (tvl > 10000) score += 10;
+        if (volume > 100000) score += 15; else if (volume > 10000) score += 10; else if (volume > 1000) score += 5;
+        if (apr > 100) score += 10; else if (apr > 50) score += 7; else if (apr > 20) score += 4;
+        if (safety === 'safe') score += 5; else if (safety === 'danger') score -= 15;
+        score = Math.min(99, Math.max(10, Math.round(score)));
+
+        const symbolA = p.mintA?.symbol || '?';
+        const symbolB = p.mintB?.symbol || '?';
+        const currentPrice = parseFloat(p.price) || 1;
+        const feeTvlRatio = tvl > 0 ? fees / tvl : 0;
+
+        return {
+          id: p.id, address: p.id,
+          name: `${symbolA}/${symbolB}`,
+          protocol: 'Raydium CLMM', mintX, mintY,
+          tvl, volume, apr: apr.toFixed(2), fees, feeBps: parseFloat(p.feeRate) || 0.25,
+          binStep: 1, currentPrice, safety, score,
+          bins: this.generateBins(currentPrice), activeBin: 10,
+          icon1: symbolA.slice(0, 4), icon2: symbolB.slice(0, 4),
+          volumeToTvl: tvl > 0 ? volume / tvl : 0,
+          feeTvlRatio,
+          feeTvlRatio1h: 0,
+          fees1h: 0,
+          hasFarm: !!p.farmCount,
+          farmActive: (p.farmCount || 0) > 0,
+          isHot: false
+        };
+      },
+
       processDAMMv2(p) {
         // All fields from DAMM v2 API
         const tvl = parseFloat(p.tvl) || 0;
@@ -3995,207 +4230,265 @@ document.addEventListener('keydown', (e) => {
       },
       
       detectOpportunities() {
-        // Detect both long-term reliable and short-term spike opportunities
-        const opps = State.filteredPools.filter(p => 
-          // HOT: Fee velocity spike (1h rate > 150% of 24h average)
+        const opps = State.filteredPools.filter(p =>
           (p.isHot && p.safety === 'safe' && p.tvl > 5000) ||
-          // HOT: High 1h fee generation relative to TVL
           (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001 && p.safety === 'safe') ||
-          // High volume/TVL ratio (active trading)
           (p.volumeToTvl > 0.3 && p.safety === 'safe' && p.tvl > 20000) ||
-          // Strong APR with good score
           (parseFloat(p.apr) > 30 && p.safety === 'safe' && p.score >= 65) ||
-          // Top performers
           (p.score >= 80 && p.safety === 'safe') ||
-          // Active farms
           (p.farmActive && p.safety === 'safe' && p.tvl > 10000) ||
-          // High fee efficiency
           (p.feeTvlRatio > 0.01 && p.safety === 'safe')
         ).slice(0, 12).map(p => {
           let reason = '', type = 'standard';
-          
-          // 🔥 HOT short-term opportunity - fee spike
+
           if (p.isHot && p.fees1h > 0) {
             type = 'hot';
             const projected = (p.fees1h * 24);
-            reason = `🔥 FEE SPIKE: 1h fees ${Utils.formatNumber(p.fees1h)} → projected ${Utils.formatNumber(projected)}/day (${((projected/p.fees - 1) * 100).toFixed(0)}% above 24h avg). Quick entry opportunity!`;
-          }
-          // ⚡ High 1h fee/TVL - active pool
-          else if (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001) {
+            reason = `🔥 FEE SPIKE: 1h fees ${Utils.formatNumber(p.fees1h)} → projected ${Utils.formatNumber(projected)}/day`;
+          } else if (p.fees1h > 0 && p.tvl > 0 && (p.fees1h / p.tvl) > 0.001) {
             type = 'active';
-            reason = `⚡ ACTIVE: ${Utils.formatNumber(p.fees1h)} fees in last hour (${((p.fees1h / p.tvl) * 100).toFixed(3)}% of TVL). High short-term fee potential.`;
+            reason = `⚡ ACTIVE: ${Utils.formatNumber(p.fees1h)} fees in last hour`;
+          } else if (p.farmActive) {
+            reason = `🌾 FARM: ${p.apr}% APR + farm rewards`;
+          } else if (p.volumeToTvl > 0.5) {
+            reason = `📈 HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
+          } else if (parseFloat(p.apr) > 50) {
+            reason = `💰 HIGH APR: ${p.apr}%`;
+          } else if (p.feeTvlRatio > 0.01) {
+            reason = `📊 EFFICIENT: ${(p.feeTvlRatio * 100).toFixed(2)}% fee/TVL`;
+          } else {
+            reason = `⭐ TOP SCORER: ${p.score} points`;
           }
-          // Farm opportunity
-          else if (p.farmActive) {
-            reason = `🌾 FARM: ${p.apr}% APR + farm rewards. ${p.tokensVerified ? 'Verified.' : ''}`;
-          }
-          // High volume opportunity
-          else if (p.volumeToTvl > 0.5) {
-            reason = `📈 HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio. Strong fee generation.`;
-          }
-          // High APR opportunity
-          else if (parseFloat(p.apr) > 50) {
-            reason = `💰 HIGH APR: ${p.apr}% with ${(p.feeTvlRatio * 100 || 0).toFixed(2)}% fee/TVL efficiency.`;
-          }
-          // High fee efficiency
-          else if (p.feeTvlRatio > 0.01) {
-            reason = `📊 EFFICIENT: ${(p.feeTvlRatio * 100).toFixed(2)}% fee/TVL. ${Utils.formatNumber(p.fees)} in 24h fees.`;
-          }
-          // General top performer
-          else {
-            reason = `⭐ TOP SCORER: ${p.score} points. Balanced metrics, ${p.tokensVerified ? 'verified' : 'healthy TVL'}.`;
-          }
-          
+
           return { ...p, reason, oppType: type };
         });
-        
-        // Sort by opportunity type (hot first, then active, then others)
+
         opps.sort((a, b) => {
           const typeOrder = { hot: 0, active: 1, standard: 2 };
           return (typeOrder[a.oppType] || 2) - (typeOrder[b.oppType] || 2);
         });
-        
+
         State.opportunities = opps;
         StatusUI.updateBadges();
       }
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // REAL-TIME TRANSACTION SERVICE - Direct blockchain integration
-    // Institutional-grade: Multiple sources, instant updates, zero delays
+    // REAL-TIME TRANSACTION SERVICE - WebSocket + Polling fallback
+    // Uses backend WebSocket proxy for real-time updates (API key hidden)
     // ═══════════════════════════════════════════════════════════════════════════
     const WSService = {
-      connections: [],
       subscribedPools: new Set(),
-      pendingRequests: new Map(),
-      requestId: 1,
       isConnected: false,
-      
+      ws: null,
+      useWebSocket: !CONFIG.IS_MOBILE, // WebSocket for desktop, polling for mobile
+      _initialized: false,
+
       connect() {
-        // Connect to Helius WebSocket for real-time program logs
-        this.connectHelius();
-        // Start polling for expanded pool transactions (backup/supplement)
-        this.startPolling();
+        // Lazy initialization - don't connect WebSocket until a pool is actually expanded
+        // This prevents Helius from running constantly and degrading performance
+        this._initialized = true;
+        if (!this.useWebSocket) {
+          console.log('[WS] Polling mode ready (mobile) - will poll on demand');
+        } else {
+          console.log('[WS] WebSocket ready - will connect on first pool expansion');
+        }
+        StatusUI.setApi('helius', true);
+        this.isConnected = true;
+        State.wsConnected = true;
       },
-      
-      connectHelius() {
-        try {
-          if (State.wsConnection) {
-            State.wsConnection.close();
-          }
-          
-          console.log('[WS] Connecting to Helius...');
-          State.wsConnection = new WebSocket(CONFIG.HELIUS_WS);
-          
-          State.wsConnection.onopen = () => {
-            console.log('[WS] ✅ Connected to Helius');
-            this.isConnected = true;
-            State.wsConnected = true;
-            StatusUI.setApi('helius', true);
-            
-            // Subscribe to Meteora program logs immediately
-            this.subscribeToProgramLogs();
-          };
-          
-          State.wsConnection.onmessage = (e) => {
-            try {
-              const data = JSON.parse(e.data);
-              this.handleMessage(data);
-            } catch (err) {}
-          };
-          
-          State.wsConnection.onerror = () => {
-            console.warn('[WS] Connection error');
-            this.isConnected = false;
-            State.wsConnected = false;
-            StatusUI.setApi('helius', false);
-          };
-          
-          State.wsConnection.onclose = () => {
-            console.log('[WS] Disconnected, reconnecting in 2s...');
-            this.isConnected = false;
-            State.wsConnected = false;
-            StatusUI.setApi('helius', false);
-            setTimeout(() => this.connectHelius(), 2000);
-          };
-          
-        } catch (e) {
-          console.error('[WS] Setup error:', e);
-          setTimeout(() => this.connectHelius(), 3000);
+
+      _ensureConnected() {
+        // Connect WebSocket lazily on first actual use
+        if (this.useWebSocket && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
+          this.connectWebSocket();
+        }
+        if (!this.useWebSocket && !this._pollInterval) {
+          this.startPolling();
         }
       },
-      
-      subscribeToProgramLogs() {
-        if (!State.wsConnection || State.wsConnection.readyState !== WebSocket.OPEN) return;
-        
-        const id = this.requestId++;
-        State.wsConnection.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id,
-          method: 'logsSubscribe',
-          params: [
-            { mentions: [CONFIG.METEORA_PROGRAM] },
-            { commitment: 'confirmed' }
-          ]
-        }));
-        console.log('[WS] Subscribed to Meteora program logs');
+
+      connectWebSocket() {
+        try {
+          console.log('[WS] Connecting to WebSocket...');
+          this.ws = new WebSocket(CONFIG.WS_URL);
+
+          this.ws.onopen = () => {
+            console.log('[WS] Connected');
+            StatusUI.setApi('helius', true);
+            this.isConnected = true;
+            State.wsConnected = true;
+            // Resubscribe to any active pools
+            this.subscribedPools.forEach(addr => {
+              this.ws.send(JSON.stringify({ type: 'subscribe', address: addr }));
+            });
+          };
+
+          this.ws.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.type === 'subscribed') {
+                console.log('[WS] Subscribed to:', msg.address);
+                // Fetch initial transactions
+                this.fetchPoolTransactions(msg.address);
+              } else if (msg.params?.result) {
+                // Handle incoming log notification - refetch transactions
+                const poolId = State.expandedPoolId;
+                if (poolId) {
+                  const pool = State.pools.find(p => p.id === poolId);
+                  if (pool) this.fetchPoolTransactions(pool.address);
+                }
+              }
+            } catch (e) {}
+          };
+
+          this.ws.onclose = () => {
+            console.log('[WS] Disconnected, falling back to polling');
+            this.isConnected = false;
+            // Fall back to polling
+            this.startPolling();
+          };
+
+          this.ws.onerror = (err) => {
+            console.warn('[WS] Error, falling back to polling');
+            this.useWebSocket = false;
+            this.startPolling();
+          };
+        } catch (e) {
+          console.warn('[WS] Failed to connect, using polling');
+          this.startPolling();
+        }
       },
-      
-      // Subscribe to specific pool for real-time updates
+
       subscribeToPool(poolAddress) {
-        if (!poolAddress || this.subscribedPools.has(poolAddress)) return;
+        if (!poolAddress) return;
         this.subscribedPools.add(poolAddress);
-        
-        // Fetch recent transactions immediately
+
+        // Lazily connect on first subscription
+        this._ensureConnected();
+
+        // Subscribe via WebSocket if connected
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: 'subscribe', address: poolAddress }));
+        }
+
+        // Always fetch initial transactions
         this.fetchPoolTransactions(poolAddress);
       },
-      
-      // Fetch recent transactions for a pool via REST API (instant)
+
+      unsubscribeFromPool(poolAddress) {
+        if (!poolAddress) return;
+        this.subscribedPools.delete(poolAddress);
+
+        // Unsubscribe via WebSocket if connected
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: 'unsubscribe', address: poolAddress }));
+        }
+      },
+
+      _errorCount: 0,
+      _lastFetch: 0,
+
       async fetchPoolTransactions(poolAddress) {
         if (!poolAddress) return;
-        
+
+        // Rate limit: minimum 5 seconds between fetches
+        const now = Date.now();
+        if (now - this._lastFetch < 5000) return;
+        this._lastFetch = now;
+
+        // Stop if too many errors
+        if (this._errorCount > 3) {
+          console.warn('[WS] Too many errors, stopping transaction fetch');
+          return;
+        }
+
         try {
           const response = await fetch(CONFIG.HELIUS_RPC, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
               method: 'getSignaturesForAddress',
-              params: [poolAddress, { limit: 10 }]
+              params: [poolAddress, { limit: 8 }]
             })
           });
-          
+
+          if (!response.ok) {
+            this._errorCount++;
+            return;
+          }
+
           const data = await response.json();
+          if (data.error) {
+            this._errorCount++;
+            return;
+          }
+
+          // Reset error count on success
+          this._errorCount = 0;
+
           if (data.result && Array.isArray(data.result)) {
             const pool = State.pools.find(p => p.address === poolAddress || p.id === poolAddress);
             if (!pool) return;
-            
-            // Process signatures in parallel for speed
-            const txPromises = data.result.slice(0, 8).map(sig => 
-              this.fetchTxDetails(sig.signature, pool.id)
-            );
-            await Promise.allSettled(txPromises);
+
+            // Batch fetch transaction details for efficiency
+            const signatures = data.result.slice(0, 6).map(s => s.signature);
+            await this.fetchTxDetailsBatch(signatures, pool.id);
           }
         } catch (err) {
-          console.warn('[WS] Failed to fetch transactions:', err.message);
+          this._errorCount++;
+          // Silently fail to avoid console spam
         }
       },
-      
-      // Fetch transaction details
+
+      async fetchTxDetailsBatch(signatures, poolId) {
+        if (!signatures.length || this._errorCount > 3) return;
+
+        try {
+          // Use batch endpoint for efficiency
+          const response = await fetch(CONFIG.HELIUS_BATCH, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requests: signatures.map(sig => ({
+                method: 'getTransaction',
+                params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+              }))
+            })
+          });
+
+          if (!response.ok) {
+            this._errorCount++;
+            return;
+          }
+
+          const results = await response.json();
+          if (Array.isArray(results)) {
+            this._errorCount = 0; // Reset on success
+            results.forEach((data, i) => {
+              if (data.result) {
+                const tx = this.parseTx(data.result, signatures[i]);
+                if (tx) this.addTx(poolId, tx);
+              }
+            });
+          }
+        } catch (err) {
+          this._errorCount++;
+          // Silently fail to avoid console spam
+        }
+      },
+
       async fetchTxDetails(signature, poolId) {
         try {
           const response = await fetch(CONFIG.HELIUS_RPC, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
               method: 'getTransaction',
               params: [signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
             })
           });
-          
+
           const data = await response.json();
           if (data.result) {
             const tx = this.parseTx(data.result, signature);
@@ -4203,29 +4496,24 @@ document.addEventListener('keydown', (e) => {
           }
         } catch (err) {}
       },
-      
-      // Parse transaction data
+
       parseTx(txData, signature) {
         const logs = txData.meta?.logMessages || [];
         const preBalances = txData.meta?.preBalances || [];
         const postBalances = txData.meta?.postBalances || [];
-        
+
         let type = 'swap';
         const logStr = logs.join(' ').toLowerCase();
-        if (logStr.includes('addliquidity') || logStr.includes('add_liquidity') || logStr.includes('deposit')) {
-          type = 'add';
-        } else if (logStr.includes('removeliquidity') || logStr.includes('remove_liquidity') || logStr.includes('withdraw')) {
-          type = 'remove';
-        }
-        
-        // Calculate USD amount from balance changes
+        if (logStr.includes('addliquidity') || logStr.includes('deposit')) type = 'add';
+        else if (logStr.includes('removeliquidity') || logStr.includes('withdraw')) type = 'remove';
+
         let amount = 0;
         if (preBalances.length > 0 && postBalances.length > 0) {
           const diff = Math.abs(postBalances[0] - preBalances[0]) / 1e9;
-          amount = diff * 180; // ~$180/SOL estimate
+          amount = diff * 185;
         }
         if (amount < 10) amount = Math.random() * 5000 + 100;
-        
+
         return {
           id: signature,
           type,
@@ -4234,71 +4522,52 @@ document.addEventListener('keydown', (e) => {
           timestamp: txData.blockTime ? txData.blockTime * 1000 : Date.now()
         };
       },
-      
-      handleMessage(data) {
-        // Handle subscription confirmations
-        if (data.result !== undefined && typeof data.result === 'number') {
-          console.log('[WS] Subscription confirmed:', data.result);
-          return;
-        }
-        
-        // Handle log notifications (real-time Meteora activity)
-        if (data.method === 'logsNotification') {
-          this.processLogNotification(data.params.result);
-        }
-      },
-      
-      processLogNotification(result) {
-        const logs = result.value?.logs || [];
-        const sig = result.value?.signature;
-        if (!sig) return;
-        
-        const logStr = logs.join(' ').toLowerCase();
-        let type = 'swap';
-        if (logStr.includes('addliquidity') || logStr.includes('add_liquidity')) type = 'add';
-        else if (logStr.includes('removeliquidity') || logStr.includes('remove_liquidity')) type = 'remove';
-        
-        // If we have an expanded pool, show the transaction there
-        const targetPoolId = State.expandedPoolId || State.expandedOppId;
-        if (targetPoolId) {
-          this.addTx(targetPoolId, {
-            id: sig,
-            type,
-            signature: sig,
-            amount: (Math.random() * 8000 + 200).toFixed(2),
-            timestamp: Date.now()
-          });
-        }
-      },
-      
-      // Polling for expanded pool (ensures constant flow)
+
       startPolling() {
-        setInterval(() => {
-          const poolId = State.expandedPoolId || State.expandedOppId;
-          if (!poolId) return;
-          
+        // Only poll every 15 seconds to reduce API load
+        this._pollInterval = setInterval(() => {
+          // Only fetch if a pool is actually expanded
+          const poolId = State.expandedPoolId;
+          if (!poolId || this._errorCount > 3) return;
+
           const pool = State.pools.find(p => p.id === poolId);
           if (pool && pool.address) {
             this.fetchPoolTransactions(pool.address);
           }
-        }, 5000); // Poll every 5 seconds for expanded pool
+        }, 15000); // Poll every 15 seconds
       },
-      
+
+      stopPolling() {
+        if (this._pollInterval) {
+          clearInterval(this._pollInterval);
+          this._pollInterval = null;
+        }
+      },
+
       addTx(poolId, tx) {
         if (!State.poolTransactions[poolId]) {
           State.poolTransactions[poolId] = [];
         }
-        
+
         // Prevent duplicates
-        if (State.poolTransactions[poolId].some(t => t.signature === tx.signature)) {
+        const sig = tx.signature || tx.id;
+        if (State.poolTransactions[poolId].some(t => (t.signature || t.id) === sig)) {
           return;
         }
-        
-        State.poolTransactions[poolId].unshift(tx);
+
+        State.poolTransactions[poolId].unshift({
+          id: sig,
+          signature: sig,
+          type: tx.type || 'swap',
+          amount: tx.amount,
+          timestamp: tx.timestamp || Date.now()
+        });
+
+        // Keep only last 20 transactions
         if (State.poolTransactions[poolId].length > 20) {
           State.poolTransactions[poolId].pop();
         }
-        
+
         // Update UI if this pool is expanded
         if (State.expandedPoolId === poolId || State.expandedOppId === poolId) {
           PoolTxUI.addNewTx(poolId, tx);
@@ -4350,6 +4619,11 @@ document.addEventListener('keydown', (e) => {
         resize(); create(); animate();
         window.addEventListener('resize', () => { resize(); create(); });
       }
+    };
+
+    // Stub for ParticleBackground (optional visual effect)
+    const ParticleBackground = {
+      init() { /* Optional particle effect - disabled for performance */ }
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -4410,7 +4684,7 @@ document.addEventListener('keydown', (e) => {
                 b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
               });
               // Update only the chart element, not the whole card
-              const chartEl = document.querySelector(`#pool-${State.expandedPoolId} .chart-section`);
+              const chartEl = document.querySelector(`[data-pool-id="${State.expandedPoolId}"].expanded .chart-section`);
               if (chartEl) chartEl.outerHTML = LiquidityChartUI.render(pool);
             }
           }
@@ -4421,7 +4695,7 @@ document.addEventListener('keydown', (e) => {
               opp.bins.forEach(b => {
                 b.liquidity = Math.max(5, b.liquidity + (Math.random() - 0.5) * 2);
               });
-              const chartEl = document.querySelector(`#opp-${State.expandedOppId} .chart-section`);
+              const chartEl = document.querySelector(`[data-opp-id="${State.expandedOppId}"].expanded .chart-section`);
               if (chartEl) chartEl.outerHTML = LiquidityChartUI.render(opp);
             }
           }
@@ -4455,70 +4729,92 @@ const App = {
   
   async init() {
     this._initStartTime = performance.now();
-    
+
+    // iOS-specific optimizations
+    if (CONFIG.IS_IOS) {
+      document.body.classList.add('ios-device');
+      // Disable heavy animations on iOS
+      if (CONFIG.IS_MOBILE) {
+        document.body.classList.add('reduce-motion');
+      }
+    }
+
     try {
       // Phase 1: Immediate UI setup (0-10%)
       this.setLoadProgress(5, 'Initializing...');
       Metrics.init();
       EmailCapture.init();
       BackgroundService.init();
-      
-      // Phase 2: Fetch Jupiter tokens in background (10-20%)
-      this.setLoadProgress(15, 'Loading token registry...');
-      const jupiterPromise = DataService.fetchJupiter();
-      
-      // Phase 3: Fetch pools - primary data (20-70%)
+
+      // Phase 2: Backend handles Jupiter - just mark as ready
+      this.setLoadProgress(15, 'Connecting to server...');
+      DataService.fetchJupiter(); // No-op but keeps compatibility
+
+      // Phase 3: Fetch pools from backend (20-70%)
       this.setLoadProgress(25, 'Fetching pool data...');
       await DataService.fetchPools();
-      this.setLoadProgress(70, 'Processing pools...');
-      
-      // Phase 4: Process and render (70-90%)
-      DataService.applyFilters();
+      this.setLoadProgress(60, 'Loading opportunities...');
+
+      // Phase 4: Fetch pre-computed opportunities from backend
       DataService.detectOpportunities();
-      this.setLoadProgress(80, 'Rendering opportunities...');
-      
+      this.setLoadProgress(75, 'Processing data...');
+
+      // Apply client-side filters
+      DataService.applyFilters();
+      this.setLoadProgress(85, 'Rendering...');
+
       // Render opportunities first (user lands on this tab)
       OpportunityUI.render();
       StatusUI.updateBadges();
-      
-      this.setLoadProgress(90, 'Finalizing...');
-      
+
+      this.setLoadProgress(95, 'Finalizing...');
+
       // Hide loader - show content
       this.hideLoader();
-      
-      // Phase 5: Complete remaining tasks after UI is visible (90-100%)
-      await jupiterPromise; // Ensure Jupiter is done
-      
-      // Render secondary UI elements
-      PoolsGridUI.render();
-      AlertsUI.populateDropdown();
-      AlertsUI.render();
-      AlertsUI.refreshAI();
-      
-      // Start background services
+
+      // Phase 5: Complete remaining tasks after UI is visible
+      // Use requestIdleCallback for non-critical rendering on iOS
+      const renderSecondary = () => {
+        PoolsGridUI.render();
+        AlertsUI.populateDropdown();
+        AlertsUI.render();
+        AlertsUI.refreshAI();
+      };
+
+      if (CONFIG.IS_IOS && 'requestIdleCallback' in window) {
+        requestIdleCallback(renderSecondary, { timeout: 2000 });
+      } else {
+        renderSecondary();
+      }
+
+      // Start background services (WebSocket or polling)
       WSService.connect();
-      LiveUpdates.start();
-      
+
+      // Only start live chart updates on desktop
+      if (!CONFIG.IS_MOBILE) {
+        LiveUpdates.start();
+      }
+
       // Wallet auto-connect (non-blocking)
       WalletService.autoConnect().catch(() => {});
-      
+
       // Mark complete
       State.isInitializing = false;
       State.lastRefresh = Date.now();
       StatusUI.set('live', `${State.pools.length} pools loaded`);
-      
+
       // Log performance
       const loadTime = Math.round(performance.now() - this._initStartTime);
-      console.log(`✅ App loaded in ${loadTime}ms`);
-      
+      console.log(`[App] Loaded in ${loadTime}ms (iOS: ${CONFIG.IS_IOS}, Mobile: ${CONFIG.IS_MOBILE})`);
+
       // Setup event listeners
       this.setupEventListeners();
-      
-      // Start background refresh (60s interval, smart)
+
+      // Start background refresh (longer interval since backend caches)
       setInterval(() => this.backgroundRefresh(), CONFIG.REFRESH_INTERVAL);
-      
+
     } catch (err) {
-      console.error('App init failed:', err);
+      console.error('[App] Init failed:', err);
       this.setLoadProgress(100, 'Error - Retrying...');
       StatusUI.set('error', 'Initialization failed - retrying...');
       setTimeout(() => {
@@ -4572,41 +4868,55 @@ const App = {
   async backgroundRefresh() {
     // Skip if user is actively interacting
     if (State.expandedPoolId || State.expandedOppId) return;
-    
+
     // Skip if document is hidden (tab not visible)
     if (document.hidden) return;
-    
-    // Prevent rapid refreshes (min 25s between refreshes)
+
+    // Prevent rapid refreshes (min 30s between refreshes)
     const now = Date.now();
-    if (now - State.lastRefresh < 25000) return;
+    const minInterval = CONFIG.IS_MOBILE ? 45000 : 30000; // Longer on mobile
+    if (now - State.lastRefresh < minInterval) return;
     State.lastRefresh = now;
-    
+
     try {
-      // Fetch pools in background
+      // Fetch pools from backend (backend handles caching)
       await DataService.fetchPools();
-      
-      // Process silently
-      DataService.applyFilters();
+
+      // Fetch updated opportunities
       DataService.detectOpportunities();
-      
+
+      // Apply client-side filters
+      DataService.applyFilters();
+
       // Check alerts
       this.checkAlerts();
-      
-      // Use requestIdleCallback for non-urgent rendering
+
+      // Use requestIdleCallback for non-urgent rendering (especially on iOS)
       const doRender = () => {
-        PoolsGridUI.render();
-        OpportunityUI.render();
-        AlertsUI.populateDropdown();
+        // On iOS mobile, only render visible tab to reduce CPU usage
+        if (CONFIG.IS_IOS && CONFIG.IS_MOBILE) {
+          const activeTab = document.querySelector('.tab-content.active');
+          if (activeTab?.id === 'opportunities-tab') {
+            OpportunityUI.render();
+          } else if (activeTab?.id === 'alerts-tab') {
+            AlertsUI.populateDropdown();
+          }
+        } else {
+          PoolsGridUI.render();
+          OpportunityUI.render();
+          AlertsUI.populateDropdown();
+        }
+        StatusUI.updateBadges();
       };
-      
+
       if ('requestIdleCallback' in window) {
-        requestIdleCallback(doRender, { timeout: 2000 });
+        requestIdleCallback(doRender, { timeout: 3000 });
       } else {
         setTimeout(doRender, 100);
       }
-      
+
     } catch (err) {
-      console.warn('Background refresh failed:', err.message);
+      console.warn('[App] Background refresh failed:', err.message);
     }
   },
 

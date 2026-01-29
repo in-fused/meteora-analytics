@@ -3,10 +3,7 @@
 ARG NODE_VERSION=18.16.0
 FROM node:${NODE_VERSION}-slim AS base
 
-LABEL fly_launch_runtime="NodeJS"
-
 WORKDIR /app
-
 ENV NODE_ENV=production
 
 # ------------------------
@@ -19,28 +16,37 @@ RUN apt-get update && \
     apt-get install -y python-is-python3 pkg-config build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy package files FIRST (important for caching)
-COPY package.json package-lock.json* ./
+# Copy dependency files first
+COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm install
+# Install ALL deps (including devDeps for build)
+RUN npm ci
 
-# Copy the rest of the app
+# Copy source
 COPY . .
 
-# Build frontend (Vite)
+# Build Vite app
 RUN npm run build
 
 # ------------------------
 # Runtime stage
 # ------------------------
-FROM base AS runtime
+FROM nginx:alpine AS runtime
 
-# Copy built app from build stage
-COPY --from=build /app /app
+# Copy built assets
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Fly expects the app to listen on 8080
+# Expose Fly port
 EXPOSE 8080
 
-# Start the app
-CMD ["npm", "run", "start"]
+# Replace nginx default config
+RUN printf "server {\n\
+  listen 8080;\n\
+  location / {\n\
+    root /usr/share/nginx/html;\n\
+    index index.html;\n\
+    try_files \$uri /index.html;\n\
+  }\n\
+}\n" > /etc/nginx/conf.d/default.conf
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,7 +1,10 @@
 // Vercel Serverless Function - Helius RPC Proxy
 // API key is stored in Vercel environment variables for security
 
-const HELIUS_KEY = process.env.HELIUS_KEY || '66097387-f0e6-4f93-a800-dbaac4a4c113';
+const HELIUS_KEY = process.env.HELIUS_KEY;
+if (!HELIUS_KEY) {
+  throw new Error('HELIUS_KEY environment variable is required');
+}
 const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 
 // Simple in-memory cache (resets on cold start, but helps with warm invocations)
@@ -42,11 +45,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const ALLOWED_RPC_METHODS = new Set([
+    'getBalance', 'getSignaturesForAddress', 'getTransaction',
+    'getAccountInfo', 'getLatestBlockhash', 'getTokenAccountsByOwner',
+  ]);
+
   try {
     const { method, params } = req.body;
 
     if (!method) {
       return res.status(400).json({ error: 'Missing method' });
+    }
+
+    if (!ALLOWED_RPC_METHODS.has(method)) {
+      return res.status(403).json({ error: `RPC method '${method}' is not allowed` });
     }
 
     // Check cache

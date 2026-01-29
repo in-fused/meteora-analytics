@@ -1,5 +1,8 @@
 // Vercel Serverless Function - Helius Batch RPC Proxy
-const HELIUS_KEY = process.env.HELIUS_KEY || '66097387-f0e6-4f93-a800-dbaac4a4c113';
+const HELIUS_KEY = process.env.HELIUS_KEY;
+if (!HELIUS_KEY) {
+  throw new Error('HELIUS_KEY environment variable is required');
+}
 const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 
 export default async function handler(req, res) {

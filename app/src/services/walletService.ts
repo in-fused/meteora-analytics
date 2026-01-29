@@ -101,18 +101,22 @@ class WalletService {
   }
 
   async autoConnect(): Promise<void> {
-    // Use onlyIfTrusted to avoid popup — only auto-connect if already trusted
-    const p = (window as any).phantom?.solana;
-    if (p?.isConnected) {
+    // Restore last-used wallet provider from localStorage
+    const savedKey = localStorage.getItem('lp_wallet_provider') as keyof typeof CONFIG.WALLETS | null;
+    const walletKey = savedKey && CONFIG.WALLETS[savedKey] ? savedKey : 'phantom';
+    const walletConfig = CONFIG.WALLETS[walletKey];
+    const provider = walletConfig?.getProvider() as any;
+
+    if (provider?.isConnected || provider) {
       try {
-        const r = await p.connect({ onlyIfTrusted: true });
-        if (r.publicKey) {
+        const r = await provider.connect({ onlyIfTrusted: true });
+        if (r?.publicKey) {
           const store = useAppState.getState();
           store.setWallet({
             connected: true,
             publicKey: r.publicKey.toString(),
-            provider: CONFIG.WALLETS.phantom as any,
-            name: 'Phantom',
+            provider: walletConfig as any,
+            name: walletConfig.name,
           });
           await this.fetchBalance();
         }

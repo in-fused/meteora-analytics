@@ -1,18 +1,19 @@
 import { useMemo } from 'react';
 import { useAppState } from '@/hooks/useAppState';
+import { useColumnCount } from '@/hooks/useColumnCount';
 import { PoolCard } from './PoolCard';
 
 export function OpportunitiesSection() {
   const opportunities = useAppState((s) => s.opportunities);
+  const colCount = useColumnCount();
 
   const columns = useMemo(() => {
-    const colCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
     const cols: typeof opportunities[] = Array.from({ length: colCount }, () => []);
     opportunities.forEach((opp, i) => {
       cols[i % colCount].push(opp);
     });
     return cols;
-  }, [opportunities]);
+  }, [opportunities, colCount]);
 
   if (opportunities.length === 0) {
     return (

@@ -15,7 +15,7 @@ class WSService {
   private lastFetchTime = 0;
   private initialized = false;
 
-  connect(): void {
+  init(): void {
     this.initialized = true;
     const store = useAppState.getState();
     if (!this.useWebSocket) {

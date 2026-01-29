@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useAppState } from '@/hooks/useAppState';
+import { useColumnCount } from '@/hooks/useColumnCount';
 import { dataService } from '@/services/dataService';
 import { PoolCard } from './PoolCard';
 import { formatNumber } from '@/lib/utils';
@@ -13,8 +14,7 @@ function SearchPoolsPanel() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Pool[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const expandedPoolId = useAppState((s) => s.expandedPoolId);
-  const togglePool = useAppState((s) => s.togglePool);
+  const colCount = useColumnCount();
 
   const handleSearch = useCallback(() => {
     if (!query.trim()) {
@@ -41,11 +41,10 @@ function SearchPoolsPanel() {
   }, []);
 
   const columns = useMemo(() => {
-    const colCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
     const cols: Pool[][] = Array.from({ length: colCount }, () => []);
     results.forEach((pool, i) => cols[i % colCount].push(pool));
     return cols;
-  }, [results]);
+  }, [results, colCount]);
 
   return (
     <div className="panel">
@@ -100,8 +99,6 @@ function SearchPoolsPanel() {
                       key={pool.id}
                       pool={pool}
                       rank={ci * Math.ceil(results.length / columns.length) + i + 1}
-                      isExpanded={expandedPoolId === pool.id}
-                      onToggle={() => togglePool(pool.id)}
                     />
                   ))}
                 </div>
@@ -122,10 +119,9 @@ function PoolFiltersPanel() {
   const filters = useAppState((s) => s.filters);
   const setFilters = useAppState((s) => s.setFilters);
   const filteredPools = useAppState((s) => s.filteredPools);
-  const expandedPoolId = useAppState((s) => s.expandedPoolId);
-  const togglePool = useAppState((s) => s.togglePool);
   const [showResults, setShowResults] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
+  const colCount = useColumnCount();
 
   const handleApply = useCallback(() => {
     setFilters(localFilters);
@@ -143,11 +139,10 @@ function PoolFiltersPanel() {
 
   const columns = useMemo(() => {
     if (!showResults) return [];
-    const colCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
     const cols: Pool[][] = Array.from({ length: colCount }, () => []);
     filteredPools.slice(0, 60).forEach((pool, i) => cols[i % colCount].push(pool));
     return cols;
-  }, [filteredPools, showResults]);
+  }, [filteredPools, showResults, colCount]);
 
   return (
     <div className="panel">
@@ -244,8 +239,6 @@ function PoolFiltersPanel() {
                     key={pool.id}
                     pool={pool}
                     rank={ci * Math.ceil(filteredPools.length / columns.length) + i + 1}
-                    isExpanded={expandedPoolId === pool.id}
-                    onToggle={() => togglePool(pool.id)}
                   />
                 ))}
               </div>

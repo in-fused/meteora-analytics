@@ -18,13 +18,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors());
+const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+  : undefined; // undefined = allow all in development
+app.use(cors({ origin: ALLOWED_ORIGINS || true }));
 app.use(express.json());
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════
-const HELIUS_KEY = process.env.HELIUS_KEY || '66097387-f0e6-4f93-a800-dbaac4a4c113';
+const HELIUS_KEY = process.env.HELIUS_KEY;
+if (!HELIUS_KEY) {
+  console.error('[Server] HELIUS_KEY environment variable is required');
+  process.exit(1);
+}
 const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 const HELIUS_WS = `wss://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 
@@ -52,11 +59,19 @@ function getCached(key, ttl) {
 }
 
 function setCache(key, data) {
-  // Limit cache size to prevent memory issues
+  // Limit cache size - evict expired entries first, then oldest by timestamp
   if (cache.size > 100) {
-    // Remove oldest entries
-    const keys = Array.from(cache.keys()).slice(0, 20);
-    keys.forEach(k => cache.delete(k));
+    const now = Date.now();
+    const maxTTL = Math.max(...Object.values(CACHE_TTLS));
+    // First pass: remove clearly expired entries
+    for (const [k, v] of cache) {
+      if (now - v.timestamp > maxTTL) cache.delete(k);
+    }
+    // Second pass: if still too large, remove oldest 20 by timestamp
+    if (cache.size > 100) {
+      const sorted = Array.from(cache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+      sorted.slice(0, 20).forEach(([k]) => cache.delete(k));
+    }
   }
   cache.set(key, { data, timestamp: Date.now() });
 }
@@ -193,12 +208,21 @@ app.get('/api/proxy/jupiter-tokens', async (req, res) => {
 // HELIUS RPC PROXY - Secure API key server-side
 // ═══════════════════════════════════════════════════════════════════════════
 
+const ALLOWED_RPC_METHODS = new Set([
+  'getBalance', 'getSignaturesForAddress', 'getTransaction',
+  'getAccountInfo', 'getLatestBlockhash', 'getTokenAccountsByOwner',
+]);
+
 app.post('/api/helius/rpc', async (req, res) => {
   try {
     const { method, params } = req.body;
 
     if (!method) {
       return res.status(400).json({ error: 'Missing method' });
+    }
+
+    if (!ALLOWED_RPC_METHODS.has(method)) {
+      return res.status(403).json({ error: `RPC method '${method}' is not allowed` });
     }
 
     // Check cache for certain methods

@@ -35,8 +35,6 @@ export function shortenAddress(a: string | null | undefined, c = 4): string {
   return `${a.slice(0, c)}...${a.slice(-c)}`;
 }
 
-export const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
-
 // ═══════════════════════════════════════════════════════════════════════════
 // SCORING & SAFETY
 // ═══════════════════════════════════════════════════════════════════════════
@@ -108,12 +106,16 @@ export function isHotPool(pool: Pool): boolean {
 
 export function generateBins(basePrice: number): Bin[] {
   const bins: Bin[] = [];
+  // Deterministic pseudo-random variation seeded by bin index and basePrice
+  // Avoids Math.random() which causes chart flicker on every refresh
+  const seed = Math.abs(basePrice * 1000) % 1000;
   for (let i = 0; i < 21; i++) {
     const dist = Math.abs(i - 10);
+    const variation = ((seed + i * 37) % 12); // deterministic 0-11 per bin
     bins.push({
       id: 1000 + i,
       price: basePrice + (i - 10) * basePrice * 0.0025,
-      liquidity: Math.max(5, 100 - dist * 6 + Math.random() * 12),
+      liquidity: Math.max(5, 100 - dist * 6 + variation),
       isActive: i === 10,
     });
   }

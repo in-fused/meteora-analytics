@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { walletService } from '@/services/walletService';
 import { shortenAddress } from '@/lib/utils';
@@ -36,15 +36,21 @@ export function Header({ onRefresh }: HeaderProps) {
   const setShowWalletModal = useAppState((s) => s.setShowWalletModal);
 
   const [alertDropdownOpen, setAlertDropdownOpen] = useState(false);
+  const [refreshLabel, setRefreshLabel] = useState('Never');
 
   const unreadAlerts = triggeredAlerts.filter((a) => !a.read).length;
 
-  const formatLastRefresh = useCallback(() => {
-    if (!lastRefresh) return 'Never';
-    const seconds = Math.floor((Date.now() - lastRefresh) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ago`;
+  // Update refresh label every 5 seconds so it stays current
+  useEffect(() => {
+    const update = () => {
+      if (!lastRefresh) { setRefreshLabel('Never'); return; }
+      const seconds = Math.floor((Date.now() - lastRefresh) / 1000);
+      if (seconds < 60) setRefreshLabel(`${seconds}s ago`);
+      else setRefreshLabel(`${Math.floor(seconds / 60)}m ago`);
+    };
+    update();
+    const id = setInterval(update, 5000);
+    return () => clearInterval(id);
   }, [lastRefresh]);
 
   const handleWalletClick = () => {
@@ -202,13 +208,13 @@ export function Header({ onRefresh }: HeaderProps) {
         <button
           className="btn btn--secondary btn--sm"
           onClick={onRefresh}
-          title={`Last refresh: ${formatLastRefresh()}`}
+          title={`Last refresh: ${refreshLabel}`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
           </svg>
-          <span className="refresh-time">{formatLastRefresh()}</span>
+          <span className="refresh-time">{refreshLabel}</span>
         </button>
       </div>
     </header>

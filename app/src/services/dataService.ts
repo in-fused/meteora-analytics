@@ -8,6 +8,9 @@ import { useAppState } from '@/hooks/useAppState';
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const dataService = {
+  _fetchPoolRetries: 0,
+  MAX_FETCH_RETRIES: 3,
+
   async fetchJupiterTokens(): Promise<void> {
     const store = useAppState.getState();
     try {
@@ -119,12 +122,20 @@ export const dataService = {
       store.setPools(allPools);
       store.setSources(sources);
       store.setApiStatus('meteora', true);
+      this._fetchPoolRetries = 0; // Reset on success
       console.log(`[DataService] Loaded ${allPools.length} pools from: ${sources.join(', ')}`);
     } catch (err) {
       console.error('[DataService] fetchPools error:', err);
       store.setApiStatus('meteora', false);
-      // Retry after 10 seconds on failure
-      setTimeout(() => this.fetchPools(), 10000);
+
+      if (this._fetchPoolRetries < this.MAX_FETCH_RETRIES) {
+        this._fetchPoolRetries++;
+        const delay = Math.min(10000 * Math.pow(2, this._fetchPoolRetries - 1), 60000);
+        console.warn(`[DataService] Retry ${this._fetchPoolRetries}/${this.MAX_FETCH_RETRIES} in ${delay / 1000}s`);
+        setTimeout(() => this.fetchPools(), delay);
+      } else {
+        console.error(`[DataService] All ${this.MAX_FETCH_RETRIES} retries exhausted. Use manual refresh.`);
+      }
     }
   },
 
@@ -280,10 +291,15 @@ export const dataService = {
     const apr = tvl > 0 ? (vol / tvl * 365 * 0.003 * 100) : 0;
     const score = calculateScore(tvl, vol, apr, safety);
 
+    const dexProtocol: Pool['protocol'] =
+      p.labels?.includes('CLMM') ? 'Raydium CLMM' :
+      p.labels?.includes('v2') || p.labels?.includes('DAMM') ? 'Meteora DAMM v2' :
+      'Meteora DLMM';
+
     return {
       id: p.pairAddress, address: p.pairAddress,
       name: `${p.baseToken?.symbol || '?'}/${p.quoteToken?.symbol || '?'}`,
-      protocol: 'Meteora DLMM',
+      protocol: dexProtocol,
       mintX: p.baseToken?.address || '', mintY: p.quoteToken?.address || '',
       tvl, volume: vol, apr: apr.toFixed(2), fees: vol * 0.003,
       feeBps: 0.3, binStep: 1,

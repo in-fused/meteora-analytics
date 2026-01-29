@@ -36,7 +36,6 @@ export const CONFIG = {
 
   // Refresh intervals (optimized)
   REFRESH_INTERVAL: 60000,  // 60 seconds
-  FAST_REFRESH: 30000,      // 30 seconds
 
   // Pool limits
   POOL_LIMIT: IS_MOBILE ? 200 : 500,

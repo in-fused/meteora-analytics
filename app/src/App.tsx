@@ -59,7 +59,7 @@ export default function App() {
         store.setOpportunities(opps);
 
         store.setLoadProgress(85, 'Connecting live feed...');
-        wsService.connect();
+        wsService.init();
 
         store.setLoadProgress(92, 'Initializing metrics...');
         metricsService.init();
@@ -194,8 +194,13 @@ export default function App() {
       );
       if (resp.ok) {
         const data = await resp.json();
+        // Use decimals from API response, fallback to raw amount display
+        const decimals = data.outputMintDecimals ?? data.decimals ?? 6;
+        const outDisplay = data.outAmount
+          ? (data.outAmount / Math.pow(10, decimals)).toFixed(4)
+          : 'N/A';
         setExecQuote(
-          `Output: ${data.outAmount ? (data.outAmount / 1e6).toFixed(4) : 'N/A'} | ` +
+          `Output: ${outDisplay} | ` +
           `Price impact: ${data.priceImpactPct ? (data.priceImpactPct * 100).toFixed(3) + '%' : 'N/A'}`
         );
       } else {

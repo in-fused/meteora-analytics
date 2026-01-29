@@ -49,9 +49,6 @@ interface AppState {
   // Filters
   filters: FilterState;
 
-  // Search
-  searchResults: Pool[];
-
   // Actions
   setPools: (pools: Pool[]) => void;
   setFilteredPools: (pools: Pool[]) => void;
@@ -81,8 +78,6 @@ interface AppState {
   setWallet: (wallet: Partial<WalletState>) => void;
   setApiStatus: (api: keyof ApiStatus, status: boolean) => void;
   setFilters: (filters: Partial<FilterState>) => void;
-  setSearchResults: (results: Pool[]) => void;
-
   // Toggle pool expansion (handles mutual exclusion)
   togglePool: (poolId: string) => void;
   toggleOpp: (oppId: string) => void;
@@ -136,7 +131,6 @@ export const useAppState = create<AppState>((set, get) => ({
     sortBy: 'score',
     searchQuery: '',
   },
-  searchResults: [],
 
   // Actions
   setPools: (pools) => set({ pools }),
@@ -178,7 +172,6 @@ export const useAppState = create<AppState>((set, get) => ({
     set((s) => ({ apiStatus: { ...s.apiStatus, [api]: status } })),
   setFilters: (filters) =>
     set((s) => ({ filters: { ...s.filters, ...filters } })),
-  setSearchResults: (searchResults) => set({ searchResults }),
 
   // Toggle pool with mutual exclusion
   togglePool: (poolId) => {
@@ -199,13 +192,24 @@ export const useAppState = create<AppState>((set, get) => ({
     }
   },
 
-  // Check alerts against current pool data
+  // Check alerts against current pool data (with deduplication)
   checkAlerts: () => {
-    const { alerts, pools, addTriggeredAlert } = get();
+    const { alerts, pools, triggeredAlerts, addTriggeredAlert } = get();
     if (alerts.length === 0 || pools.length === 0) return;
+
+    // Build a set of recently triggered alert IDs (within last 5 minutes) to deduplicate
+    const DEDUP_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+    const recentlyTriggered = new Set(
+      triggeredAlerts
+        .filter(t => now - t.triggeredAt < DEDUP_COOLDOWN)
+        .map(t => t.id)
+    );
 
     for (const alert of alerts) {
       if (!alert.enabled) continue;
+      if (recentlyTriggered.has(alert.id)) continue; // Skip if triggered recently
+
       const pool = pools.find(p => p.id === alert.poolId);
       if (!pool) continue;
 
@@ -225,7 +229,7 @@ export const useAppState = create<AppState>((set, get) => ({
       if (triggered) {
         addTriggeredAlert({
           ...alert,
-          triggeredAt: Date.now(),
+          triggeredAt: now,
           currentValue,
           read: false,
         });

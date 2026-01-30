@@ -10,10 +10,11 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load .env from project root (works regardless of cwd)
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const server = http.createServer(app);
@@ -192,7 +193,9 @@ app.get('/api/proxy/jupiter-tokens', async (req, res) => {
     const cached = getCached('jupiter', CACHE_TTLS.jupiter);
     if (cached) return res.json(cached);
 
-    const response = await fetch('https://api.jup.ag/tokens/v2/tag?query=verified');
+    const jupHeaders = {};
+    if (process.env.JUP_API_KEY) jupHeaders['x-api-key'] = process.env.JUP_API_KEY;
+    const response = await fetch('https://api.jup.ag/tokens/v2/tag?query=verified', { headers: jupHeaders });
     if (!response.ok) throw new Error(`Jupiter API returned ${response.status}`);
 
     const data = await response.json();

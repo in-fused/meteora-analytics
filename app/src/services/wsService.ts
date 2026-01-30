@@ -14,6 +14,7 @@ class WSService {
   private errorCount = 0;
   private lastFetchTime = 0;
   private initialized = false;
+  private heliusAvailable = true; // Track if Helius proxy is reachable
 
   init(): void {
     this.initialized = true;
@@ -121,6 +122,9 @@ class WSService {
   async fetchPoolTransactions(poolAddress: string): Promise<void> {
     if (!poolAddress) return;
 
+    // If Helius proxy is confirmed unreachable, don't keep trying
+    if (!this.heliusAvailable) return;
+
     // Rate limit: min 5s between fetches
     const now = Date.now();
     if (now - this.lastFetchTime < 5000) return;
@@ -128,7 +132,10 @@ class WSService {
 
     // Stop if too many errors
     if (this.errorCount > CONFIG.MAX_ERRORS) {
-      console.warn('[WS] Too many errors, stopping transaction fetch');
+      console.warn('[WS] Too many errors, disabling Helius transaction fetch');
+      this.heliusAvailable = false;
+      const store = useAppState.getState();
+      store.setApiStatus('helius', false);
       return;
     }
 
@@ -141,6 +148,11 @@ class WSService {
 
       if (!sigResponse.ok) {
         this.errorCount++;
+        if (sigResponse.status === 500 || sigResponse.status === 502 || sigResponse.status === 503) {
+          console.warn('[WS] Helius proxy unavailable (no backend), disabling real-time transactions');
+          this.heliusAvailable = false;
+          this.stopPolling();
+        }
         return;
       }
 

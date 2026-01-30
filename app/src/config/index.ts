@@ -12,20 +12,24 @@ export const CONFIG = {
   RENDER_BATCH_SIZE: IS_MOBILE ? 20 : 50,
   ANIMATION_ENABLED: !IS_IOS,
 
-  // Meteora API endpoints (via proxy)
+  // Meteora API endpoints — proxy preferred, direct fallback for dev/Codespaces
   METEORA_DLMM: '/api/proxy/dlmm',
+  METEORA_DLMM_DIRECT: 'https://dlmm-api.meteora.ag/pair/all',
   METEORA_DAMM_V2: '/api/proxy/damm',
+  METEORA_DAMM_V2_DIRECT: 'https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc',
   METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
 
   // Raydium Concentrated Liquidity Pools
   RAYDIUM_CLMM: '/api/proxy/raydium',
+  RAYDIUM_CLMM_DIRECT: 'https://api-v3.raydium.io/pools/info/list?poolType=concentrated&poolSortField=liquidity&sortType=desc&pageSize=200&page=1',
 
-  // Jupiter Token Verification (via proxy)
-  JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
+  // Jupiter Token Verification
   JUPITER_TOKENS: '/api/proxy/jupiter-tokens',
+  JUPITER_TOKENS_DIRECT: 'https://api.jup.ag/tokens/v2/tag?query=verified',
+  JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
   JUPITER_ULTRA_API: 'https://api.jup.ag/ultra/v1',
 
-  // Helius RPC (via proxy)
+  // Helius RPC (via proxy — requires API key server-side)
   HELIUS_RPC: '/api/helius/rpc',
   HELIUS_BATCH: '/api/helius/batch',
 

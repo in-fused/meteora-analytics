@@ -9,7 +9,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.jup.ag/tokens/v2/tag?query=verified');
+    const headers = {};
+    if (process.env.JUP_API_KEY) {
+      headers['x-api-key'] = process.env.JUP_API_KEY;
+    }
+    const response = await fetch('https://api.jup.ag/tokens/v2/tag?query=verified', { headers });
     if (!response.ok) {
       throw new Error(`Jupiter API returned ${response.status}`);
     }

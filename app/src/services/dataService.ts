@@ -11,10 +11,26 @@ export const dataService = {
   _fetchPoolRetries: 0,
   MAX_FETCH_RETRIES: 3,
 
+  /**
+   * Fetch with automatic fallback: tries proxy first, then direct URL.
+   * Public APIs (Meteora, Raydium, Jupiter) support CORS and can be called directly.
+   */
+  async fetchWithFallback(proxyUrl: string, directUrl: string): Promise<Response> {
+    try {
+      const r = await fetch(proxyUrl);
+      if (r.ok) return r;
+      // Proxy returned error (likely no backend running) — try direct
+      console.warn(`[DataService] Proxy ${proxyUrl} returned ${r.status}, trying direct`);
+    } catch {
+      console.warn(`[DataService] Proxy ${proxyUrl} unreachable, trying direct`);
+    }
+    return fetch(directUrl);
+  },
+
   async fetchJupiterTokens(): Promise<void> {
     const store = useAppState.getState();
     try {
-      const r = await fetch(CONFIG.JUPITER_TOKENS);
+      const r = await this.fetchWithFallback(CONFIG.JUPITER_TOKENS, CONFIG.JUPITER_TOKENS_DIRECT);
       if (!r.ok) throw new Error('Jupiter API failed');
       const tokens = await r.json();
       const tokenList: unknown[] = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
@@ -43,10 +59,14 @@ export const dataService = {
       const sources: string[] = [];
 
       // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
+      // Uses proxy-with-direct-fallback so it works with or without backend
       const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
-        fetch(CONFIG.METEORA_DLMM).then(r => { if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`); return r.json(); }),
-        fetch(CONFIG.METEORA_DAMM_V2).then(r => { if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`); return r.json(); }),
-        fetch(CONFIG.RAYDIUM_CLMM).then(r => { if (!r.ok) throw new Error(`Raydium HTTP ${r.status}`); return r.json(); }),
+        this.fetchWithFallback(CONFIG.METEORA_DLMM, CONFIG.METEORA_DLMM_DIRECT)
+          .then(r => { if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`); return r.json(); }),
+        this.fetchWithFallback(CONFIG.METEORA_DAMM_V2, CONFIG.METEORA_DAMM_V2_DIRECT)
+          .then(r => { if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`); return r.json(); }),
+        this.fetchWithFallback(CONFIG.RAYDIUM_CLMM, CONFIG.RAYDIUM_CLMM_DIRECT)
+          .then(r => { if (!r.ok) throw new Error(`Raydium HTTP ${r.status}`); return r.json(); }),
       ]);
 
       // Process DLMM

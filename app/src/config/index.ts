@@ -25,16 +25,16 @@ export const CONFIG = {
   JUPITER_TOKENS: '/api/proxy/jupiter-tokens',
   JUPITER_ULTRA_API: 'https://api.jup.ag/ultra/v1',
 
-  // Helius RPC (via proxy)
+  // Helius RPC (via server proxy — server uses Gatekeeper beta internally)
   HELIUS_RPC: '/api/helius/rpc',
   HELIUS_BATCH: '/api/helius/batch',
 
-  // WebSocket
+  // WebSocket (server handles Enhanced WS → standard fallback internally)
   WS_URL: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
   WS_RECONNECT_DELAY: 3000,
-  MAX_ERRORS: 3,
+  MAX_ERRORS: 5,  // Increased from 3 — Enhanced WS is more reliable
 
-  // Refresh intervals (optimized)
+  // Refresh intervals
   REFRESH_INTERVAL: 60000,  // 60 seconds
   FAST_REFRESH: 30000,      // 30 seconds
 

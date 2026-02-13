@@ -100,8 +100,6 @@ function SearchPoolsPanel() {
                       key={pool.id}
                       pool={pool}
                       rank={ci * Math.ceil(results.length / columns.length) + i + 1}
-                      isExpanded={expandedPoolId === pool.id}
-                      onToggle={() => togglePool(pool.id)}
                     />
                   ))}
                 </div>
@@ -244,8 +242,6 @@ function PoolFiltersPanel() {
                     key={pool.id}
                     pool={pool}
                     rank={ci * Math.ceil(filteredPools.length / columns.length) + i + 1}
-                    isExpanded={expandedPoolId === pool.id}
-                    onToggle={() => togglePool(pool.id)}
                   />
                 ))}
               </div>

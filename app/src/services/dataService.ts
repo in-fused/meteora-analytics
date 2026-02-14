@@ -12,7 +12,7 @@ import { useAppState } from '@/hooks/useAppState';
 //   - LRU caching with stale-serve fallback
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function fetchWithRetry(url: string, options?: RequestInit, retries = 2): Promise<Response> {
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): Promise<Response> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch(url, options);
@@ -20,14 +20,14 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 2): 
       // If server returns 503 (circuit breaker open), respect retryAfter
       if (response.status === 503 && attempt < retries) {
         const data = await response.json().catch(() => ({}));
-        const wait = (data.retryAfter || 5) * 1000;
+        const wait = Math.min((data.retryAfter || 3) * 1000, 5000);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
       throw new Error(`HTTP ${response.status}`);
     } catch (err) {
       if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
         continue;
       }
       throw err;
@@ -152,8 +152,6 @@ export const dataService = {
     } catch (err) {
       console.error('[DataService] fetchPools error:', err);
       store.setApiStatus('meteora', false);
-      // Retry after 10 seconds on failure
-      setTimeout(() => this.fetchPools(), 10000);
     }
   },
 

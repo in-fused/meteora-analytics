@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { dataService } from '@/services/dataService';
 import { wsService } from '@/services/wsService';
@@ -16,6 +16,37 @@ import { PoolCard } from '@/components/PoolCard';
 import { OpportunitiesSection } from '@/components/OpportunitiesSection';
 import { SearchAlertsSection } from '@/components/SearchAlertsSection';
 import { GuideSection } from '@/components/GuideSection';
+
+function AllPoolsTab({ pools }: { pools: import('@/types').Pool[] }) {
+  const columns = useMemo(() => {
+    const colCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
+    const cols: typeof pools[] = Array.from({ length: colCount }, () => []);
+    pools.forEach((pool, i) => cols[i % colCount].push(pool));
+    return cols;
+  }, [pools]);
+
+  return (
+    <section className="section" style={{ padding: '2rem 1.5rem' }}>
+      <div className="section-header">
+        <h2>All Pools ({pools.length})</h2>
+      </div>
+      <div className="pools-container">
+        {columns.map((col, ci) => (
+          <div key={ci} className="pool-column">
+            {col.map((pool, i) => (
+              <PoolCard key={pool.id} pool={pool} rank={i * columns.length + ci + 1} />
+            ))}
+          </div>
+        ))}
+      </div>
+      {pools.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.5 }}>
+          No pools match current filters.
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function App() {
   const activeTab = useAppState((s) => s.activeTab);
@@ -41,40 +72,38 @@ export default function App() {
     const init = async () => {
       const store = useAppState.getState();
       try {
-        store.setLoadProgress(5, 'Connecting wallet...');
-        await walletService.autoConnect().catch(() => {});
+        // Phase 1: Parallel — wallet + token list at the same time
+        store.setLoadProgress(10, 'Loading data...');
+        await Promise.all([
+          walletService.autoConnect().catch(() => {}),
+          dataService.fetchJupiterTokens(),
+        ]);
 
-        store.setLoadProgress(15, 'Loading token data...');
-        await dataService.fetchJupiterTokens();
-
-        store.setLoadProgress(35, 'Fetching pool data...');
+        // Phase 2: Pool data (needs verified tokens for safety scoring)
+        store.setLoadProgress(40, 'Fetching pools...');
         await dataService.fetchPools();
 
-        store.setLoadProgress(55, 'Applying filters...');
+        // Phase 3: CPU-only processing (fast)
+        store.setLoadProgress(75, 'Analyzing opportunities...');
         dataService.applyFilters();
-
-        store.setLoadProgress(70, 'Detecting opportunities...');
-        const opps = detectOpportunities(useAppState.getState().filteredPools.length > 0
+        const currentPools = useAppState.getState().filteredPools.length > 0
           ? useAppState.getState().filteredPools
-          : useAppState.getState().pools);
-        store.setOpportunities(opps);
+          : useAppState.getState().pools;
+        store.setOpportunities(detectOpportunities(currentPools));
 
-        store.setLoadProgress(80, 'Connecting live feed...');
-        wsService.connect();
-
-        store.setLoadProgress(87, 'Initializing metrics...');
-        metricsService.init();
-
-        store.setLoadProgress(92, 'Syncing saved data...');
-        if (supabaseService.isEnabled()) {
-          await supabaseService.hydrate();
-          // Re-apply filters with hydrated preferences
-          dataService.applyFilters();
-        }
-
+        // Phase 4: Show app immediately — everything below is non-blocking
         store.setLoadProgress(100, 'Ready');
         store.setIsInitializing(false);
         store.setLastRefresh(Date.now());
+
+        // Background tasks (fire-and-forget, don't block render)
+        wsService.connect();
+        metricsService.init();
+        if (supabaseService.isEnabled()) {
+          supabaseService.hydrate()
+            .then(() => dataService.applyFilters())
+            .catch(() => {});
+        }
       } catch (err) {
         console.error('[App] Init failed:', err);
         store.setLoadProgress(100, 'Error - Retrying...');
@@ -281,21 +310,7 @@ export default function App() {
 
       {/* Tab: All Pools */}
       {activeTab === 'all-pools' && (
-        <section className="section" style={{ padding: '2rem 1.5rem' }}>
-          <div className="section-header">
-            <h2>All Pools ({filteredPools.length})</h2>
-          </div>
-          <div className="pool-grid">
-            {filteredPools.map((pool, index) => (
-              <PoolCard key={pool.id} pool={pool} rank={index + 1} />
-            ))}
-          </div>
-          {filteredPools.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.5 }}>
-              No pools match current filters.
-            </div>
-          )}
-        </section>
+        <AllPoolsTab pools={filteredPools} />
       )}
 
       {/* Tab: Search & Alerts */}

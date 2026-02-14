@@ -4,6 +4,7 @@ import { dataService } from '@/services/dataService';
 import { wsService } from '@/services/wsService';
 import { walletService } from '@/services/walletService';
 import { metricsService } from '@/services/metricsService';
+import { supabaseService } from '@/services/supabaseService';
 import { detectOpportunities } from '@/lib/utils';
 import { formatNumber, shortenAddress } from '@/lib/utils';
 import { CONFIG } from '@/config';
@@ -58,11 +59,18 @@ export default function App() {
           : useAppState.getState().pools);
         store.setOpportunities(opps);
 
-        store.setLoadProgress(85, 'Connecting live feed...');
+        store.setLoadProgress(80, 'Connecting live feed...');
         wsService.connect();
 
-        store.setLoadProgress(92, 'Initializing metrics...');
+        store.setLoadProgress(87, 'Initializing metrics...');
         metricsService.init();
+
+        store.setLoadProgress(92, 'Syncing saved data...');
+        if (supabaseService.isEnabled()) {
+          await supabaseService.hydrate();
+          // Re-apply filters with hydrated preferences
+          dataService.applyFilters();
+        }
 
         store.setLoadProgress(100, 'Ready');
         store.setIsInitializing(false);
@@ -109,6 +117,14 @@ export default function App() {
         // Fetch wallet balance if connected
         if (useAppState.getState().wallet.connected) {
           await walletService.fetchBalance();
+          const bal = useAppState.getState().wallet.balance;
+          if (bal > 0) supabaseService.saveWalletBalance(bal);
+        }
+
+        // Snapshot top pools for historical trends
+        const poolsToSnap = useAppState.getState().filteredPools;
+        if (poolsToSnap.length > 0) {
+          supabaseService.savePoolSnapshots(poolsToSnap);
         }
       } catch (err) {
         console.warn('[App] Background refresh failed:', err);

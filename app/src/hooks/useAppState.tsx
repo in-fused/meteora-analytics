@@ -3,6 +3,7 @@ import type {
   Pool, Opportunity, Alert, TriggeredAlert, AiSuggestion,
   WalletState, ApiStatus, FilterState, PoolTransaction, SortField
 } from '@/types';
+import { supabaseService } from '@/services/supabaseService';
 
 interface AppState {
   // Pool data
@@ -146,20 +147,35 @@ export const useAppState = create<AppState>((set, get) => ({
   setSources: (sources) => set({ sources }),
   setExpandedPoolId: (expandedPoolId) => set({ expandedPoolId }),
   setExpandedOppId: (expandedOppId) => set({ expandedOppId }),
-  setActiveTab: (activeTab) => set({ activeTab }),
+  setActiveTab: (activeTab) => {
+    set({ activeTab });
+    supabaseService.debouncedSavePreferences();
+  },
   setIsInitializing: (isInitializing) => set({ isInitializing }),
   setLoadProgress: (loadProgress, loadMessage) => set({ loadProgress, loadMessage }),
   setShowWalletModal: (showWalletModal) => set({ showWalletModal }),
   setShowExecModal: (showExecModal) => set({ showExecModal }),
   setExecPool: (execPool) => set({ execPool }),
   setAlerts: (alerts) => set({ alerts }),
-  addAlert: (alert) => set((s) => ({ alerts: [...s.alerts, alert] })),
-  removeAlert: (id) => set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) })),
-  addTriggeredAlert: (alert) => set((s) => ({ triggeredAlerts: [alert, ...s.triggeredAlerts].slice(0, 50) })),
+  addAlert: (alert) => {
+    set((s) => ({ alerts: [...s.alerts, alert] }));
+    supabaseService.saveAlert(alert);
+  },
+  removeAlert: (id) => {
+    set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) }));
+    supabaseService.deleteAlert(id);
+  },
+  addTriggeredAlert: (alert) => {
+    set((s) => ({ triggeredAlerts: [alert, ...s.triggeredAlerts].slice(0, 50) }));
+    supabaseService.saveTriggeredAlert(alert);
+  },
   clearTriggeredAlerts: () => set({ triggeredAlerts: [] }),
-  markTriggeredAlertsRead: () => set((s) => ({
-    triggeredAlerts: s.triggeredAlerts.map(a => ({ ...a, read: true })),
-  })),
+  markTriggeredAlertsRead: () => {
+    set((s) => ({
+      triggeredAlerts: s.triggeredAlerts.map(a => ({ ...a, read: true })),
+    }));
+    supabaseService.markTriggeredAlertsRead();
+  },
   setAiSuggestions: (aiSuggestions) => set({ aiSuggestions }),
   setPoolTransactions: (poolId, txs) =>
     set((s) => ({ poolTransactions: { ...s.poolTransactions, [poolId]: txs } })),
@@ -171,13 +187,18 @@ export const useAppState = create<AppState>((set, get) => ({
       },
     })),
   setWsConnected: (wsConnected) => set({ wsConnected }),
-  setJupshieldEnabled: (jupshieldEnabled) => set({ jupshieldEnabled }),
+  setJupshieldEnabled: (jupshieldEnabled) => {
+    set({ jupshieldEnabled });
+    supabaseService.debouncedSavePreferences();
+  },
   setLastRefresh: (lastRefresh) => set({ lastRefresh }),
   setWallet: (wallet) => set((s) => ({ wallet: { ...s.wallet, ...wallet } })),
   setApiStatus: (api, status) =>
     set((s) => ({ apiStatus: { ...s.apiStatus, [api]: status } })),
-  setFilters: (filters) =>
-    set((s) => ({ filters: { ...s.filters, ...filters } })),
+  setFilters: (filters) => {
+    set((s) => ({ filters: { ...s.filters, ...filters } }));
+    supabaseService.debouncedSavePreferences();
+  },
   setSearchResults: (searchResults) => set({ searchResults }),
 
   // Toggle pool with mutual exclusion

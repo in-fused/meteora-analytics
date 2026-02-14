@@ -54,6 +54,10 @@ export const CONFIG = {
     JUP: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
   } as Record<string, string>,
 
+  // Supabase
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+
   // Platform fee
   PLATFORM_FEE_BPS: 10, // 0.1%
   FEE_WALLET: 'inFuseD3ZaP1m8raFeDDYyAGfA3QCmy71QGsoRcfvuo',

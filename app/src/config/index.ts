@@ -57,7 +57,7 @@ export const CONFIG = {
 
   // Supabase
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'https://gdcjtkzxyafvexaaghgh.supabase.co',
-  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_r9nVcKnYZfpjjgkv1YfpHw_lOoiWWNS',
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkY2p0a3p4eWFmdmV4YWFnaGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMjM3MDYsImV4cCI6MjA4NjU5OTcwNn0.UQxbRBt1mR-vOOiU68Rt59Drre2gTNGQK__SlEc36wY',
 
   // Platform fee
   PLATFORM_FEE_BPS: 10, // 0.1%

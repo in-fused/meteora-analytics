@@ -200,7 +200,10 @@ export default function App() {
         `${CONFIG.JUPITER_ULTRA_API}/order`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': '59819a46-e0b4-46c3-9d1d-1654cf850419',
+          },
           body: JSON.stringify({
             inputMint: CONFIG.MINTS.SOL,
             outputMint: execPool.mintX,

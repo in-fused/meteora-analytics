@@ -24,7 +24,7 @@ app.use(express.json());
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION — Helius Gatekeeper Beta (4.6-7.8x faster)
 // ═══════════════════════════════════════════════════════════════════════════
-const HELIUS_KEY = process.env.HELIUS_KEY || '66097387-f0e6-4f93-a800-dbaac4a4c113';
+const HELIUS_KEY = process.env.HELIUS_KEY || '050de531-c2bf-41f8-98cb-1167dfbfc9ee';
 
 // Gatekeeper beta endpoint — same API key, dramatically lower latency
 // Cold: 26ms vs 122ms (4.6x), Warm: 0.5ms vs 35ms (7.8x)

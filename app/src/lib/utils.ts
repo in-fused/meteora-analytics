@@ -121,54 +121,87 @@ export function generateBins(basePrice: number): Bin[] {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// OPPORTUNITY DETECTION — matches original monolith logic exactly
+// OPPORTUNITY DETECTION — Tiered scoring with weighted ranking
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
-  const opps: Opportunity[] = filteredPools
-    .filter(
-      (p) =>
-        (p.isHot && p.safety === 'safe' && p.tvl > 5000) ||
-        ((p.fees1h ?? 0) > 0 && p.tvl > 0 && ((p.fees1h ?? 0) / p.tvl) > 0.001 && p.safety === 'safe') ||
-        (p.volumeToTvl > 0.3 && p.safety === 'safe' && p.tvl > 20000) ||
-        (parseFloat(p.apr) > 30 && p.safety === 'safe' && p.score >= 65) ||
-        (p.score >= 80 && p.safety === 'safe') ||
-        (p.farmActive && p.safety === 'safe' && p.tvl > 10000) ||
-        ((p.feeTvlRatio ?? 0) > 0.01 && p.safety === 'safe')
-    )
-    .slice(0, 12)
-    .map((p) => {
-      let reason = '';
-      let oppType: OppType = 'standard';
+  // Only consider safe pools with some activity
+  const candidates = filteredPools.filter(p => p.safety === 'safe' && p.tvl > 1000);
 
-      if (p.isHot && (p.fees1h ?? 0) > 0) {
-        oppType = 'hot';
-        const projected = (p.fees1h ?? 0) * 24;
-        reason = `🔥 FEE SPIKE: 1h fees ${formatNumber(p.fees1h)} → projected ${formatNumber(projected)}/day`;
-      } else if ((p.fees1h ?? 0) > 0 && p.tvl > 0 && ((p.fees1h ?? 0) / p.tvl) > 0.001) {
+  // Score each candidate across multiple opportunity signals
+  const scored: { pool: Pool; oppScore: number; reason: string; oppType: OppType }[] = [];
+
+  for (const p of candidates) {
+    let oppScore = 0;
+    let reason = '';
+    let oppType: OppType = 'standard';
+
+    const fees1h = p.fees1h ?? 0;
+    const feeTvl = p.feeTvlRatio ?? 0;
+    const apr = parseFloat(p.apr);
+
+    // Tier 1: Fee spike detection (HOT)
+    if (p.isHot && fees1h > 0 && p.tvl > 5000) {
+      oppScore += 50;
+      oppType = 'hot';
+      const projected = fees1h * 24;
+      reason = `FEE SPIKE: 1h fees ${formatNumber(fees1h)} → projected ${formatNumber(projected)}/day`;
+    }
+
+    // Tier 2: Active fee generation
+    if (fees1h > 0 && p.tvl > 0 && (fees1h / p.tvl) > 0.0005) {
+      oppScore += 35;
+      if (!reason) {
         oppType = 'active';
-        reason = `⚡ ACTIVE: ${formatNumber(p.fees1h)} fees in last hour`;
-      } else if (p.farmActive) {
-        reason = `🌾 FARM: ${p.apr}% APR + farm rewards`;
-      } else if (p.volumeToTvl > 0.5) {
-        reason = `📈 HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
-      } else if (parseFloat(p.apr) > 50) {
-        reason = `💰 HIGH APR: ${p.apr}%`;
-      } else if ((p.feeTvlRatio ?? 0) > 0.01) {
-        reason = `📊 EFFICIENT: ${((p.feeTvlRatio ?? 0) * 100).toFixed(2)}% fee/TVL`;
-      } else {
-        reason = `⭐ TOP SCORER: ${p.score} points`;
+        reason = `ACTIVE: ${formatNumber(fees1h)} fees in last hour (${((fees1h / p.tvl) * 100).toFixed(3)}% of TVL)`;
       }
+    }
 
-      return { ...p, reason, oppType };
-    });
+    // Tier 3: High volume/TVL ratio
+    if (p.volumeToTvl > 0.3 && p.tvl > 10000) {
+      oppScore += 20;
+      if (!reason) reason = `HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
+    }
 
-  opps.sort((a, b) => {
-    const typeOrder: Record<OppType, number> = { hot: 0, active: 1, standard: 2 };
-    return (typeOrder[a.oppType] ?? 2) - (typeOrder[b.oppType] ?? 2);
-  });
+    // Tier 4: Strong APR
+    if (apr > 30 && p.score >= 60) {
+      oppScore += 15;
+      if (!reason) reason = `HIGH APR: ${p.apr}% with score ${p.score}`;
+    }
 
-  return opps;
+    // Tier 5: Elite score
+    if (p.score >= 80) {
+      oppScore += 10;
+      if (!reason) reason = `TOP SCORER: ${p.score} points`;
+    }
+
+    // Tier 6: Active farm rewards
+    if (p.farmActive && p.tvl > 5000) {
+      oppScore += 12;
+      if (!reason) reason = `FARM: ${p.apr}% APR + farm rewards (${p.farmApr ?? 0}% bonus)`;
+    }
+
+    // Tier 7: Efficient fee/TVL
+    if (feeTvl > 0.005) {
+      oppScore += 8;
+      if (!reason) reason = `EFFICIENT: ${(feeTvl * 100).toFixed(2)}% fee/TVL ratio`;
+    }
+
+    // Must have at least one signal
+    if (oppScore > 0 && reason) {
+      scored.push({ pool: p, oppScore, reason, oppType });
+    }
+  }
+
+  // Sort by opportunity score (highest first), then by pool score
+  scored.sort((a, b) => b.oppScore - a.oppScore || b.pool.score - a.pool.score);
+
+  // Take top 15, then group by type
+  return scored.slice(0, 15).map(({ pool, reason, oppType }) => ({
+    ...pool,
+    reason,
+    oppType,
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

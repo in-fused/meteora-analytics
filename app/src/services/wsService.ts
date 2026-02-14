@@ -5,10 +5,8 @@ import type { PoolTransaction, TxType } from '@/types';
 // ═══════════════════════════════════════════════════════════════════════════
 // WEBSOCKET SERVICE — Handles Enhanced + Standard WS from server
 //
-// The server proxies Helius connections and automatically uses:
-//   - Enhanced WebSockets (transactionSubscribe) when available
-//   - Standard WebSockets (logsSubscribe) as fallback
-// This service handles both message formats transparently.
+// Fixed: per-pool rate limiting, transaction deduplication, auto-polling
+// on desktop when WS is connected but quiet, and proper live streaming.
 // ═══════════════════════════════════════════════════════════════════════════
 
 class WSService {
@@ -17,7 +15,8 @@ class WSService {
   private useWebSocket = !CONFIG.IS_MOBILE;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private errorCount = 0;
-  private lastFetchTime = 0;
+  private lastFetchByPool = new Map<string, number>();
+  private seenSignatures = new Set<string>();
   private initialized = false;
   private wsMode: 'enhanced' | 'standard' | 'unknown' = 'unknown';
   private reconnectAttempts = 0;
@@ -39,7 +38,9 @@ class WSService {
     if (this.useWebSocket && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
       this.connectWebSocket();
     }
-    if (!this.useWebSocket && !this.pollInterval) {
+    // Always start polling as a backup — even on desktop. WS messages will
+    // trigger instant fetches, and polling fills gaps when WS is quiet.
+    if (!this.pollInterval) {
       this.startPolling();
     }
   }
@@ -71,70 +72,64 @@ class WSService {
       this.ws.onclose = () => {
         console.log('[WS] Disconnected');
         this.wsMode = 'unknown';
-        // Attempt reconnection with backoff before falling back to polling
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           const delay = Math.min(CONFIG.WS_RECONNECT_DELAY * this.reconnectAttempts, 15000);
           console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
           setTimeout(() => this.connectWebSocket(), delay);
         } else {
-          console.log('[WS] Max reconnection attempts reached, falling back to polling');
+          console.log('[WS] Max reconnection attempts reached, polling only');
           this.useWebSocket = false;
-          this.startPolling();
         }
       };
 
       this.ws.onerror = () => {
         console.warn('[WS] Error');
-        // Don't immediately fall back — let onclose handle reconnection
       };
     } catch {
       console.warn('[WS] Failed to connect, using polling');
       this.useWebSocket = false;
-      this.startPolling();
     }
   }
 
   private handleMessage(msg: any): void {
-    // Handle initial connection message (includes WS mode from server)
     if (msg.type === 'connected') {
       this.wsMode = msg.mode || 'standard';
       console.log(`[WS] Server using ${this.wsMode} WebSocket mode`);
       return;
     }
 
-    // Handle subscription confirmation
     if (msg.type === 'subscribed') {
       console.log('[WS] Subscribed to:', msg.address);
       this.fetchPoolTransactions(msg.address);
       return;
     }
 
-    // Handle Enhanced WS transaction notifications from server
+    // Enhanced WS — live transaction push
     if (msg.type === 'transaction' || msg.type === 'transaction_notification') {
       const store = useAppState.getState();
-      const poolId = store.expandedPoolId;
+      const poolId = store.expandedPoolId || store.expandedOppId;
       if (poolId) {
         const pool = store.pools.find(p => p.id === poolId);
         if (pool) {
-          // If we got enriched data from Enhanced WS, try to parse it inline
           if (msg.data?.transaction) {
             const tx = this.parseEnhancedTransaction(msg.data);
-            if (tx) {
+            if (tx && !this.seenSignatures.has(tx.signature)) {
+              this.seenSignatures.add(tx.signature);
               store.addPoolTransaction(pool.id, tx);
             }
           }
-          // Always refetch for completeness
+          // Re-fetch to get accurate parsed data
           this.fetchPoolTransactions(pool.address);
         }
       }
       return;
     }
 
-    // Handle Standard WS log notifications from server
+    // Standard WS — log notification
     if (msg.type === 'log_notification') {
       const store = useAppState.getState();
-      const poolId = store.expandedPoolId;
+      const poolId = store.expandedPoolId || store.expandedOppId;
       if (poolId) {
         const pool = store.pools.find(p => p.id === poolId);
         if (pool) this.fetchPoolTransactions(pool.address);
@@ -142,10 +137,10 @@ class WSService {
       return;
     }
 
-    // Handle legacy format (direct Helius WS relay)
+    // Legacy format
     if (msg.params?.result) {
       const store = useAppState.getState();
-      const poolId = store.expandedPoolId;
+      const poolId = store.expandedPoolId || store.expandedOppId;
       if (poolId) {
         const pool = store.pools.find(p => p.id === poolId);
         if (pool) this.fetchPoolTransactions(pool.address);
@@ -187,13 +182,14 @@ class WSService {
   subscribeToPool(poolAddress: string): void {
     if (!poolAddress) return;
     this.subscribedPools.add(poolAddress);
+    this.seenSignatures.clear(); // Reset dedup for new pool view
     this.ensureConnected();
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: 'subscribe', address: poolAddress }));
     }
 
-    // Always fetch initial transactions
+    // Always fetch initial transactions immediately
     this.fetchPoolTransactions(poolAddress);
   }
 
@@ -205,23 +201,25 @@ class WSService {
       this.ws.send(JSON.stringify({ type: 'unsubscribe', address: poolAddress }));
     }
 
-    // Disconnect WS if no active subscriptions
-    if (this.subscribedPools.size === 0 && this.ws) {
-      this.ws.close();
-      this.ws = null;
+    // Stop everything if no active subscriptions
+    if (this.subscribedPools.size === 0) {
       this.stopPolling();
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
   }
 
   async fetchPoolTransactions(poolAddress: string): Promise<void> {
     if (!poolAddress) return;
 
-    // Rate limit: min 5s between fetches
+    // Per-pool rate limit: min 3s between fetches for the same pool
     const now = Date.now();
-    if (now - this.lastFetchTime < 5000) return;
-    this.lastFetchTime = now;
+    const lastFetch = this.lastFetchByPool.get(poolAddress) || 0;
+    if (now - lastFetch < 3000) return;
+    this.lastFetchByPool.set(poolAddress, now);
 
-    // Stop if too many errors
     if (this.errorCount > CONFIG.MAX_ERRORS) {
       console.warn('[WS] Too many errors, stopping transaction fetch');
       return;
@@ -231,7 +229,7 @@ class WSService {
       const sigResponse = await fetch(CONFIG.HELIUS_RPC, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'getSignaturesForAddress', params: [poolAddress, { limit: 8 }] }),
+        body: JSON.stringify({ method: 'getSignaturesForAddress', params: [poolAddress, { limit: 10 }] }),
       });
 
       if (!sigResponse.ok) {
@@ -248,12 +246,16 @@ class WSService {
       const signatures = sigData.result || [];
       if (signatures.length === 0) return;
 
+      // Filter out already-seen signatures
+      const newSigs = signatures.filter((s: any) => !this.seenSignatures.has(s.signature));
+      const sigsToFetch = newSigs.length > 0 ? newSigs.slice(0, 8) : signatures.slice(0, 5);
+
       // Batch fetch transaction details
       const batchResponse = await fetch(CONFIG.HELIUS_BATCH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requests: signatures.slice(0, 5).map((s: any) => ({
+          requests: sigsToFetch.map((s: any) => ({
             method: 'getTransaction',
             params: [s.signature, { maxSupportedTransactionVersion: 0, encoding: 'jsonParsed' }],
           })),
@@ -270,17 +272,32 @@ class WSService {
       const txs: PoolTransaction[] = (Array.isArray(batchData) ? batchData : [])
         .filter((r: any) => r.result)
         .map((r: any) => this.parseTransaction(r.result))
-        .filter(Boolean) as PoolTransaction[];
+        .filter((tx): tx is PoolTransaction => tx !== null);
+
+      // Mark as seen
+      txs.forEach(tx => this.seenSignatures.add(tx.signature));
+
+      // Cap the seen set to prevent memory growth
+      if (this.seenSignatures.size > 200) {
+        const entries = [...this.seenSignatures];
+        this.seenSignatures = new Set(entries.slice(-100));
+      }
 
       if (txs.length > 0) {
         const store = useAppState.getState();
         const pool = store.pools.find(p => p.address === poolAddress);
         if (pool) {
-          store.setPoolTransactions(pool.id, txs);
+          // Merge with existing — deduplicate by signature
+          const existing = store.poolTransactions[pool.id] || [];
+          const existingSigs = new Set(existing.map(t => t.signature));
+          const newTxs = txs.filter(t => !existingSigs.has(t.signature));
+          const merged = [...newTxs, ...existing]
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 15);
+          store.setPoolTransactions(pool.id, merged);
         }
       }
 
-      // Reset error count on success
       this.errorCount = 0;
     } catch (err) {
       this.errorCount++;
@@ -316,16 +333,17 @@ class WSService {
 
   private startPolling(): void {
     if (this.pollInterval) return;
+    // Poll every 8s — fast enough for "live" feel, light enough to not spam
     this.pollInterval = setInterval(() => {
       const store = useAppState.getState();
-      const poolId = store.expandedPoolId;
+      const poolId = store.expandedPoolId || store.expandedOppId;
       if (!poolId || this.errorCount > CONFIG.MAX_ERRORS) return;
 
       const pool = store.pools.find(p => p.id === poolId);
       if (pool?.address) {
         this.fetchPoolTransactions(pool.address);
       }
-    }, 15000);
+    }, 8000);
   }
 
   private stopPolling(): void {
@@ -342,6 +360,8 @@ class WSService {
       this.ws = null;
     }
     this.subscribedPools.clear();
+    this.seenSignatures.clear();
+    this.lastFetchByPool.clear();
     this.reconnectAttempts = 0;
     this.wsMode = 'unknown';
   }

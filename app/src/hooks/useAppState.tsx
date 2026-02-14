@@ -220,13 +220,22 @@ export const useAppState = create<AppState>((set, get) => ({
     }
   },
 
-  // Check alerts against current pool data
+  // Check alerts against current pool data (with deduplication)
   checkAlerts: () => {
-    const { alerts, pools, addTriggeredAlert } = get();
+    const { alerts, pools, triggeredAlerts, addTriggeredAlert } = get();
     if (alerts.length === 0 || pools.length === 0) return;
+
+    // Prevent the same alert from firing more than once per 10 minutes
+    const recentlyTriggered = new Set(
+      triggeredAlerts
+        .filter(t => Date.now() - t.triggeredAt < 600_000)
+        .map(t => t.id)
+    );
 
     for (const alert of alerts) {
       if (!alert.enabled) continue;
+      if (recentlyTriggered.has(alert.id)) continue;
+
       const pool = pools.find(p => p.id === alert.poolId);
       if (!pool) continue;
 

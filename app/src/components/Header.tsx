@@ -16,8 +16,7 @@ const API_LABELS: { key: keyof ApiStatus; label: string }[] = [
 ];
 
 const TAB_CONFIG = [
-  { id: 'opportunities', label: 'AI Opportunities', hasBadge: true },
-  { id: 'all-pools', label: 'All Pools', hasBadge: false },
+  { id: 'opportunities', label: 'Opportunities', hasBadge: true },
   { id: 'search-alerts', label: 'Search & Alerts', hasBadge: false },
   { id: 'guide', label: 'Guide', hasBadge: false },
 ] as const;
@@ -31,7 +30,6 @@ export function Header({ onRefresh }: HeaderProps) {
   const markTriggeredAlertsRead = useAppState((s) => s.markTriggeredAlertsRead);
   const opportunities = useAppState((s) => s.opportunities);
   const jupshieldEnabled = useAppState((s) => s.jupshieldEnabled);
-  const setJupshieldEnabled = useAppState((s) => s.setJupshieldEnabled);
   const lastRefresh = useAppState((s) => s.lastRefresh);
   const setShowWalletModal = useAppState((s) => s.setShowWalletModal);
 
@@ -63,6 +61,9 @@ export function Header({ onRefresh }: HeaderProps) {
   const toggleAlertDropdown = () => {
     setAlertDropdownOpen((prev) => !prev);
   };
+
+  // Jupiter API connection status for JupShield indicator
+  const jupConnected = apiStatus.jupiter;
 
   return (
     <header className="header">
@@ -159,17 +160,16 @@ export function Header({ onRefresh }: HeaderProps) {
           )}
         </div>
 
-        {/* JupShield Toggle */}
-        <button
-          className={`btn btn--sm ${jupshieldEnabled ? 'btn--success' : 'btn--secondary'}`}
-          onClick={() => setJupshieldEnabled(!jupshieldEnabled)}
-          title="JupShield: Filter unverified tokens"
+        {/* JupShield Status Indicator (read-only, color-coded by connection) */}
+        <div
+          className={`jupshield-indicator ${jupConnected ? 'connected' : 'disconnected'}`}
+          title={`JupShield: Jupiter API ${jupConnected ? 'Connected' : 'Disconnected'} — Token safety verification ${jupshieldEnabled ? 'active' : 'inactive'}`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           JupShield
-        </button>
+        </div>
 
         {/* Wallet Button */}
         <button

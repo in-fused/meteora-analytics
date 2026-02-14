@@ -25,13 +25,25 @@ class WSService {
   connect(): void {
     this.initialized = true;
     const store = useAppState.getState();
-    if (!this.useWebSocket) {
-      console.log('[WS] Polling mode ready (mobile) — will poll on demand');
-    } else {
-      console.log('[WS] WebSocket ready — will connect on first pool expansion');
-    }
     store.setApiStatus('helius', true);
     store.setWsConnected(true);
+    // Immediately connect WS so it's ready for subscriptions
+    if (this.useWebSocket) {
+      this.connectWebSocket();
+    }
+  }
+
+  // Pre-subscribe to a pool address so transactions start flowing before the card is expanded.
+  // This is called for top opportunity pools at init time.
+  preSubscribe(poolAddress: string): void {
+    if (!poolAddress || this.subscribedPools.has(poolAddress)) return;
+    this.subscribedPools.add(poolAddress);
+
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'subscribe', address: poolAddress }));
+    }
+    // Fetch initial transactions immediately in background
+    this.fetchPoolTransactions(poolAddress);
   }
 
   private ensureConnected(): void {
@@ -181,15 +193,19 @@ class WSService {
 
   subscribeToPool(poolAddress: string): void {
     if (!poolAddress) return;
+    const wasPreSubscribed = this.subscribedPools.has(poolAddress);
     this.subscribedPools.add(poolAddress);
-    this.seenSignatures.clear(); // Reset dedup for new pool view
+    if (!wasPreSubscribed) {
+      this.seenSignatures.clear(); // Reset dedup only for brand new subscriptions
+    }
     this.ensureConnected();
 
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.ws?.readyState === WebSocket.OPEN && !wasPreSubscribed) {
       this.ws.send(JSON.stringify({ type: 'subscribe', address: poolAddress }));
     }
 
-    // Always fetch initial transactions immediately
+    // Always fetch transactions immediately on expand (even if pre-subscribed, get latest)
+    this.lastFetchByPool.delete(poolAddress); // Clear rate limit so we fetch now
     this.fetchPoolTransactions(poolAddress);
   }
 
@@ -333,17 +349,25 @@ class WSService {
 
   private startPolling(): void {
     if (this.pollInterval) return;
-    // Poll every 8s — fast enough for "live" feel, light enough to not spam
+    // Poll every 6s — fast enough for "live" feel, light enough to not spam
     this.pollInterval = setInterval(() => {
+      if (this.errorCount > CONFIG.MAX_ERRORS) return;
       const store = useAppState.getState();
-      const poolId = store.expandedPoolId || store.expandedOppId;
-      if (!poolId || this.errorCount > CONFIG.MAX_ERRORS) return;
 
-      const pool = store.pools.find(p => p.id === poolId);
-      if (pool?.address) {
-        this.fetchPoolTransactions(pool.address);
+      // Priority: poll the currently expanded pool first
+      const poolId = store.expandedPoolId || store.expandedOppId;
+      if (poolId) {
+        const pool = store.pools.find(p => p.id === poolId);
+        if (pool?.address) {
+          this.fetchPoolTransactions(pool.address);
+        }
       }
-    }, 8000);
+
+      // Also poll pre-subscribed pools (top opps) so their txs stay fresh
+      this.subscribedPools.forEach(addr => {
+        this.fetchPoolTransactions(addr);
+      });
+    }, 6000);
   }
 
   private stopPolling(): void {

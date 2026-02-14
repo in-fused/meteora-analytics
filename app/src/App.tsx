@@ -17,37 +17,6 @@ import { OpportunitiesSection } from '@/components/OpportunitiesSection';
 import { SearchAlertsSection } from '@/components/SearchAlertsSection';
 import { GuideSection } from '@/components/GuideSection';
 
-function AllPoolsTab({ pools }: { pools: import('@/types').Pool[] }) {
-  const columns = useMemo(() => {
-    const colCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
-    const cols: typeof pools[] = Array.from({ length: colCount }, () => []);
-    pools.forEach((pool, i) => cols[i % colCount].push(pool));
-    return cols;
-  }, [pools]);
-
-  return (
-    <section className="section" style={{ padding: '2rem 1.5rem' }}>
-      <div className="section-header">
-        <h2>All Pools ({pools.length})</h2>
-      </div>
-      <div className="pools-container">
-        {columns.map((col, ci) => (
-          <div key={ci} className="pool-column">
-            {col.map((pool, i) => (
-              <PoolCard key={pool.id} pool={pool} rank={i * columns.length + ci + 1} />
-            ))}
-          </div>
-        ))}
-      </div>
-      {pools.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.5 }}>
-          No pools match current filters.
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function App() {
   const activeTab = useAppState((s) => s.activeTab);
   const isInitializing = useAppState((s) => s.isInitializing);
@@ -65,40 +34,45 @@ export default function App() {
   const [execLoading, setExecLoading] = useState(false);
 
   // ═══════════════════════════════════════════════════════════════════════
-  // INITIALIZATION
+  // INITIALIZATION — Show app shell immediately, load data in background
   // ═══════════════════════════════════════════════════════════════════════
 
   useEffect(() => {
     const init = async () => {
       const store = useAppState.getState();
       try {
-        // Phase 1: Parallel — wallet + token list at the same time
-        store.setLoadProgress(10, 'Loading data...');
-        await Promise.all([
+        // Phase 1: Fire all network requests in parallel
+        store.setLoadProgress(20, 'Fetching data...');
+        const [, ,] = await Promise.all([
           walletService.autoConnect().catch(() => {}),
           dataService.fetchJupiterTokens(),
+          dataService.fetchPools(),
         ]);
 
-        // Phase 2: Pool data (needs verified tokens for safety scoring)
-        store.setLoadProgress(40, 'Fetching pools...');
-        await dataService.fetchPools();
-
-        // Phase 3: CPU-only processing (fast)
-        store.setLoadProgress(75, 'Analyzing opportunities...');
+        // Phase 2: CPU-only processing (fast)
+        store.setLoadProgress(80, 'Analyzing...');
         dataService.applyFilters();
         const currentPools = useAppState.getState().filteredPools.length > 0
           ? useAppState.getState().filteredPools
           : useAppState.getState().pools;
         store.setOpportunities(detectOpportunities(currentPools));
 
-        // Phase 4: Show app immediately — everything below is non-blocking
+        // Phase 3: Done — show app
         store.setLoadProgress(100, 'Ready');
         store.setIsInitializing(false);
         store.setLastRefresh(Date.now());
 
-        // Background tasks (fire-and-forget, don't block render)
+        // Phase 4: Background (non-blocking)
         wsService.connect();
         metricsService.init();
+
+        // Pre-subscribe top opportunity pools so txs flow before card expand
+        const topPools = useAppState.getState().opportunities.slice(0, 5);
+        topPools.forEach((opp) => {
+          const pool = useAppState.getState().pools.find(p => p.id === opp.id);
+          if (pool?.address) wsService.preSubscribe(pool.address);
+        });
+
         if (supabaseService.isEnabled()) {
           supabaseService.hydrate()
             .then(() => dataService.applyFilters())
@@ -106,8 +80,15 @@ export default function App() {
         }
       } catch (err) {
         console.error('[App] Init failed:', err);
-        store.setLoadProgress(100, 'Error - Retrying...');
-        setTimeout(init, 3000);
+        // Show app anyway with whatever data we have
+        const store2 = useAppState.getState();
+        if (store2.pools.length > 0) {
+          store2.setIsInitializing(false);
+          store2.setLastRefresh(Date.now());
+        } else {
+          store2.setLoadProgress(100, 'Retrying...');
+          setTimeout(init, 3000);
+        }
       }
     };
 
@@ -300,17 +281,12 @@ export default function App() {
 
       <Header onRefresh={handleRefresh} />
 
-      {/* Tab: Opportunities */}
+      {/* Tab: Opportunities (default) */}
       {activeTab === 'opportunities' && (
         <>
           <HeroSection />
           <OpportunitiesSection />
         </>
-      )}
-
-      {/* Tab: All Pools */}
-      {activeTab === 'all-pools' && (
-        <AllPoolsTab pools={filteredPools} />
       )}
 
       {/* Tab: Search & Alerts */}

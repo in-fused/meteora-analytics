@@ -25,6 +25,7 @@ app.use(express.json());
 // CONFIGURATION — Helius Gatekeeper Beta (4.6-7.8x faster)
 // ═══════════════════════════════════════════════════════════════════════════
 const HELIUS_KEY = process.env.HELIUS_KEY || '050de531-c2bf-41f8-98cb-1167dfbfc9ee';
+const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '59819a46-e0b4-46c3-9d1d-1654cf850419';
 
 // Gatekeeper beta endpoint — same API key, dramatically lower latency
 // Cold: 26ms vs 122ms (4.6x), Warm: 0.5ms vs 35ms (7.8x)
@@ -272,7 +273,7 @@ app.get('/api/health', (req, res) => {
 // POOL DATA PROXIES — Cached, circuit-broken, with structured errors
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function proxyFetch(req, res, { key, ttl, url, breaker, transform }) {
+async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers }) {
   try {
     const cached = cache.get(key, ttl);
     if (cached) return res.json(cached);
@@ -284,7 +285,7 @@ async function proxyFetch(req, res, { key, ttl, url, breaker, transform }) {
       });
     }
 
-    const response = await rpcFetch(url, {}, { breaker, retries: 1 });
+    const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1 });
     const data = await response.json();
     const result = transform ? transform(data) : data;
     cache.set(key, result);
@@ -327,6 +328,7 @@ app.get('/api/proxy/jupiter-tokens', (req, res) => proxyFetch(req, res, {
   ttl: CACHE_TTLS.jupiter,
   url: 'https://api.jup.ag/tokens/v2/tag?query=verified',
   breaker: breakers.jupiter,
+  headers: { 'x-api-key': JUPITER_API_KEY },
 }));
 
 // ═══════════════════════════════════════════════════════════════════════════

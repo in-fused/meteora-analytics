@@ -212,6 +212,7 @@ class WSService {
   unsubscribeFromPool(poolAddress: string): void {
     if (!poolAddress) return;
     this.subscribedPools.delete(poolAddress);
+    this.lastFetchByPool.delete(poolAddress); // Free stale rate-limit entry
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: 'unsubscribe', address: poolAddress }));
@@ -220,6 +221,7 @@ class WSService {
     // Stop everything if no active subscriptions
     if (this.subscribedPools.size === 0) {
       this.stopPolling();
+      this.lastFetchByPool.clear();
       if (this.ws) {
         this.ws.close();
         this.ws = null;
@@ -235,6 +237,12 @@ class WSService {
     const lastFetch = this.lastFetchByPool.get(poolAddress) || 0;
     if (now - lastFetch < 3000) return;
     this.lastFetchByPool.set(poolAddress, now);
+
+    // Cap rate-limit map to prevent memory growth from many pool cycles
+    if (this.lastFetchByPool.size > 20) {
+      const entries = [...this.lastFetchByPool.entries()].sort((a, b) => a[1] - b[1]);
+      entries.slice(0, entries.length - 10).forEach(([k]) => this.lastFetchByPool.delete(k));
+    }
 
     if (this.errorCount > CONFIG.MAX_ERRORS) {
       console.warn('[WS] Too many errors, stopping transaction fetch');

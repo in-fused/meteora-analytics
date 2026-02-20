@@ -148,7 +148,13 @@ export const useAppState = create<AppState>((set, get) => ({
   setExpandedPoolId: (expandedPoolId) => set({ expandedPoolId }),
   setExpandedOppId: (expandedOppId) => set({ expandedOppId }),
   setActiveTab: (activeTab) => {
-    set({ activeTab });
+    const prev = get().activeTab;
+    // Free search results memory when leaving the search tab
+    if (prev === 'search-alerts' && activeTab !== 'search-alerts') {
+      set({ activeTab, searchResults: [] });
+    } else {
+      set({ activeTab });
+    }
     supabaseService.debouncedSavePreferences();
   },
   setIsInitializing: (isInitializing) => set({ isInitializing }),
@@ -178,7 +184,19 @@ export const useAppState = create<AppState>((set, get) => ({
   },
   setAiSuggestions: (aiSuggestions) => set({ aiSuggestions }),
   setPoolTransactions: (poolId, txs) =>
-    set((s) => ({ poolTransactions: { ...s.poolTransactions, [poolId]: txs } })),
+    set((s) => {
+      const updated = { ...s.poolTransactions, [poolId]: txs };
+      // Cap to 8 tracked pools max — evict oldest entries beyond that
+      const keys = Object.keys(updated);
+      if (keys.length > 8) {
+        const activeIds = new Set([s.expandedPoolId, s.expandedOppId].filter(Boolean));
+        for (const k of keys) {
+          if (Object.keys(updated).length <= 8) break;
+          if (!activeIds.has(k) && k !== poolId) delete updated[k];
+        }
+      }
+      return { poolTransactions: updated };
+    }),
   addPoolTransaction: (poolId, tx) =>
     set((s) => ({
       poolTransactions: {
@@ -201,22 +219,32 @@ export const useAppState = create<AppState>((set, get) => ({
   },
   setSearchResults: (searchResults) => set({ searchResults }),
 
-  // Toggle pool with mutual exclusion
+  // Toggle pool with mutual exclusion + memory cleanup
   togglePool: (poolId) => {
-    const { expandedPoolId } = get();
+    const { expandedPoolId, poolTransactions } = get();
     if (expandedPoolId === poolId) {
-      set({ expandedPoolId: null });
+      // Collapsing — evict transactions to free memory
+      const cleaned = { ...poolTransactions };
+      delete cleaned[poolId];
+      set({ expandedPoolId: null, poolTransactions: cleaned });
     } else {
-      set({ expandedPoolId: poolId, expandedOppId: null });
+      // Expanding — also evict the previously expanded pool's txs
+      const cleaned = { ...poolTransactions };
+      if (expandedPoolId) delete cleaned[expandedPoolId];
+      set({ expandedPoolId: poolId, expandedOppId: null, poolTransactions: cleaned });
     }
   },
 
   toggleOpp: (oppId) => {
-    const { expandedOppId } = get();
+    const { expandedOppId, poolTransactions } = get();
     if (expandedOppId === oppId) {
-      set({ expandedOppId: null });
+      const cleaned = { ...poolTransactions };
+      delete cleaned[oppId];
+      set({ expandedOppId: null, poolTransactions: cleaned });
     } else {
-      set({ expandedOppId: oppId, expandedPoolId: null });
+      const cleaned = { ...poolTransactions };
+      if (expandedOppId) delete cleaned[expandedOppId];
+      set({ expandedOppId: oppId, expandedPoolId: null, poolTransactions: cleaned });
     }
   },
 

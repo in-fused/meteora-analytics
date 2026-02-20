@@ -210,6 +210,10 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M2 12h20" /></svg>
                 Quick Deposit
               </button>
+              <a href={`https://jup.ag/swap/SOL-${pool.mintX}`} target="_blank" rel="noopener noreferrer" className="pool-action-btn" onClick={(e) => e.stopPropagation()}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                Swap
+              </a>
               <a href={poolUrl} target="_blank" rel="noopener noreferrer" className="pool-action-btn" onClick={(e) => e.stopPropagation()}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15,3 21,3 21,9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                 {dexName}
@@ -261,7 +265,7 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
             <div className="pool-tx-section">
               <div className="pool-tx-header">
                 <span className="pool-tx-title"><span className={`status-dot ${wsConnected ? 'live' : ''}`} />Live Transactions</span>
-                <span className="pool-tx-status" style={{ fontSize: 10, color: 'var(--text-dim)' }}>{wsConnected ? '🟢 Connected' : '🔴 Connecting...'}</span>
+                <span className="pool-tx-status" style={{ fontSize: 10, color: 'var(--text-dim)' }}>{poolTransactions.length > 0 ? `${poolTransactions.length} txs` : (wsConnected ? 'Listening...' : 'Connecting...')}</span>
               </div>
               <div className="pool-tx-list">
                 {poolTransactions.length > 0 ? (

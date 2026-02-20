@@ -31,7 +31,7 @@ export function OpportunitiesSection() {
             <PoolCard
               key={opp.id}
               pool={opp}
-              rank={ci === 0 ? i + 1 : ci * Math.ceil(opportunities.length / columns.length) + i + 1}
+              rank={i * columns.length + ci + 1}
               isOpp
             />
           ))}

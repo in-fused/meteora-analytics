@@ -4,15 +4,43 @@ import { calculateSafety, calculateScore, generateBins, isHotPool } from '@/lib/
 import { useAppState } from '@/hooks/useAppState';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DATA SERVICE - Fetches and processes pool data from all sources
+// DATA SERVICE — Fetches and processes pool data from all sources
+//
+// All RPC calls go through the server proxy which uses:
+//   - Helius Gatekeeper beta (4.6-7.8x faster RPC)
+//   - Circuit breakers per upstream API
+//   - LRU caching with stale-serve fallback
 // ═══════════════════════════════════════════════════════════════════════════
+
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      // If server returns 503 (circuit breaker open), respect retryAfter
+      if (response.status === 503 && attempt < retries) {
+        const data = await response.json().catch(() => ({}));
+        const wait = Math.min((data.retryAfter || 3) * 1000, 5000);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('fetchWithRetry exhausted');
+}
 
 export const dataService = {
   async fetchJupiterTokens(): Promise<void> {
     const store = useAppState.getState();
     try {
-      const r = await fetch(CONFIG.JUPITER_TOKENS);
-      if (!r.ok) throw new Error('Jupiter API failed');
+      const r = await fetchWithRetry(CONFIG.JUPITER_TOKENS);
       const tokens = await r.json();
       const tokenList: unknown[] = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
       const verified = new Set(store.verifiedTokens);
@@ -41,9 +69,9 @@ export const dataService = {
 
       // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
       const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
-        fetch(CONFIG.METEORA_DLMM).then(r => { if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`); return r.json(); }),
-        fetch(CONFIG.METEORA_DAMM_V2).then(r => { if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`); return r.json(); }),
-        fetch(CONFIG.RAYDIUM_CLMM).then(r => { if (!r.ok) throw new Error(`Raydium HTTP ${r.status}`); return r.json(); }),
+        fetchWithRetry(CONFIG.METEORA_DLMM).then(r => r.json()),
+        fetchWithRetry(CONFIG.METEORA_DAMM_V2).then(r => r.json()),
+        fetchWithRetry(CONFIG.RAYDIUM_CLMM).then(r => r.json()),
       ]);
 
       // Process DLMM
@@ -60,6 +88,7 @@ export const dataService = {
           }
         }
         sources.push(`DLMM:${dlmmPools.length}`);
+        store.setApiStatus('meteora', true);
       }
 
       // Process DAMM v2
@@ -123,8 +152,6 @@ export const dataService = {
     } catch (err) {
       console.error('[DataService] fetchPools error:', err);
       store.setApiStatus('meteora', false);
-      // Retry after 10 seconds on failure
-      setTimeout(() => this.fetchPools(), 10000);
     }
   },
 

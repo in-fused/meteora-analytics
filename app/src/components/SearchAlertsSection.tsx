@@ -4,6 +4,7 @@ import { dataService } from '@/services/dataService';
 import { PoolCard } from './PoolCard';
 import { formatNumber } from '@/lib/utils';
 import type { Pool, Alert, AlertMetric, AlertCondition } from '@/types';
+import { supabaseService } from '@/services/supabaseService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SEARCH POOLS PANEL
@@ -100,8 +101,6 @@ function SearchPoolsPanel() {
                       key={pool.id}
                       pool={pool}
                       rank={ci * Math.ceil(results.length / columns.length) + i + 1}
-                      isExpanded={expandedPoolId === pool.id}
-                      onToggle={() => togglePool(pool.id)}
                     />
                   ))}
                 </div>
@@ -199,7 +198,10 @@ function PoolFiltersPanel() {
               <option value="tvl">TVL</option>
               <option value="volume">Volume</option>
               <option value="apr">APR</option>
-              <option value="fees">Fees</option>
+              <option value="fees">Fees 24h</option>
+              <option value="fees1h">Fees 1h</option>
+              <option value="feeTvl">Fee/TVL 24h</option>
+              <option value="feeTvl1h">Fee/TVL 1h</option>
             </select>
           </div>
           <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -244,8 +246,6 @@ function PoolFiltersPanel() {
                     key={pool.id}
                     pool={pool}
                     rank={ci * Math.ceil(filteredPools.length / columns.length) + i + 1}
-                    isExpanded={expandedPoolId === pool.id}
-                    onToggle={() => togglePool(pool.id)}
                   />
                 ))}
               </div>
@@ -361,16 +361,29 @@ function AlertsPanel() {
             </div>
           )}
           {alerts.map((alert) => (
-            <div key={alert.id} className="alert-item">
+            <div key={alert.id} className={`alert-item ${!alert.enabled ? 'alert-disabled' : ''}`}>
               <div className="alert-item-info">
                 <strong>{alert.poolName}</strong>
                 <span>
                   {alert.metric.toUpperCase()} {alert.condition} {formatNumber(alert.value)}
                 </span>
               </div>
-              <button className="btn btn--ghost btn--sm" onClick={() => removeAlert(alert.id)}>
-                Remove
-              </button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  className={`btn btn--sm ${alert.enabled ? 'btn--secondary' : 'btn--ghost'}`}
+                  onClick={() => {
+                    const updated = alerts.map(a => a.id === alert.id ? { ...a, enabled: !a.enabled } : a);
+                    useAppState.getState().setAlerts(updated);
+                    supabaseService.toggleAlert(alert.id, !alert.enabled);
+                  }}
+                  title={alert.enabled ? 'Pause alert' : 'Resume alert'}
+                >
+                  {alert.enabled ? 'Pause' : 'Resume'}
+                </button>
+                <button className="btn btn--ghost btn--sm" onClick={() => removeAlert(alert.id)}>
+                  Remove
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -166,7 +166,7 @@ const MIN_INTERVAL_MS = 50;     // 50ms min between sends (20 req/sec, up from 1
 let activeRequests = 0;
 let lastRequestTime = 0;
 
-async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backoff = 500 } = {}) {
+async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backoff = 500, timeout = 15_000 } = {}) {
   if (breaker && !breaker.canRequest()) {
     throw new Error(`Circuit breaker ${breaker.name} is open`);
   }
@@ -185,7 +185,13 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
 
     activeRequests++;
     try {
-      const response = await fetch(url, options);
+      // Add timeout via AbortController to prevent hanging requests
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      const fetchOptions = { ...options, signal: controller.signal };
+
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timer);
 
       if (response.status === 429) {
         activeRequests--;
@@ -210,7 +216,7 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
       return response;
     } catch (err) {
       activeRequests--;
-      if (attempt < retries && err.code !== 'ABORT_ERR') {
+      if (attempt < retries && err.name !== 'AbortError') {
         const delay = backoff * Math.pow(2, attempt);
         await new Promise(r => setTimeout(r, delay));
         continue;
@@ -222,6 +228,8 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
 }
 
 // Helius RPC with automatic Gatekeeper → standard fallback
+let useGatekeeper = true; // Start optimistic; disable if Gatekeeper consistently fails
+
 async function heliusFetch(body) {
   const options = {
     method: 'POST',
@@ -229,12 +237,32 @@ async function heliusFetch(body) {
     body: JSON.stringify(body),
   };
 
+  // Try Gatekeeper beta first (if still enabled)
+  if (useGatekeeper) {
+    try {
+      return await rpcFetch(HELIUS_RPC, options, { breaker: breakers.helius, timeout: 10_000 });
+    } catch (err) {
+      console.warn('[Helius] Gatekeeper failed, trying standard:', err.message);
+      // If Gatekeeper circuit is open, stop trying it until server restart
+      if (breakers.helius.state === 'open') {
+        useGatekeeper = false;
+        console.warn('[Helius] Disabling Gatekeeper beta, using standard endpoint');
+      }
+    }
+  }
+
+  // Fallback to standard endpoint — use its own timeout but no circuit breaker
+  // so it doesn't get blocked by the Gatekeeper's breaker state
   try {
-    return await rpcFetch(HELIUS_RPC, options, { breaker: breakers.helius });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const response = await fetch(HELIUS_RPC_FALLBACK, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response;
   } catch (err) {
-    // Fallback to standard endpoint if Gatekeeper fails
-    console.warn('[Helius] Gatekeeper failed, falling back to standard:', err.message);
-    return await fetch(HELIUS_RPC_FALLBACK, options);
+    console.error('[Helius] Both endpoints failed:', err.message);
+    throw err;
   }
 }
 
@@ -257,9 +285,10 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime(),
     memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
     rpc: {
-      primary: 'beta.helius-rpc.com (Gatekeeper)',
+      primary: useGatekeeper ? 'beta.helius-rpc.com (Gatekeeper)' : 'mainnet.helius-rpc.com (standard)',
       fallback: 'mainnet.helius-rpc.com',
-      ws: 'atlas-mainnet.helius-rpc.com (Enhanced)',
+      ws: useEnhancedWs ? 'atlas-mainnet.helius-rpc.com (Enhanced)' : 'mainnet.helius-rpc.com (standard)',
+      gatekeeperEnabled: useGatekeeper,
     },
     cache: cache.stats(),
     circuitBreakers: Object.fromEntries(
@@ -279,13 +308,19 @@ async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers
     if (cached) return res.json(cached);
 
     if (!breaker.canRequest()) {
+      // Serve stale data if circuit is open — better than a hard error
+      const stale = cache.get(key, Infinity);
+      if (stale) {
+        res.set('X-Cache-Stale', 'true');
+        return res.json(stale);
+      }
       return res.status(503).json({
         error: `${key} service temporarily unavailable`,
         retryAfter: Math.ceil(breaker.resetTimeout / 1000),
       });
     }
 
-    const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1 });
+    const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 2, timeout: 20_000 });
     const data = await response.json();
     const result = transform ? transform(data) : data;
     cache.set(key, result);
@@ -766,6 +801,49 @@ app.use((err, req, res, next) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CACHE WARMING — Pre-fetch pool data on startup so first requests are fast
+// ═══════════════════════════════════════════════════════════════════════════
+async function warmCache() {
+  console.log('[Warmup] Pre-fetching pool data...');
+  const sources = [
+    { key: 'dlmm', url: 'https://dlmm-api.meteora.ag/pair/all', breaker: breakers.dlmm },
+    { key: 'damm', url: 'https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc', breaker: breakers.damm },
+    { key: 'raydium', url: 'https://api-v3.raydium.io/pools/info/list?poolType=concentrated&poolSortField=liquidity&sortType=desc&pageSize=200&page=1', breaker: breakers.raydium },
+    { key: 'jupiter', url: 'https://api.jup.ag/tokens/v2/tag?query=verified', breaker: breakers.jupiter, headers: { 'x-api-key': JUPITER_API_KEY } },
+  ];
+
+  const results = await Promise.allSettled(
+    sources.map(async ({ key, url, breaker, headers }) => {
+      try {
+        const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1, timeout: 20_000 });
+        const data = await response.json();
+        cache.set(key, data);
+        console.log(`[Warmup] ${key} cached (${JSON.stringify(data).length} bytes)`);
+      } catch (err) {
+        console.warn(`[Warmup] ${key} failed:`, err.message);
+      }
+    })
+  );
+
+  // Also probe Helius RPC to determine if Gatekeeper works
+  try {
+    const probe = await rpcFetch(HELIUS_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+    }, { breaker: breakers.helius, retries: 0, timeout: 8_000 });
+    const health = await probe.json();
+    console.log('[Warmup] Helius Gatekeeper beta: OK', health.result || '');
+  } catch (err) {
+    console.warn('[Warmup] Helius Gatekeeper beta unavailable:', err.message);
+    useGatekeeper = false;
+    console.log('[Warmup] Falling back to standard Helius endpoint');
+  }
+
+  console.log('[Warmup] Done');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // START SERVER
 // ═══════════════════════════════════════════════════════════════════════════
 const PORT = Number(process.env.PORT) || 8080;
@@ -775,6 +853,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[Server] RPC: beta.helius-rpc.com (Gatekeeper beta)`);
   console.log(`[Server] WS: atlas-mainnet.helius-rpc.com (Enhanced WebSockets)`);
   console.log(`[Server] Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+  // Warm cache in background after server starts accepting connections
+  warmCache().catch(err => console.error('[Warmup] Error:', err.message));
 });
 
 // Graceful shutdown

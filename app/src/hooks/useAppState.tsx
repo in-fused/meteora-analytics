@@ -206,13 +206,17 @@ export const useAppState = create<AppState>((set, get) => ({
       },
     })),
   setPoolBins: (poolId, bins, activeBinIndex, activePrice) =>
-    set((s) => ({
-      pools: s.pools.map(p =>
+    set((s) => {
+      const update = (p: Pool) =>
         p.id === poolId
           ? { ...p, bins, activeBin: activeBinIndex, currentPrice: activePrice }
-          : p
-      ),
-    })),
+          : p;
+      return {
+        pools: s.pools.map(update),
+        filteredPools: s.filteredPools.map(update),
+        opportunities: s.opportunities.map(update) as Opportunity[],
+      };
+    }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setJupshieldEnabled: (jupshieldEnabled) => {
     set({ jupshieldEnabled });

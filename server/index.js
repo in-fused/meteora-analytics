@@ -1,14 +1,21 @@
 // server/index.js
-// LiquidityPro backend — Helius Gatekeeper beta + Enhanced WebSockets
+// LiquidityPro backend — Helius Gatekeeper beta + Enhanced WebSockets + DLMM SDK
 // All existing API contracts preserved; zero frontend regression.
 
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { createRequire } from 'module';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
+
+// DLMM SDK + Solana web3 use CJS internals (Anchor) that break with ESM directory imports.
+// Use createRequire to load them in CJS mode, which resolves all nested imports correctly.
+const require = createRequire(import.meta.url);
+const { Connection, PublicKey } = require('@solana/web3.js');
+const DLMM = require('@meteora-ag/dlmm');
 
 dotenv.config();
 
@@ -35,6 +42,9 @@ const HELIUS_RPC_FALLBACK = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KE
 // Public RPC fallbacks — used when both Helius endpoints fail
 const SOLANA_PUBLIC_RPC = 'https://api.mainnet-beta.solana.com';
 const ANKR_SOLANA_RPC = 'https://rpc.ankr.com/solana';
+
+// Solana connection for DLMM SDK (reuses Helius RPC)
+const solanaConnection = new Connection(HELIUS_RPC_FALLBACK, 'confirmed');
 
 // Enhanced WebSockets — Geyser-powered, server-side filtering, LaserStream infra
 const HELIUS_ENHANCED_WS = `wss://atlas-mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -752,17 +762,7 @@ wss.on('connection', (ws) => {
         clientSubscriptions.delete(address);
       }
     });
-
-    // Disconnect Helius WS if no clients remain
-    if (wss.clients.size === 0 && heliusWs && heliusWs.readyState === WebSocket.OPEN) {
-      console.log('[WS] No clients remaining, closing Helius connection');
-      clearTimeout(reconnectTimeout);
-      clearInterval(wsHeartbeat);
-      reconnectTimeout = null;
-      heliusWs.close();
-      heliusWs = null;
-      heliusConnected = false;
-    }
+    // Keep Helius WS alive even with no clients — eliminates cold-start delay
   });
 
   // Send initial connection message with WS mode info
@@ -770,6 +770,139 @@ wss.on('connection', (ws) => {
     type: 'connected',
     mode: useEnhancedWs ? 'enhanced' : 'standard',
   }));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DLMM SDK ENDPOINTS — Real on-chain bin data + active pricing
+//
+// These run server-side only (SDK is too heavy for browser).
+// Called when a user expands a pool card — not bulk.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Cache DLMM instances briefly to avoid re-fetching on-chain state
+const dlmmInstanceCache = new Map(); // address -> { instance, timestamp }
+const DLMM_INSTANCE_TTL = 15_000; // 15s
+
+async function getDlmmInstance(address) {
+  const cached = dlmmInstanceCache.get(address);
+  if (cached && Date.now() - cached.timestamp < DLMM_INSTANCE_TTL) {
+    return cached.instance;
+  }
+  const pubkey = new PublicKey(address);
+  const instance = await DLMM.create(solanaConnection, pubkey);
+  dlmmInstanceCache.set(address, { instance, timestamp: Date.now() });
+
+  // Evict old entries to prevent memory growth
+  if (dlmmInstanceCache.size > 50) {
+    const now = Date.now();
+    for (const [k, v] of dlmmInstanceCache) {
+      if (now - v.timestamp > DLMM_INSTANCE_TTL) dlmmInstanceCache.delete(k);
+      if (dlmmInstanceCache.size <= 30) break;
+    }
+  }
+
+  return instance;
+}
+
+// GET /api/pool/:address/bins — Real liquidity distribution from on-chain
+app.get('/api/pool/:address/bins', async (req, res) => {
+  const { address } = req.params;
+
+  // Validate Solana public key format (32-44 base58 chars)
+  if (!address || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+    return res.status(400).json({ error: 'Invalid pool address' });
+  }
+
+  // Check cache first
+  const cacheKey = `bins:${address}`;
+  const cached = cache.get(cacheKey, 10_000); // 10s cache
+  if (cached) return res.json(cached);
+
+  try {
+    const dlmm = await getDlmmInstance(address);
+
+    // Get active bin (real-time price from chain)
+    const activeBin = await dlmm.getActiveBin();
+
+    // Get bins around active bin (±35 bins for a nice chart)
+    const binsData = await dlmm.getBinsAroundActiveBin(35, 35);
+
+    // Transform bins into chart-friendly format
+    const bins = (binsData?.bins || []).map(bin => ({
+      id: bin.binId,
+      price: parseFloat(bin.price) || 0,
+      xAmount: bin.xAmount?.toString() || '0',
+      yAmount: bin.yAmount?.toString() || '0',
+      liquidity: parseFloat(bin.xAmount?.toString() || '0') + parseFloat(bin.yAmount?.toString() || '0'),
+      supply: bin.supply?.toString() || '0',
+      isActive: bin.binId === activeBin.binId,
+    }));
+
+    // Get dynamic fee info
+    let dynamicFee = null;
+    try {
+      dynamicFee = dlmm.getDynamicFee();
+    } catch { /* not all pools support dynamic fee */ }
+
+    const result = {
+      activeBin: {
+        binId: activeBin.binId,
+        price: parseFloat(activeBin.price) || 0,
+        pricePerToken: activeBin.pricePerToken || activeBin.price,
+      },
+      bins,
+      binStep: dlmm.lbPair?.binStep || 0,
+      dynamicFee: dynamicFee ? dynamicFee.toString() : null,
+    };
+
+    cache.set(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(`[DLMM SDK] Error fetching bins for ${address}:`, err.message);
+    res.status(500).json({ error: 'Failed to fetch bin data', detail: err.message });
+  }
+});
+
+// GET /api/pool/:address/info — Pool info from SDK (active bin, fee, reserves)
+app.get('/api/pool/:address/info', async (req, res) => {
+  const { address } = req.params;
+
+  if (!address || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+    return res.status(400).json({ error: 'Invalid pool address' });
+  }
+
+  const cacheKey = `pool-info:${address}`;
+  const cached = cache.get(cacheKey, 10_000);
+  if (cached) return res.json(cached);
+
+  try {
+    const dlmm = await getDlmmInstance(address);
+    const activeBin = await dlmm.getActiveBin();
+
+    let feeInfo = null;
+    try {
+      feeInfo = dlmm.getFeeInfo();
+    } catch { /* ignore */ }
+
+    const result = {
+      activeBin: {
+        binId: activeBin.binId,
+        price: parseFloat(activeBin.price) || 0,
+      },
+      binStep: dlmm.lbPair?.binStep || 0,
+      feeInfo: feeInfo ? {
+        baseFee: feeInfo.baseFeeRatePercentage?.toString(),
+        maxFee: feeInfo.maxFeeRatePercentage?.toString(),
+        protocolFee: feeInfo.protocolFeePercentage?.toString(),
+      } : null,
+    };
+
+    cache.set(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(`[DLMM SDK] Error fetching pool info for ${address}:`, err.message);
+    res.status(500).json({ error: 'Failed to fetch pool info', detail: err.message });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

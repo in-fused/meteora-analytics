@@ -107,10 +107,12 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
     [addr]
   );
 
-  // Bins
+  // Bins — may be synthetic (21 fake bins) or real (from DLMM SDK, variable count)
   const bins = pool.bins && pool.bins.length > 0 ? pool.bins : [];
   const maxLiquidity = bins.length > 0 ? Math.max(...bins.map((b) => b.liquidity)) : 1;
   const totalLiquidity = bins.length > 0 ? bins.reduce((s, b) => s + b.liquidity, 0) : 1;
+  const hasRealBins = bins.length > 0 && bins.length !== 21; // SDK returns variable count, synthetic always 21
+  const activeBinIndex = pool.activeBin >= 0 && pool.activeBin < bins.length ? pool.activeBin : Math.floor(bins.length / 2);
 
   // Opp type class
   const oppTypeClass = opp
@@ -253,17 +255,18 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
             {bins.length > 0 && (
               <div className="chart-section">
                 <div className="chart-header">
-                  <span className="chart-title">Liquidity Distribution (21 Bins)</span>
+                  <span className="chart-title">Liquidity Distribution ({bins.length} Bins){hasRealBins ? '' : ' *'}</span>
                   <div className="chart-legend">
                     <div className="legend-item"><div className="legend-dot liquidity" />Liquidity</div>
                     <div className="legend-item"><div className="legend-dot active" />Active Bin</div>
+                    {hasRealBins && <div className="legend-item" style={{ fontSize: 9, opacity: 0.7 }}>On-chain</div>}
                   </div>
                 </div>
                 <div className="bins-container">
                   {bins.map((bin, i) => (
                     <div
                       key={bin.id}
-                      className={`bin ${i === pool.activeBin ? 'active-bin' : ''}`}
+                      className={`bin ${i === activeBinIndex ? 'active-bin' : ''}`}
                       style={{ height: `${(bin.liquidity / maxLiquidity) * 100}%` }}
                     >
                       <div className="bin-tooltip">
@@ -276,8 +279,8 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                 </div>
                 <div className="chart-axis">
                   <span className="axis-label">${formatPrice(bins[0].price)}</span>
-                  <span className="axis-label active">${formatPrice(bins[pool.activeBin]?.price ?? pool.currentPrice)}</span>
-                  <span className="axis-label">${formatPrice(bins[20]?.price ?? bins[bins.length - 1]?.price)}</span>
+                  <span className="axis-label active">${formatPrice(bins[activeBinIndex]?.price ?? pool.currentPrice)}</span>
+                  <span className="axis-label">${formatPrice(bins[bins.length - 1]?.price)}</span>
                 </div>
               </div>
             )}
@@ -400,17 +403,18 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
           {bins.length > 0 && (
             <div className="chart-section">
               <div className="chart-header">
-                <span className="chart-title">Liquidity Distribution (21 Bins)</span>
+                <span className="chart-title">Liquidity Distribution ({bins.length} Bins){hasRealBins ? '' : ' *'}</span>
                 <div className="chart-legend">
                   <div className="legend-item"><div className="legend-dot liquidity" />Liquidity</div>
                   <div className="legend-item"><div className="legend-dot active" />Active Bin</div>
+                  {hasRealBins && <div className="legend-item" style={{ fontSize: 9, opacity: 0.7 }}>On-chain</div>}
                 </div>
               </div>
               <div className="bins-container">
                 {bins.map((bin, i) => (
                   <div
                     key={bin.id}
-                    className={`bin ${i === pool.activeBin ? 'active-bin' : ''}`}
+                    className={`bin ${i === activeBinIndex ? 'active-bin' : ''}`}
                     style={{ height: `${(bin.liquidity / maxLiquidity) * 100}%` }}
                   >
                     <div className="bin-tooltip">
@@ -423,8 +427,8 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
               </div>
               <div className="chart-axis">
                 <span className="axis-label">${formatPrice(bins[0].price)}</span>
-                <span className="axis-label active">${formatPrice(bins[pool.activeBin]?.price ?? pool.currentPrice)}</span>
-                <span className="axis-label">${formatPrice(bins[20]?.price ?? bins[bins.length - 1]?.price)}</span>
+                <span className="axis-label active">${formatPrice(bins[activeBinIndex]?.price ?? pool.currentPrice)}</span>
+                <span className="axis-label">${formatPrice(bins[bins.length - 1]?.price)}</span>
               </div>
             </div>
           )}

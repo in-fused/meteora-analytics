@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type {
   Pool, Opportunity, Alert, TriggeredAlert, AiSuggestion,
-  WalletState, ApiStatus, FilterState, PoolTransaction, SortField
+  WalletState, ApiStatus, FilterState, PoolTransaction, SortField, Bin
 } from '@/types';
 import { supabaseService } from '@/services/supabaseService';
 
@@ -76,6 +76,7 @@ interface AppState {
   setAiSuggestions: (suggestions: AiSuggestion[]) => void;
   setPoolTransactions: (poolId: string, txs: PoolTransaction[]) => void;
   addPoolTransaction: (poolId: string, tx: PoolTransaction) => void;
+  setPoolBins: (poolId: string, bins: Bin[], activeBinIndex: number, activePrice: number) => void;
   setWsConnected: (connected: boolean) => void;
   setJupshieldEnabled: (enabled: boolean) => void;
   setLastRefresh: (ts: number) => void;
@@ -203,6 +204,14 @@ export const useAppState = create<AppState>((set, get) => ({
         ...s.poolTransactions,
         [poolId]: [tx, ...(s.poolTransactions[poolId] || [])].slice(0, 15),
       },
+    })),
+  setPoolBins: (poolId, bins, activeBinIndex, activePrice) =>
+    set((s) => ({
+      pools: s.pools.map(p =>
+        p.id === poolId
+          ? { ...p, bins, activeBin: activeBinIndex, currentPrice: activePrice }
+          : p
+      ),
     })),
   setWsConnected: (wsConnected) => set({ wsConnected }),
   setJupshieldEnabled: (jupshieldEnabled) => {

@@ -30,6 +30,10 @@ export const CONFIG = {
   HELIUS_RPC: '/api/helius/rpc',
   HELIUS_BATCH: '/api/helius/batch',
 
+  // DLMM SDK endpoints (server-side on-chain reads)
+  POOL_BINS: (address: string) => `/api/pool/${address}/bins`,
+  POOL_INFO: (address: string) => `/api/pool/${address}/info`,
+
   // WebSocket (server handles Enhanced WS → standard fallback internally)
   WS_URL: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
   WS_RECONNECT_DELAY: 3000,

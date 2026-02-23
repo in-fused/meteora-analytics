@@ -1,15 +1,16 @@
 import { CONFIG } from '@/config';
 import { useAppState } from '@/hooks/useAppState';
-import type { PoolTransaction, TxType } from '@/types';
+import type { PoolTransaction, TxType, Bin } from '@/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// WEBSOCKET SERVICE — Clean rewrite with state machine + message queue
+// WEBSOCKET SERVICE — Clean state machine + message queue + SDK bin fetching
 //
 // Design principles:
 // - NEVER call ws.send() without readyState check
 // - HTTP polling is the reliable backbone (every 5s)
 // - WebSocket push is a speed bonus on top
 // - One expanded pool at a time — no pre-subscription
+// - On expand: fetch real bin data via DLMM SDK endpoint
 // ═══════════════════════════════════════════════════════════════════════════
 
 type WsState = 'disconnected' | 'connecting' | 'connected';
@@ -54,7 +55,10 @@ class WSService {
     this.lastFetchTime = 0; // bypass cooldown for first fetch
     this.fetchPoolTransactions(poolAddress);
 
-    // 3. Start polling as backbone
+    // 3. Fetch real bin data from DLMM SDK (non-blocking)
+    this.fetchPoolBins(poolAddress);
+
+    // 4. Start polling as backbone
     this.startPolling();
   }
 
@@ -393,6 +397,56 @@ class WSService {
     }
 
     return { signature, type, amount, timestamp };
+  }
+
+  // ── DLMM SDK Bin Fetching ─────────────────────────────────────────────
+
+  /** Fetch real on-chain bin data for a DLMM pool via the SDK endpoint. */
+  async fetchPoolBins(poolAddress: string): Promise<void> {
+    if (!poolAddress || poolAddress !== this.activePool) return;
+
+    try {
+      const response = await fetch(CONFIG.POOL_BINS(poolAddress));
+      if (!response.ok) {
+        // Non-DLMM pools (Raydium, DAMM) won't have SDK bins — that's fine
+        if (response.status !== 500) return;
+        console.warn('[WS] Failed to fetch SDK bins:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      if (poolAddress !== this.activePool) return; // pool changed during fetch
+
+      if (data.bins && data.bins.length > 0 && data.activeBin) {
+        const store = useAppState.getState();
+        const pool = store.pools.find(p => p.address === poolAddress);
+        if (!pool) return;
+
+        // Transform SDK bins into the chart Bin[] format
+        const maxLiq = Math.max(...data.bins.map((b: any) => b.liquidity || 0), 1);
+        const activeBinId = data.activeBin.binId;
+
+        const bins: Bin[] = data.bins
+          .filter((b: any) => b.liquidity > 0)
+          .map((b: any) => ({
+            id: b.id,
+            price: b.price,
+            liquidity: b.liquidity,
+            isActive: b.isActive || b.id === activeBinId,
+          }));
+
+        if (bins.length === 0) return;
+
+        // Find the active bin index for the chart
+        const activeBinIndex = bins.findIndex(b => b.isActive);
+
+        // Update the pool in the store with real bin data
+        store.setPoolBins(pool.id, bins, activeBinIndex >= 0 ? activeBinIndex : Math.floor(bins.length / 2), data.activeBin.price);
+      }
+    } catch (err) {
+      // SDK bin fetch is best-effort — synthetic bins remain as fallback
+      console.warn('[WS] fetchPoolBins error:', err);
+    }
   }
 
   // ── Polling ─────────────────────────────────────────────────────────────

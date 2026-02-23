@@ -69,10 +69,21 @@ export const dataService = {
 
       // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
       const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
-        fetchWithRetry(CONFIG.METEORA_DLMM).then(r => r.json()),
+        fetchWithRetry(CONFIG.METEORA_DLMM, undefined, 2).then(r => r.json()),
         fetchWithRetry(CONFIG.METEORA_DAMM_V2).then(r => r.json()),
         fetchWithRetry(CONFIG.RAYDIUM_CLMM).then(r => r.json()),
       ]);
+
+      // Log per-source failures for debugging
+      if (dlmmResult.status === 'rejected') {
+        console.warn('[DataService] DLMM fetch failed:', dlmmResult.reason?.message || dlmmResult.reason);
+      }
+      if (dammResult.status === 'rejected') {
+        console.warn('[DataService] DAMM fetch failed:', dammResult.reason?.message || dammResult.reason);
+      }
+      if (raydiumResult.status === 'rejected') {
+        console.warn('[DataService] Raydium fetch failed:', raydiumResult.reason?.message || raydiumResult.reason);
+      }
 
       // Process DLMM
       if (dlmmResult.status === 'fulfilled' && Array.isArray(dlmmResult.value)) {
@@ -89,6 +100,29 @@ export const dataService = {
         }
         sources.push(`DLMM:${dlmmPools.length}`);
         store.setApiStatus('meteora', true);
+      } else {
+        // DLMM failed — try DexScreener as Meteora-specific fallback
+        console.log('[DataService] DLMM unavailable, trying DexScreener for Meteora pools...');
+        try {
+          const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
+          if (dxr.ok) {
+            const dx = await dxr.json();
+            const dxPools = (dx.pairs ?? [])
+              .filter((p: any) => p.dexId === 'meteora' && p.liquidity?.usd > 100)
+              .slice(0, 200)
+              .map((p: any) => this.processDexScreener(p, store.verifiedTokens));
+            for (const p of dxPools) {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+              }
+            }
+            if (dxPools.length) {
+              sources.push(`DexScreener-DLMM:${dxPools.length}`);
+              store.setApiStatus('meteora', true);
+            }
+          }
+        } catch { /* DexScreener fallback failed too */ }
       }
 
       // Process DAMM v2

@@ -286,8 +286,10 @@ class WSService {
     this.lastFetchTime = now;
 
     if (this.errorCount > 5) {
-      console.warn('[WS] Too many errors, pausing transaction fetch');
-      return;
+      // Exponential backoff instead of permanent stop — allows recovery
+      const backoffMs = Math.min(10_000 * Math.pow(2, this.errorCount - 6), 60_000);
+      if (now - this.lastFetchTime < backoffMs) return;
+      console.warn(`[WS] RPC errors, backing off (${Math.round(backoffMs / 1000)}s intervals)`);
     }
 
     try {
@@ -398,7 +400,7 @@ class WSService {
   private startPolling(): void {
     if (this.pollInterval) return;
     this.pollInterval = setInterval(() => {
-      if (!this.activePool || this.errorCount > 5) return;
+      if (!this.activePool) return;
       this.fetchPoolTransactions(this.activePool);
     }, POLL_INTERVAL_MS);
   }

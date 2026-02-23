@@ -32,6 +32,10 @@ const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '59819a46-e0b4-46c3-9d1d-
 const HELIUS_RPC = `https://beta.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 const HELIUS_RPC_FALLBACK = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 
+// Public RPC fallbacks — used when both Helius endpoints fail
+const SOLANA_PUBLIC_RPC = 'https://api.mainnet-beta.solana.com';
+const ANKR_SOLANA_RPC = 'https://rpc.ankr.com/solana';
+
 // Enhanced WebSockets — Geyser-powered, server-side filtering, LaserStream infra
 const HELIUS_ENHANCED_WS = `wss://atlas-mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 const HELIUS_WS_FALLBACK = `wss://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -261,7 +265,33 @@ async function heliusFetch(body) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response;
   } catch (err) {
-    console.error('[Helius] Both endpoints failed:', err.message);
+    console.warn('[RPC] Helius standard failed:', err.message);
+  }
+
+  // Third fallback: public Solana RPC (free, rate-limited but reliable)
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const response = await fetch(SOLANA_PUBLIC_RPC, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    console.log('[RPC] Using public Solana RPC fallback');
+    return response;
+  } catch (err) {
+    console.warn('[RPC] Public Solana RPC failed:', err.message);
+  }
+
+  // Fourth fallback: Ankr Solana RPC
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const response = await fetch(ANKR_SOLANA_RPC, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    console.log('[RPC] Using Ankr Solana RPC fallback');
+    return response;
+  } catch (err) {
+    console.error('[RPC] All four RPC endpoints failed:', err.message);
     throw err;
   }
 }
@@ -302,7 +332,7 @@ app.get('/api/health', (req, res) => {
 // POOL DATA PROXIES — Cached, circuit-broken, with structured errors
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers }) {
+async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers, retries = 2 }) {
   try {
     const cached = cache.get(key, ttl);
     if (cached) return res.json(cached);
@@ -320,7 +350,7 @@ async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers
       });
     }
 
-    const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 2, timeout: 20_000 });
+    const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries, timeout: 20_000 });
     const data = await response.json();
     const result = transform ? transform(data) : data;
     cache.set(key, result);
@@ -342,6 +372,7 @@ app.get('/api/proxy/dlmm', (req, res) => proxyFetch(req, res, {
   ttl: CACHE_TTLS.dlmm,
   url: 'https://dlmm-api.meteora.ag/pair/all',
   breaker: breakers.dlmm,
+  retries: 3,  // Extra retries — DLMM is the most important data source
 }));
 
 app.get('/api/proxy/damm', (req, res) => proxyFetch(req, res, {

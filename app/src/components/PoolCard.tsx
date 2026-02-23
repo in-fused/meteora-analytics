@@ -22,6 +22,7 @@ interface PoolCardProps {
 export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
   const [copied, setCopied] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
   const togglingRef = useRef(false);
 
   const expandedPoolId = useAppState((s) => s.expandedPoolId);
@@ -61,6 +62,16 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
       }
     };
   }, [isExpanded, addr]);
+
+  // Track if loading is taking too long (show retry message after 15s)
+  useEffect(() => {
+    if (!isExpanded || poolTransactions.length > 0) {
+      setLoadingTooLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingTooLong(true), 15_000);
+    return () => clearTimeout(timer);
+  }, [isExpanded, poolTransactions.length]);
 
   // Debounced click handler
   const handleToggle = useCallback(() => {
@@ -293,8 +304,16 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                   ))
                 ) : (
                   <div className="pool-tx-empty">
-                    <div className="loading-spinner" style={{ marginBottom: 8 }} />
-                    <span>Loading transactions...</span>
+                    {loadingTooLong ? (
+                      <>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>RPC connection issues — retrying automatically...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="loading-spinner" style={{ marginBottom: 8 }} />
+                        <span>Loading transactions...</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

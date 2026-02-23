@@ -628,41 +628,45 @@ function broadcastToAllSubscribers(data) {
 function subscribeToAddress(address) {
   if (!heliusWs || heliusWs.readyState !== WebSocket.OPEN) return;
 
-  if (useEnhancedWs) {
-    // Enhanced WebSocket: use transactionSubscribe with account filters
-    heliusWs.send(JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'transactionSubscribe',
-      params: [{
-        accountInclude: [address],
-        failed: false,
-      }, {
-        commitment: 'confirmed',
-        encoding: 'jsonParsed',
-        transactionDetails: 'full',
-        maxSupportedTransactionVersion: 0,
-      }],
-    }));
-  } else {
-    // Standard WebSocket: use logsSubscribe
-    heliusWs.send(JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'logsSubscribe',
-      params: [
-        { mentions: [address] },
-        { commitment: 'confirmed' },
-      ],
-    }));
+  try {
+    if (useEnhancedWs) {
+      // Enhanced WebSocket: use transactionSubscribe with account filters
+      heliusWs.send(JSON.stringify({
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'transactionSubscribe',
+        params: [{
+          accountInclude: [address],
+          failed: false,
+        }, {
+          commitment: 'confirmed',
+          encoding: 'jsonParsed',
+          transactionDetails: 'full',
+          maxSupportedTransactionVersion: 0,
+        }],
+      }));
+    } else {
+      // Standard WebSocket: use logsSubscribe
+      heliusWs.send(JSON.stringify({
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'logsSubscribe',
+        params: [
+          { mentions: [address] },
+          { commitment: 'confirmed' },
+        ],
+      }));
+    }
+  } catch (err) {
+    console.warn('[WS] subscribeToAddress send failed:', err.message);
   }
 }
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimeout);
-  if (wss.clients.size > 0) {
-    reconnectTimeout = setTimeout(connectToHelius, 5000);
-  }
+  // Always reconnect — don't gate on active clients, so Helius WS is ready
+  // when the next client connects (eliminates cold-start delay)
+  reconnectTimeout = setTimeout(connectToHelius, 5000);
 }
 
 // Handle client connections
@@ -678,6 +682,14 @@ wss.on('connection', (ws) => {
 
       if (message.type === 'subscribe' && message.address) {
         if (!clientSubscriptions.has(message.address)) {
+          // Cap subscriptions to prevent unbounded memory growth
+          if (clientSubscriptions.size >= 100) {
+            // Evict entries with 0 active clients
+            for (const [addr, clients] of clientSubscriptions) {
+              if (clients.size === 0) clientSubscriptions.delete(addr);
+              if (clientSubscriptions.size < 100) break;
+            }
+          }
           clientSubscriptions.set(message.address, new Set());
           if (heliusConnected) {
             subscribeToAddress(message.address);
@@ -853,6 +865,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[Server] RPC: beta.helius-rpc.com (Gatekeeper beta)`);
   console.log(`[Server] WS: atlas-mainnet.helius-rpc.com (Enhanced WebSockets)`);
   console.log(`[Server] Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+  // Connect to Helius WS at startup (not lazily on first client)
+  connectToHelius();
   // Warm cache in background after server starts accepting connections
   warmCache().catch(err => console.error('[Warmup] Error:', err.message));
 });

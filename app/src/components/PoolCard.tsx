@@ -21,6 +21,7 @@ interface PoolCardProps {
 
 export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
   const [copied, setCopied] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const togglingRef = useRef(false);
 
   const expandedPoolId = useAppState((s) => s.expandedPoolId);
@@ -199,6 +200,15 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
               {opp.oppType === 'hot' ? '🔥' : opp.oppType === 'active' ? '⚡' : '💡'} Opportunity
             </div>
             <div className="opp-reason-text">{opp.reason}</div>
+            {opp.suggestion && <div className="opp-suggestion">{opp.suggestion}</div>}
+            {opp.suggestionDetail && (
+              <button className="opp-detail-toggle" onClick={(e) => { e.stopPropagation(); setShowDetail(!showDetail); }}>
+                {showDetail ? 'Hide details' : 'Strategy details'}
+              </button>
+            )}
+            {showDetail && opp.suggestionDetail && (
+              <div className="opp-suggestion-detail">{opp.suggestionDetail}</div>
+            )}
           </div>
           <div className="opp-expand-hint">Click to expand</div>
         </div>

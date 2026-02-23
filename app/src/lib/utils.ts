@@ -124,6 +124,66 @@ export function generateBins(basePrice: number): Bin[] {
 // OPPORTUNITY DETECTION — Tiered scoring with weighted ranking
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** Generate contextual short + detailed suggestions for an opportunity pool. */
+function generatePoolSuggestion(
+  pool: Pool,
+  oppType: OppType
+): { short: string; detail: string } {
+  const fees1h = pool.fees1h ?? 0;
+  const apr = parseFloat(pool.apr);
+  const volTvlPct = (pool.volumeToTvl * 100).toFixed(0);
+
+  if (oppType === 'hot' && fees1h > 0) {
+    const hourlyAvg = pool.fees24h && pool.fees24h > 0 ? pool.fees24h / 24 : 0;
+    const multiplier = hourlyAvg > 0 ? (fees1h / hourlyAvg).toFixed(1) : '2+';
+    return {
+      short: 'Consider narrow-range position near active bin to capture fee spike',
+      detail: `1h fees are ${multiplier}x the 24h hourly average. A concentrated position within 3-5 bins of active price captures 80%+ of swap fees. This elevated activity may be temporary — consider a 4-12 hour hold with tight monitoring.`,
+    };
+  }
+
+  if (oppType === 'active' && fees1h > 0 && pool.tvl > 0) {
+    const feePct = ((fees1h / pool.tvl) * 100).toFixed(3);
+    return {
+      short: 'High fee generation relative to TVL — ideal for concentrated liquidity',
+      detail: `Fees/TVL ratio of ${feePct}% in the last hour. Place liquidity in a tight range around the current price to maximize fee capture. With ${formatNumber(pool.tvl)} TVL, even small positions earn proportional fees.`,
+    };
+  }
+
+  if (pool.volumeToTvl > 0.3) {
+    return {
+      short: 'Heavy trading volume relative to liquidity depth — good for range orders',
+      detail: `Vol/TVL ratio of ${volTvlPct}% indicates high turnover. Place a range order spanning 2-3% around current price. Higher volume means more fee-generating swaps passing through your position.`,
+    };
+  }
+
+  if (pool.farmActive && (pool.farmApr ?? 0) > 0) {
+    return {
+      short: 'Farm rewards stack with trading fees for enhanced yield',
+      detail: `Base trading APR of ${apr}% plus farm rewards of ${pool.farmApr}%. Wider ranges acceptable here since farm rewards aren't concentration-dependent. Good candidate for set-and-forget positions.`,
+    };
+  }
+
+  if (pool.score >= 80 && fees1h === 0) {
+    return {
+      short: 'Strong fundamentals — monitor for fee uptick before entering',
+      detail: `Score ${pool.score} reflects high TVL, verified tokens, and consistent volume. Current fee generation is below peak — watch for volume spikes to time entry. When fees increase, this pool's depth makes it a safe LP destination.`,
+    };
+  }
+
+  if (apr > 30) {
+    return {
+      short: `${apr}% APR — evaluate position range to maximize fee capture`,
+      detail: `Above-average APR of ${apr}% signals active trading. Position liquidity within a few percentage points of current price for optimal fee-to-impermanent-loss ratio. Reassess range every 24-48 hours.`,
+    };
+  }
+
+  return {
+    short: 'Solid pool fundamentals — suitable for standard liquidity position',
+    detail: `TVL of ${formatNumber(pool.tvl)} with ${volTvlPct}% vol/TVL ratio. A moderate-width range around the current price balances fee capture with impermanent loss risk.`,
+  };
+}
+
 export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
   // Only consider safe pools with some activity
   const candidates = filteredPools.filter(p => p.safety === 'safe' && p.tvl > 1000);
@@ -139,6 +199,7 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
     const fees1h = p.fees1h ?? 0;
     const feeTvl = p.feeTvlRatio ?? 0;
     const apr = parseFloat(p.apr);
+    const hasHourlyData = fees1h > 0;
 
     // Tier 1: Fee spike detection (HOT)
     if (p.isHot && fees1h > 0 && p.tvl > 5000) {
@@ -157,8 +218,18 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
       }
     }
 
-    // Tier 3: High volume/TVL ratio
-    if (p.volumeToTvl > 0.3 && p.tvl > 10000) {
+    // Tier 2b: Volume surge (Raydium-fair — doesn't require hourly fee data)
+    if (!hasHourlyData && p.volumeToTvl > 0.5 && p.tvl > 5000) {
+      oppScore += 30;
+      if (!reason) {
+        oppType = 'active';
+        reason = `VOLUME SURGE: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL with ${formatNumber(p.tvl)} liquidity`;
+      }
+    }
+
+    // Tier 3: High volume/TVL ratio (lowered threshold for pools without hourly data)
+    const volTvlThreshold = hasHourlyData ? 0.3 : 0.2;
+    if (p.volumeToTvl > volTvlThreshold && p.tvl > 10000) {
       oppScore += 20;
       if (!reason) reason = `HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
     }
@@ -196,12 +267,17 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
   // Sort by opportunity score (highest first), then by pool score
   scored.sort((a, b) => b.oppScore - a.oppScore || b.pool.score - a.pool.score);
 
-  // Take top 15, then group by type
-  return scored.slice(0, 15).map(({ pool, reason, oppType }) => ({
-    ...pool,
-    reason,
-    oppType,
-  }));
+  // Take top 15, generate per-pool suggestions
+  return scored.slice(0, 15).map(({ pool, reason, oppType }) => {
+    const { short, detail } = generatePoolSuggestion(pool, oppType);
+    return {
+      ...pool,
+      reason,
+      oppType,
+      suggestion: short,
+      suggestionDetail: detail,
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

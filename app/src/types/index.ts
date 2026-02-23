@@ -71,6 +71,8 @@ export type OppType = 'hot' | 'active' | 'standard';
 export interface Opportunity extends Pool {
   reason: string;
   oppType: OppType;
+  suggestion: string;
+  suggestionDetail: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

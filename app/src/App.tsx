@@ -66,13 +66,6 @@ export default function App() {
         wsService.connect();
         metricsService.init();
 
-        // Pre-subscribe top opportunity pools so txs flow before card expand
-        const topPools = useAppState.getState().opportunities.slice(0, 5);
-        topPools.forEach((opp) => {
-          const pool = useAppState.getState().pools.find(p => p.id === opp.id);
-          if (pool?.address) wsService.preSubscribe(pool.address);
-        });
-
         if (supabaseService.isEnabled()) {
           supabaseService.hydrate()
             .then(() => dataService.applyFilters())

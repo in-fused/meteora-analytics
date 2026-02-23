@@ -165,7 +165,7 @@ class CircuitBreaker {
 }
 
 const breakers = {
-  helius: new CircuitBreaker('helius', { failThreshold: 5, resetTimeout: 15_000 }),
+  helius: new CircuitBreaker('helius', { failThreshold: 10, resetTimeout: 10_000 }),
   dlmm: new CircuitBreaker('dlmm', { failThreshold: 3, resetTimeout: 30_000 }),
   damm: new CircuitBreaker('damm', { failThreshold: 3, resetTimeout: 30_000 }),
   raydium: new CircuitBreaker('raydium', { failThreshold: 3, resetTimeout: 30_000 }),
@@ -241,9 +241,9 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
   }
 }
 
-// Helius RPC with automatic Gatekeeper → standard → public fallback
-let useGatekeeper = true; // Start optimistic; disable if Gatekeeper consistently fails
-let heliusKeyDisabled = false; // Set true when key is confirmed invalid (401) — skip both Helius endpoints
+// Helius RPC with automatic fallback
+// Key may work on Gatekeeper beta but not standard RPC — track separately
+let standardRpcDisabled = false; // Standard RPC returns 401 for this key — skip it
 
 async function heliusFetch(body) {
   const options = {
@@ -252,30 +252,27 @@ async function heliusFetch(body) {
     body: JSON.stringify(body),
   };
 
-  // Skip Helius entirely if key is known-invalid (avoids 401 latency on every request)
-  if (!heliusKeyDisabled) {
-    // Try Gatekeeper beta first (if still enabled)
-    if (useGatekeeper) {
-      try {
-        return await rpcFetch(HELIUS_RPC, options, { breaker: breakers.helius, timeout: 10_000 });
-      } catch (err) {
-        console.warn('[Helius] Gatekeeper failed, trying standard:', err.message);
-        if (breakers.helius.state === 'open') {
-          useGatekeeper = false;
-          console.warn('[Helius] Disabling Gatekeeper beta, using standard endpoint');
-        }
-      }
+  // Always try Gatekeeper beta first — it's the fastest and the key works here
+  // The circuit breaker handles temporary failures with auto-recovery (15s reset)
+  try {
+    return await rpcFetch(HELIUS_RPC, options, { breaker: breakers.helius, timeout: 10_000 });
+  } catch (err) {
+    // Only log if it's not just the circuit breaker blocking
+    if (breakers.helius.state !== 'open') {
+      console.warn('[RPC] Gatekeeper failed:', err.message);
     }
+  }
 
-    // Fallback to standard endpoint
+  // Standard endpoint — skip if known to reject this key
+  if (!standardRpcDisabled) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 12_000);
       const response = await fetch(HELIUS_RPC_FALLBACK, { ...options, signal: controller.signal });
       clearTimeout(timer);
-      if (response.status === 401) {
-        heliusKeyDisabled = true;
-        console.warn('[Helius] API key rejected (401), disabling Helius endpoints — using public RPCs');
+      if (response.status === 401 || response.status === 403) {
+        standardRpcDisabled = true;
+        console.warn(`[RPC] Helius standard rejected key (${response.status}), skipping for future requests`);
       } else if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       } else {
@@ -286,10 +283,10 @@ async function heliusFetch(body) {
     }
   }
 
-  // Public Solana RPC (free, rate-limited but reliable)
+  // Public Solana RPC
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
+    const timer = setTimeout(() => controller.abort(), 15_000);
     const response = await fetch(SOLANA_PUBLIC_RPC, { ...options, signal: controller.signal });
     clearTimeout(timer);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -301,7 +298,7 @@ async function heliusFetch(body) {
   // Ankr Solana RPC
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
+    const timer = setTimeout(() => controller.abort(), 15_000);
     const response = await fetch(ANKR_SOLANA_RPC, { ...options, signal: controller.signal });
     clearTimeout(timer);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -331,10 +328,10 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime(),
     memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
     rpc: {
-      primary: useGatekeeper ? 'beta.helius-rpc.com (Gatekeeper)' : 'mainnet.helius-rpc.com (standard)',
-      fallback: 'mainnet.helius-rpc.com',
+      primary: 'beta.helius-rpc.com (Gatekeeper)',
+      fallback: standardRpcDisabled ? 'disabled (401)' : 'mainnet.helius-rpc.com',
       ws: useEnhancedWs ? 'atlas-mainnet.helius-rpc.com (Enhanced)' : 'mainnet.helius-rpc.com (standard)',
-      gatekeeperEnabled: useGatekeeper,
+      standardRpcDisabled,
     },
     cache: cache.stats(),
     circuitBreakers: Object.fromEntries(
@@ -1046,8 +1043,7 @@ async function warmCache() {
     })
   );
 
-  // Probe Helius RPC to determine if API key works
-  let heliusKeyValid = false;
+  // Probe Helius endpoints to determine which ones work with this key
   try {
     const probe = await rpcFetch(HELIUS_RPC, {
       method: 'POST',
@@ -1056,35 +1052,32 @@ async function warmCache() {
     }, { breaker: breakers.helius, retries: 0, timeout: 8_000 });
     const health = await probe.json();
     console.log('[Warmup] Helius Gatekeeper beta: OK', health.result || '');
-    heliusKeyValid = true;
   } catch (err) {
     console.warn('[Warmup] Helius Gatekeeper beta unavailable:', err.message);
-    useGatekeeper = false;
-    // Also try the standard endpoint to see if the key works at all
-    try {
-      const probe2 = await fetch(HELIUS_RPC_FALLBACK, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
-        signal: AbortSignal.timeout(8_000),
-      });
-      if (probe2.ok) {
-        const health2 = await probe2.json();
-        console.log('[Warmup] Helius standard endpoint: OK', health2.result || '');
-        heliusKeyValid = true;
-      } else {
-        console.warn(`[Warmup] Helius standard endpoint: HTTP ${probe2.status}`);
-      }
-    } catch (err2) {
-      console.warn('[Warmup] Helius standard endpoint also failed:', err2.message);
-    }
   }
 
-  if (!heliusKeyValid) {
-    console.warn('[Warmup] ⚠ Helius API key appears invalid — transactions will use public Solana RPC (slower)');
-    console.warn('[Warmup] Set HELIUS_KEY env var with a valid key from https://dev.helius.xyz');
-    wsAuthFailed = true;       // Prevent WS reconnect loop
-    heliusKeyDisabled = true;  // Skip Helius in RPC calls, go straight to public RPCs
+  // Probe standard RPC separately — some keys only work on Gatekeeper
+  try {
+    const probe2 = await fetch(HELIUS_RPC_FALLBACK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (probe2.ok) {
+      console.log('[Warmup] Helius standard RPC: OK');
+    } else {
+      standardRpcDisabled = true;
+      console.warn(`[Warmup] Helius standard RPC: HTTP ${probe2.status} — disabled, using Gatekeeper + public fallback`);
+    }
+  } catch (err2) {
+    console.warn('[Warmup] Helius standard RPC probe failed:', err2.message);
+  }
+
+  // Check if neither Helius endpoint works
+  if (breakers.helius.state === 'open' && standardRpcDisabled) {
+    console.warn('[Warmup] Both Helius endpoints unavailable — transactions will use public Solana RPC');
+    wsAuthFailed = true;
   }
 
   console.log('[Warmup] Done');

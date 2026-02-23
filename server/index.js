@@ -199,7 +199,6 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
 
     activeRequests++;
     try {
-      // Add timeout via AbortController to prevent hanging requests
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeout);
       const fetchOptions = { ...options, signal: controller.signal };
@@ -372,13 +371,17 @@ async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers
     }
 
     // Start the fetch and register as in-flight
-    const fetchPromise = (async () => {
-      const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries, timeout: 45_000 });
-      const data = await response.json();
-      const result = transform ? transform(data) : data;
-      cache.set(key, result);
-      return result;
-    })();
+    // Hard 30s timeout covers headers + body download + transform
+    const fetchPromise = Promise.race([
+      (async () => {
+        const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries, timeout: 20_000 });
+        const data = await response.json();
+        const result = transform ? transform(data) : data;
+        cache.set(key, result);
+        return result;
+      })(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Full request timeout (30s)')), 30_000)),
+    ]);
 
     inflightRequests.set(key, fetchPromise);
     try {
@@ -1115,21 +1118,26 @@ async function warmCache() {
     sources.map(async ({ key, url, breaker, headers, transform, timeout }) => {
       try {
         // Register as in-flight so client proxy requests can piggyback
-        const fetchPromise = (async () => {
-          const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1, timeout: timeout || 25_000 });
-          let data = await response.json();
-          if (transform) {
-            const rawCount = Array.isArray(data) ? data.length : '?';
-            data = transform(data);
-            const trimmedCount = Array.isArray(data) ? data.length : '?';
-            console.log(`[Warmup] ${key} cached (${trimmedCount} pools, filtered from ${rawCount})`);
-          } else {
-            const count = Array.isArray(data) ? data.length + ' items' : (data?.data ? data.data.length + ' items' : 'ok');
-            console.log(`[Warmup] ${key} cached (${count})`);
-          }
-          cache.set(key, data);
-          return data;
-        })();
+        // Hard timeout covers headers + full body download + transform
+        const hardTimeout = timeout || 30_000;
+        const fetchPromise = Promise.race([
+          (async () => {
+            const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1, timeout: 20_000 });
+            let data = await response.json();
+            if (transform) {
+              const rawCount = Array.isArray(data) ? data.length : '?';
+              data = transform(data);
+              const trimmedCount = Array.isArray(data) ? data.length : '?';
+              console.log(`[Warmup] ${key} cached (${trimmedCount} pools, filtered from ${rawCount})`);
+            } else {
+              const count = Array.isArray(data) ? data.length + ' items' : (data?.data ? data.data.length + ' items' : 'ok');
+              console.log(`[Warmup] ${key} cached (${count})`);
+            }
+            cache.set(key, data);
+            return data;
+          })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error(`Warmup timeout (${hardTimeout / 1000}s)`)), hardTimeout)),
+        ]);
 
         inflightRequests.set(key, fetchPromise);
         await fetchPromise;

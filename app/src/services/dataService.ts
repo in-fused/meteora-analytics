@@ -68,8 +68,15 @@ export const dataService = {
       const sources: string[] = [];
 
       // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
+      // DLMM can be 150MB and very slow — give it a 15s client-side timeout
+      // so DAMM/Raydium results show immediately while DLMM loads in background
+      const dlmmWithTimeout = Promise.race([
+        fetchWithRetry(CONFIG.METEORA_DLMM, undefined, 1).then(r => r.json()),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('DLMM timeout (15s)')), 15_000)),
+      ]);
+
       const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
-        fetchWithRetry(CONFIG.METEORA_DLMM, undefined, 2).then(r => r.json()),
+        dlmmWithTimeout,
         fetchWithRetry(CONFIG.METEORA_DAMM_V2).then(r => r.json()),
         fetchWithRetry(CONFIG.RAYDIUM_CLMM).then(r => r.json()),
       ]);

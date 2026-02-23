@@ -345,13 +345,15 @@ app.get('/api/health', (req, res) => {
 // POOL DATA PROXIES — Cached, circuit-broken, with structured errors
 // ═══════════════════════════════════════════════════════════════════════════
 
+// In-flight request dedup — prevents warmup + client from fetching the same 150MB twice
+const inflightRequests = new Map(); // key -> Promise<result>
+
 async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers, retries = 2 }) {
   try {
     const cached = cache.get(key, ttl);
     if (cached) return res.json(cached);
 
     if (!breaker.canRequest()) {
-      // Serve stale data if circuit is open — better than a hard error
       const stale = cache.get(key, Infinity);
       if (stale) {
         res.set('X-Cache-Stale', 'true');
@@ -363,14 +365,31 @@ async function proxyFetch(req, res, { key, ttl, url, breaker, transform, headers
       });
     }
 
-    const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries, timeout: 20_000 });
-    const data = await response.json();
-    const result = transform ? transform(data) : data;
-    cache.set(key, result);
-    res.json(result);
+    // If another request for this key is already in-flight, wait for it
+    if (inflightRequests.has(key)) {
+      const result = await inflightRequests.get(key);
+      return res.json(result);
+    }
+
+    // Start the fetch and register as in-flight
+    const fetchPromise = (async () => {
+      const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries, timeout: 45_000 });
+      const data = await response.json();
+      const result = transform ? transform(data) : data;
+      cache.set(key, result);
+      return result;
+    })();
+
+    inflightRequests.set(key, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      res.json(result);
+    } finally {
+      inflightRequests.delete(key);
+    }
   } catch (err) {
+    inflightRequests.delete(key);
     console.error(`[Proxy] ${key} error:`, err.message);
-    // Serve stale cache if available
     const stale = cache.get(key, Infinity);
     if (stale) {
       res.set('X-Cache-Stale', 'true');
@@ -1086,27 +1105,37 @@ async function warmCache() {
   };
 
   const sources = [
-    { key: 'dlmm', url: 'https://dlmm-api.meteora.ag/pair/all', breaker: breakers.dlmm, transform: dlmmTransform },
+    { key: 'dlmm', url: 'https://dlmm-api.meteora.ag/pair/all', breaker: breakers.dlmm, transform: dlmmTransform, timeout: 45_000 },
     { key: 'damm', url: 'https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc', breaker: breakers.damm },
     { key: 'raydium', url: 'https://api-v3.raydium.io/pools/info/list?poolType=concentrated&poolSortField=liquidity&sortType=desc&pageSize=200&page=1', breaker: breakers.raydium },
     { key: 'jupiter', url: 'https://api.jup.ag/tokens/v2/tag?query=verified', breaker: breakers.jupiter, headers: { 'x-api-key': JUPITER_API_KEY } },
   ];
 
   const results = await Promise.allSettled(
-    sources.map(async ({ key, url, breaker, headers, transform }) => {
+    sources.map(async ({ key, url, breaker, headers, transform, timeout }) => {
       try {
-        const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1, timeout: 20_000 });
-        let data = await response.json();
-        if (transform) {
-          const rawSize = JSON.stringify(data).length;
-          data = transform(data);
-          const trimmedSize = JSON.stringify(data).length;
-          console.log(`[Warmup] ${key} cached (${trimmedSize} bytes, trimmed from ${rawSize})`);
-        } else {
-          console.log(`[Warmup] ${key} cached (${JSON.stringify(data).length} bytes)`);
-        }
-        cache.set(key, data);
+        // Register as in-flight so client proxy requests can piggyback
+        const fetchPromise = (async () => {
+          const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1, timeout: timeout || 25_000 });
+          let data = await response.json();
+          if (transform) {
+            const rawCount = Array.isArray(data) ? data.length : '?';
+            data = transform(data);
+            const trimmedCount = Array.isArray(data) ? data.length : '?';
+            console.log(`[Warmup] ${key} cached (${trimmedCount} pools, filtered from ${rawCount})`);
+          } else {
+            const count = Array.isArray(data) ? data.length + ' items' : (data?.data ? data.data.length + ' items' : 'ok');
+            console.log(`[Warmup] ${key} cached (${count})`);
+          }
+          cache.set(key, data);
+          return data;
+        })();
+
+        inflightRequests.set(key, fetchPromise);
+        await fetchPromise;
+        inflightRequests.delete(key);
       } catch (err) {
+        inflightRequests.delete(key);
         console.warn(`[Warmup] ${key} failed:`, err.message);
       }
     })

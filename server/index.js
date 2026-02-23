@@ -241,8 +241,9 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
   }
 }
 
-// Helius RPC with automatic Gatekeeper → standard fallback
+// Helius RPC with automatic Gatekeeper → standard → public fallback
 let useGatekeeper = true; // Start optimistic; disable if Gatekeeper consistently fails
+let heliusKeyDisabled = false; // Set true when key is confirmed invalid (401) — skip both Helius endpoints
 
 async function heliusFetch(body) {
   const options = {
@@ -251,57 +252,62 @@ async function heliusFetch(body) {
     body: JSON.stringify(body),
   };
 
-  // Try Gatekeeper beta first (if still enabled)
-  if (useGatekeeper) {
-    try {
-      return await rpcFetch(HELIUS_RPC, options, { breaker: breakers.helius, timeout: 10_000 });
-    } catch (err) {
-      console.warn('[Helius] Gatekeeper failed, trying standard:', err.message);
-      // If Gatekeeper circuit is open, stop trying it until server restart
-      if (breakers.helius.state === 'open') {
-        useGatekeeper = false;
-        console.warn('[Helius] Disabling Gatekeeper beta, using standard endpoint');
+  // Skip Helius entirely if key is known-invalid (avoids 401 latency on every request)
+  if (!heliusKeyDisabled) {
+    // Try Gatekeeper beta first (if still enabled)
+    if (useGatekeeper) {
+      try {
+        return await rpcFetch(HELIUS_RPC, options, { breaker: breakers.helius, timeout: 10_000 });
+      } catch (err) {
+        console.warn('[Helius] Gatekeeper failed, trying standard:', err.message);
+        if (breakers.helius.state === 'open') {
+          useGatekeeper = false;
+          console.warn('[Helius] Disabling Gatekeeper beta, using standard endpoint');
+        }
       }
+    }
+
+    // Fallback to standard endpoint
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12_000);
+      const response = await fetch(HELIUS_RPC_FALLBACK, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (response.status === 401) {
+        heliusKeyDisabled = true;
+        console.warn('[Helius] API key rejected (401), disabling Helius endpoints — using public RPCs');
+      } else if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      } else {
+        return response;
+      }
+    } catch (err) {
+      console.warn('[RPC] Helius standard failed:', err.message);
     }
   }
 
-  // Fallback to standard endpoint — use its own timeout but no circuit breaker
-  // so it doesn't get blocked by the Gatekeeper's breaker state
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
-    const response = await fetch(HELIUS_RPC_FALLBACK, { ...options, signal: controller.signal });
-    clearTimeout(timer);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response;
-  } catch (err) {
-    console.warn('[RPC] Helius standard failed:', err.message);
-  }
-
-  // Third fallback: public Solana RPC (free, rate-limited but reliable)
+  // Public Solana RPC (free, rate-limited but reliable)
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12_000);
     const response = await fetch(SOLANA_PUBLIC_RPC, { ...options, signal: controller.signal });
     clearTimeout(timer);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    console.log('[RPC] Using public Solana RPC fallback');
     return response;
   } catch (err) {
     console.warn('[RPC] Public Solana RPC failed:', err.message);
   }
 
-  // Fourth fallback: Ankr Solana RPC
+  // Ankr Solana RPC
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12_000);
     const response = await fetch(ANKR_SOLANA_RPC, { ...options, signal: controller.signal });
     clearTimeout(timer);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    console.log('[RPC] Using Ankr Solana RPC fallback');
     return response;
   } catch (err) {
-    console.error('[RPC] All four RPC endpoints failed:', err.message);
+    console.error('[RPC] All RPC endpoints failed:', err.message);
     throw err;
   }
 }
@@ -518,6 +524,9 @@ let heliusConnected = false;
 let reconnectTimeout = null;
 let wsHeartbeat = null;
 let useEnhancedWs = true;  // Start with Enhanced, fall back to standard
+let wsReconnectAttempts = 0;
+let wsAuthFailed = false;   // Set true on 401 — stops reconnect loop
+const WS_MAX_RECONNECT = 8;
 
 function getWsEndpoint() {
   return useEnhancedWs ? HELIUS_ENHANCED_WS : HELIUS_WS_FALLBACK;
@@ -525,6 +534,13 @@ function getWsEndpoint() {
 
 function connectToHelius() {
   if (heliusWs && heliusWs.readyState === WebSocket.OPEN) return;
+  if (wsAuthFailed) return; // Don't retry with an invalid key
+
+  if (wsReconnectAttempts >= WS_MAX_RECONNECT) {
+    console.warn('[WS] Max reconnect attempts reached — using HTTP polling only');
+    console.warn('[WS] Live transaction push via WebSocket is disabled. Expanded pool cards will still show transactions via HTTP polling.');
+    return;
+  }
 
   const endpoint = getWsEndpoint();
   const mode = useEnhancedWs ? 'Enhanced' : 'Standard';
@@ -534,6 +550,7 @@ function connectToHelius() {
     heliusWs = new WebSocket(endpoint);
   } catch (err) {
     console.error('[WS] Failed to create WebSocket:', err.message);
+    wsReconnectAttempts++;
     scheduleReconnect();
     return;
   }
@@ -541,6 +558,7 @@ function connectToHelius() {
   heliusWs.on('open', () => {
     console.log(`[WS] Connected to Helius ${mode}`);
     heliusConnected = true;
+    wsReconnectAttempts = 0; // Reset on successful connection
 
     // Start heartbeat to detect stale connections
     clearInterval(wsHeartbeat);
@@ -563,10 +581,8 @@ function connectToHelius() {
       const message = JSON.parse(data.toString());
 
       if (useEnhancedWs) {
-        // Enhanced WebSocket: transactionSubscribe responses include parsed tx data
         handleEnhancedMessage(message);
       } else {
-        // Standard WebSocket: logsSubscribe responses
         handleStandardMessage(message);
       }
     } catch (e) {
@@ -585,16 +601,41 @@ function connectToHelius() {
       useEnhancedWs = false;
     }
 
+    wsReconnectAttempts++;
     scheduleReconnect();
   });
 
   heliusWs.on('error', (err) => {
     console.error('[WS] Helius error:', err.message);
     heliusConnected = false;
+
+    // Detect auth failures — stop infinite reconnect loop
+    if (err.message?.includes('401')) {
+      wsAuthFailed = true;
+      console.error('[WS] Helius API key rejected (401). WebSocket disabled.');
+      console.error('[WS] Set HELIUS_KEY env var with a valid key, or the app will use HTTP polling only.');
+      console.error('[WS] Get a free key at https://dev.helius.xyz');
+    }
   });
 
   heliusWs.on('pong', () => {
     // Connection is alive
+  });
+
+  // Unexpected server response (like 401) triggers 'error' before 'close',
+  // but the error message format varies. Also detect from the upgrade response.
+  heliusWs.on('unexpected-response', (req, res) => {
+    if (res.statusCode === 401) {
+      wsAuthFailed = true;
+      console.error(`[WS] Helius returned HTTP ${res.statusCode} — API key is invalid or expired.`);
+      console.error('[WS] WebSocket disabled. Set HELIUS_KEY env var with a valid key.');
+      console.error('[WS] Get a free key at https://dev.helius.xyz');
+    } else {
+      console.warn(`[WS] Unexpected HTTP ${res.statusCode} from Helius WS endpoint`);
+    }
+    // Destroy the socket to prevent the 'close' handler from also reconnecting
+    heliusWs?.terminate();
+    heliusWs = null;
   });
 }
 
@@ -705,9 +746,13 @@ function subscribeToAddress(address) {
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimeout);
-  // Always reconnect — don't gate on active clients, so Helius WS is ready
-  // when the next client connects (eliminates cold-start delay)
-  reconnectTimeout = setTimeout(connectToHelius, 5000);
+  if (wsAuthFailed) return; // Don't retry with an invalid key
+  if (wsReconnectAttempts >= WS_MAX_RECONNECT) return;
+
+  // Exponential backoff: 2s, 4s, 8s, 16s, 30s, 30s...
+  const delay = Math.min(2000 * Math.pow(2, wsReconnectAttempts - 1), 30_000);
+  console.log(`[WS] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${wsReconnectAttempts}/${WS_MAX_RECONNECT})`);
+  reconnectTimeout = setTimeout(connectToHelius, delay);
 }
 
 // Handle client connections
@@ -1001,7 +1046,8 @@ async function warmCache() {
     })
   );
 
-  // Also probe Helius RPC to determine if Gatekeeper works
+  // Probe Helius RPC to determine if API key works
+  let heliusKeyValid = false;
   try {
     const probe = await rpcFetch(HELIUS_RPC, {
       method: 'POST',
@@ -1010,10 +1056,35 @@ async function warmCache() {
     }, { breaker: breakers.helius, retries: 0, timeout: 8_000 });
     const health = await probe.json();
     console.log('[Warmup] Helius Gatekeeper beta: OK', health.result || '');
+    heliusKeyValid = true;
   } catch (err) {
     console.warn('[Warmup] Helius Gatekeeper beta unavailable:', err.message);
     useGatekeeper = false;
-    console.log('[Warmup] Falling back to standard Helius endpoint');
+    // Also try the standard endpoint to see if the key works at all
+    try {
+      const probe2 = await fetch(HELIUS_RPC_FALLBACK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (probe2.ok) {
+        const health2 = await probe2.json();
+        console.log('[Warmup] Helius standard endpoint: OK', health2.result || '');
+        heliusKeyValid = true;
+      } else {
+        console.warn(`[Warmup] Helius standard endpoint: HTTP ${probe2.status}`);
+      }
+    } catch (err2) {
+      console.warn('[Warmup] Helius standard endpoint also failed:', err2.message);
+    }
+  }
+
+  if (!heliusKeyValid) {
+    console.warn('[Warmup] ⚠ Helius API key appears invalid — transactions will use public Solana RPC (slower)');
+    console.warn('[Warmup] Set HELIUS_KEY env var with a valid key from https://dev.helius.xyz');
+    wsAuthFailed = true;       // Prevent WS reconnect loop
+    heliusKeyDisabled = true;  // Skip Helius in RPC calls, go straight to public RPCs
   }
 
   console.log('[Warmup] Done');

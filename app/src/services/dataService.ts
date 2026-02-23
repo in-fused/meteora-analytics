@@ -1,6 +1,6 @@
 import { CONFIG } from '@/config';
 import type { Pool } from '@/types';
-import { calculateSafety, calculateScore, generateBins, isHotPool } from '@/lib/utils';
+import { calculateSafety, calculateScore, isHotPool } from '@/lib/utils';
 import { useAppState } from '@/hooks/useAppState';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -228,8 +228,8 @@ export const dataService = {
       fees, feeBps: parseFloat(raw.base_fee_percentage) || 0,
       binStep,
       currentPrice, safety, score,
-      bins: generateBins(currentPrice),
-      activeBin: parseInt(raw.active_id) || 10,
+      bins: [],  // Real bins fetched via DLMM SDK on pool expand
+      activeBin: 0,
       icon1: raw.name?.split('/')[0]?.trim().slice(0, 4) || '?',
       icon2: raw.name?.split('/')[1]?.trim().slice(0, 4) || '?',
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
@@ -278,7 +278,7 @@ export const dataService = {
       feeBps: parseFloat(p.base_fee) || 0,
       feeTvlRatio: parseFloat(p.fee_tvl_ratio) || 0,
       binStep: 1, currentPrice, safety, score,
-      bins: generateBins(currentPrice), activeBin: 10,
+      bins: [], activeBin: 0,
       icon1: (p.token_a_symbol || name.split(/[-\/]/)[0] || '?').trim().slice(0, 4),
       icon2: (p.token_b_symbol || name.split(/[-\/]/)[1] || '?').trim().slice(0, 4),
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
@@ -319,7 +319,7 @@ export const dataService = {
       tvl, volume, apr: apr.toFixed(2), fees,
       feeBps: parseFloat(p.feeRate) || 0.25,
       binStep: 1, currentPrice, safety, score,
-      bins: generateBins(currentPrice), activeBin: 10,
+      bins: [], activeBin: 0,
       icon1: symbolA.slice(0, 4), icon2: symbolB.slice(0, 4),
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
       feeTvlRatio,
@@ -349,7 +349,7 @@ export const dataService = {
       tvl, volume: vol, apr: apr.toFixed(2), fees: vol * 0.003,
       feeBps: 0.3, binStep: 1,
       currentPrice: parseFloat(p.priceUsd) || 1, safety, score,
-      bins: generateBins(parseFloat(p.priceUsd) || 1), activeBin: 10,
+      bins: [], activeBin: 0,
       icon1: (p.baseToken?.symbol || '?').slice(0, 4),
       icon2: (p.quoteToken?.symbol || '?').slice(0, 4),
       icon1Url: p.baseToken?.info?.imageUrl,

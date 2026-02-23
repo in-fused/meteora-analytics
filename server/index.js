@@ -386,6 +386,39 @@ app.get('/api/proxy/dlmm', (req, res) => proxyFetch(req, res, {
   url: 'https://dlmm-api.meteora.ag/pair/all',
   breaker: breakers.dlmm,
   retries: 3,  // Extra retries — DLMM is the most important data source
+  // Transform: strip unused fields to reduce ~150MB → ~5-10MB response
+  // The raw API returns 50+ fields per pool; the frontend only uses ~25
+  transform: (data) => {
+    if (!Array.isArray(data)) return data;
+    return data
+      .filter(p => p.name && p.address && !p.hide && !p.is_blacklisted && parseFloat(p.liquidity || 0) > 100)
+      .map(p => ({
+        address: p.address,
+        name: p.name,
+        mint_x: p.mint_x,
+        mint_y: p.mint_y,
+        liquidity: p.liquidity,
+        trade_volume_24h: p.trade_volume_24h,
+        apr: p.apr,
+        apy: p.apy,
+        fees_24h: p.fees_24h,
+        today_fees: p.today_fees,
+        current_price: p.current_price,
+        bin_step: p.bin_step,
+        active_id: p.active_id,
+        base_fee_percentage: p.base_fee_percentage,
+        fee_tvl_ratio: p.fee_tvl_ratio,
+        fees: p.fees,
+        farm_apr: p.farm_apr,
+        farm_apy: p.farm_apy,
+        reward_mint_x: p.reward_mint_x,
+        reward_mint_y: p.reward_mint_y,
+        is_verified: p.is_verified,
+        cumulative_fee_volume: p.cumulative_fee_volume,
+        cumulative_trade_volume: p.cumulative_trade_volume,
+        tags: p.tags,
+      }));
+  },
 }));
 
 app.get('/api/proxy/damm', (req, res) => proxyFetch(req, res, {
@@ -619,7 +652,7 @@ function connectToHelius() {
     // Connection is alive
   });
 
-  // Unexpected server response (like 401) triggers 'error' before 'close',
+  // Unexpected server response (like 401/403) triggers 'error' before 'close',
   // but the error message format varies. Also detect from the upgrade response.
   heliusWs.on('unexpected-response', (req, res) => {
     if (res.statusCode === 401) {
@@ -627,6 +660,16 @@ function connectToHelius() {
       console.error(`[WS] Helius returned HTTP ${res.statusCode} — API key is invalid or expired.`);
       console.error('[WS] WebSocket disabled. Set HELIUS_KEY env var with a valid key.');
       console.error('[WS] Get a free key at https://dev.helius.xyz');
+    } else if (res.statusCode === 403 && useEnhancedWs) {
+      // Enhanced WS not available for this key — immediately try standard
+      console.warn('[WS] Enhanced WS unavailable (403), switching to standard immediately');
+      useEnhancedWs = false;
+      wsReconnectAttempts = 0; // Don't count 403 as a failure
+      heliusWs?.terminate();
+      heliusWs = null;
+      // Skip the close handler's reconnect — connect immediately
+      setTimeout(connectToHelius, 100);
+      return;
     } else {
       console.warn(`[WS] Unexpected HTTP ${res.statusCode} from Helius WS endpoint`);
     }
@@ -1023,20 +1066,46 @@ app.use((err, req, res, next) => {
 // ═══════════════════════════════════════════════════════════════════════════
 async function warmCache() {
   console.log('[Warmup] Pre-fetching pool data...');
+
+  // DLMM transform — same as the proxy endpoint, strips unused fields (150MB → ~5MB)
+  const dlmmTransform = (data) => {
+    if (!Array.isArray(data)) return data;
+    return data
+      .filter(p => p.name && p.address && !p.hide && !p.is_blacklisted && parseFloat(p.liquidity || 0) > 100)
+      .map(p => ({
+        address: p.address, name: p.name, mint_x: p.mint_x, mint_y: p.mint_y,
+        liquidity: p.liquidity, trade_volume_24h: p.trade_volume_24h,
+        apr: p.apr, apy: p.apy, fees_24h: p.fees_24h, today_fees: p.today_fees,
+        current_price: p.current_price, bin_step: p.bin_step, active_id: p.active_id,
+        base_fee_percentage: p.base_fee_percentage, fee_tvl_ratio: p.fee_tvl_ratio,
+        fees: p.fees, farm_apr: p.farm_apr, farm_apy: p.farm_apy,
+        reward_mint_x: p.reward_mint_x, reward_mint_y: p.reward_mint_y,
+        is_verified: p.is_verified, cumulative_fee_volume: p.cumulative_fee_volume,
+        cumulative_trade_volume: p.cumulative_trade_volume, tags: p.tags,
+      }));
+  };
+
   const sources = [
-    { key: 'dlmm', url: 'https://dlmm-api.meteora.ag/pair/all', breaker: breakers.dlmm },
+    { key: 'dlmm', url: 'https://dlmm-api.meteora.ag/pair/all', breaker: breakers.dlmm, transform: dlmmTransform },
     { key: 'damm', url: 'https://dammv2-api.meteora.ag/pools?limit=200&order_by=tvl&order=desc', breaker: breakers.damm },
     { key: 'raydium', url: 'https://api-v3.raydium.io/pools/info/list?poolType=concentrated&poolSortField=liquidity&sortType=desc&pageSize=200&page=1', breaker: breakers.raydium },
     { key: 'jupiter', url: 'https://api.jup.ag/tokens/v2/tag?query=verified', breaker: breakers.jupiter, headers: { 'x-api-key': JUPITER_API_KEY } },
   ];
 
   const results = await Promise.allSettled(
-    sources.map(async ({ key, url, breaker, headers }) => {
+    sources.map(async ({ key, url, breaker, headers, transform }) => {
       try {
         const response = await rpcFetch(url, headers ? { headers } : {}, { breaker, retries: 1, timeout: 20_000 });
-        const data = await response.json();
+        let data = await response.json();
+        if (transform) {
+          const rawSize = JSON.stringify(data).length;
+          data = transform(data);
+          const trimmedSize = JSON.stringify(data).length;
+          console.log(`[Warmup] ${key} cached (${trimmedSize} bytes, trimmed from ${rawSize})`);
+        } else {
+          console.log(`[Warmup] ${key} cached (${JSON.stringify(data).length} bytes)`);
+        }
         cache.set(key, data);
-        console.log(`[Warmup] ${key} cached (${JSON.stringify(data).length} bytes)`);
       } catch (err) {
         console.warn(`[Warmup] ${key} failed:`, err.message);
       }

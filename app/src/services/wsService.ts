@@ -67,10 +67,14 @@ class WSService {
     if (!poolAddress) return;
 
     this.safeSend(JSON.stringify({ type: 'unsubscribe', address: poolAddress }));
-    this.activePool = null;
-    this.stopPolling();
-    this.seenSignatures.clear();
-    this.lastFetchTime = 0;
+
+    // Only clear state if this is the currently active pool
+    if (this.activePool === poolAddress) {
+      this.activePool = null;
+      this.stopPolling();
+      this.seenSignatures.clear();
+      this.lastFetchTime = 0;
+    }
   }
 
   /** Cleanly shut down everything. */

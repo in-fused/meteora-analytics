@@ -233,8 +233,8 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
       clearTimeout(timer);
 
       if (response.status === 429) {
-        activeRequests--;
         if (attempt < retries) {
+          activeRequests--;
           const delay = backoff * Math.pow(2, attempt);
           console.warn(`[RPC] 429 from ${new URL(url).hostname}, retry in ${delay}ms`);
           await new Promise(r => setTimeout(r, delay));
@@ -245,7 +245,6 @@ async function rpcFetch(url, options = {}, { breaker = null, retries = 2, backof
       }
 
       if (!response.ok) {
-        activeRequests--;
         if (breaker) breaker.recordFailure();
         throw new Error(`HTTP ${response.status}`);
       }

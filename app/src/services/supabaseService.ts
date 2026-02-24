@@ -382,8 +382,8 @@ async function hydrate(): Promise<void> {
 
   if (alerts.length > 0) store.setAlerts(alerts);
   if (triggered.length > 0) {
-    // Merge triggered alerts into state (replace, since DB is source of truth)
-    for (const t of triggered) store.addTriggeredAlert(t);
+    // Set state directly — do NOT use addTriggeredAlert() which re-inserts to Supabase
+    useAppState.setState({ triggeredAlerts: triggered.slice(0, 50) });
   }
   if (prefs) {
     if (prefs.activeTab) store.setActiveTab(prefs.activeTab);

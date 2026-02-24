@@ -1,9 +1,10 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { dataService } from '@/services/dataService';
 import { wsService } from '@/services/wsService';
 import { walletService } from '@/services/walletService';
 import { metricsService } from '@/services/metricsService';
+import { supabaseService } from '@/services/supabaseService';
 import { detectOpportunities } from '@/lib/utils';
 import { formatNumber, shortenAddress } from '@/lib/utils';
 import { CONFIG } from '@/config';
@@ -33,44 +34,54 @@ export default function App() {
   const [execLoading, setExecLoading] = useState(false);
 
   // ═══════════════════════════════════════════════════════════════════════
-  // INITIALIZATION
+  // INITIALIZATION — Show app shell immediately, load data in background
   // ═══════════════════════════════════════════════════════════════════════
 
   useEffect(() => {
     const init = async () => {
       const store = useAppState.getState();
       try {
-        store.setLoadProgress(5, 'Connecting wallet...');
-        await walletService.autoConnect().catch(() => {});
+        // Phase 1: Fire all network requests in parallel
+        store.setLoadProgress(20, 'Fetching data...');
+        const [, ,] = await Promise.all([
+          walletService.autoConnect().catch(() => {}),
+          dataService.fetchJupiterTokens(),
+          dataService.fetchPools(),
+        ]);
 
-        store.setLoadProgress(15, 'Loading token data...');
-        await dataService.fetchJupiterTokens();
-
-        store.setLoadProgress(35, 'Fetching pool data...');
-        await dataService.fetchPools();
-
-        store.setLoadProgress(55, 'Applying filters...');
+        // Phase 2: CPU-only processing (fast)
+        store.setLoadProgress(80, 'Analyzing...');
         dataService.applyFilters();
-
-        store.setLoadProgress(70, 'Detecting opportunities...');
-        const opps = detectOpportunities(useAppState.getState().filteredPools.length > 0
+        const currentPools = useAppState.getState().filteredPools.length > 0
           ? useAppState.getState().filteredPools
-          : useAppState.getState().pools);
-        store.setOpportunities(opps);
+          : useAppState.getState().pools;
+        store.setOpportunities(detectOpportunities(currentPools));
 
-        store.setLoadProgress(85, 'Connecting live feed...');
-        wsService.connect();
-
-        store.setLoadProgress(92, 'Initializing metrics...');
-        metricsService.init();
-
+        // Phase 3: Done — show app
         store.setLoadProgress(100, 'Ready');
         store.setIsInitializing(false);
         store.setLastRefresh(Date.now());
+
+        // Phase 4: Background (non-blocking)
+        wsService.connect();
+        metricsService.init();
+
+        if (supabaseService.isEnabled()) {
+          supabaseService.hydrate()
+            .then(() => dataService.applyFilters())
+            .catch(() => {});
+        }
       } catch (err) {
         console.error('[App] Init failed:', err);
-        store.setLoadProgress(100, 'Error - Retrying...');
-        setTimeout(init, 3000);
+        // Show app anyway with whatever data we have
+        const store2 = useAppState.getState();
+        if (store2.pools.length > 0) {
+          store2.setIsInitializing(false);
+          store2.setLastRefresh(Date.now());
+        } else {
+          store2.setLoadProgress(100, 'Retrying...');
+          setTimeout(init, 3000);
+        }
       }
     };
 
@@ -109,6 +120,14 @@ export default function App() {
         // Fetch wallet balance if connected
         if (useAppState.getState().wallet.connected) {
           await walletService.fetchBalance();
+          const bal = useAppState.getState().wallet.balance;
+          if (bal > 0) supabaseService.saveWalletBalance(bal);
+        }
+
+        // Snapshot top pools for historical trends
+        const poolsToSnap = useAppState.getState().filteredPools;
+        if (poolsToSnap.length > 0) {
+          supabaseService.savePoolSnapshots(poolsToSnap);
         }
       } catch (err) {
         console.warn('[App] Background refresh failed:', err);
@@ -184,7 +203,10 @@ export default function App() {
         `${CONFIG.JUPITER_ULTRA_API}/order`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': '59819a46-e0b4-46c3-9d1d-1654cf850419',
+          },
           body: JSON.stringify({
             inputMint: CONFIG.MINTS.SOL,
             outputMint: execPool.mintX,
@@ -252,31 +274,12 @@ export default function App() {
 
       <Header onRefresh={handleRefresh} />
 
-      {/* Tab: Opportunities */}
+      {/* Tab: Opportunities (default) */}
       {activeTab === 'opportunities' && (
         <>
           <HeroSection />
           <OpportunitiesSection />
         </>
-      )}
-
-      {/* Tab: All Pools */}
-      {activeTab === 'all-pools' && (
-        <section className="section" style={{ padding: '2rem 1.5rem' }}>
-          <div className="section-header">
-            <h2>All Pools ({filteredPools.length})</h2>
-          </div>
-          <div className="pool-grid">
-            {filteredPools.map((pool, index) => (
-              <PoolCard key={pool.id} pool={pool} rank={index + 1} />
-            ))}
-          </div>
-          {filteredPools.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.5 }}>
-              No pools match current filters.
-            </div>
-          )}
-        </section>
       )}
 
       {/* Tab: Search & Alerts */}

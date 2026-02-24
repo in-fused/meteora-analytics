@@ -71,6 +71,8 @@ export type OppType = 'hot' | 'active' | 'standard';
 export interface Opportunity extends Pool {
   reason: string;
   oppType: OppType;
+  suggestion: string;
+  suggestionDetail: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -166,4 +168,67 @@ export interface AiSuggestion {
   reason: string;
   score: number;
   timestamp: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUPABASE ROW TYPES (match schema.sql)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface DbUserAlert {
+  id: string;
+  wallet_address: string;
+  pool_id: string;
+  pool_name: string;
+  metric: AlertMetric;
+  condition: AlertCondition;
+  value: number;
+  enabled: boolean;
+  created_at: number;
+}
+
+export interface DbTriggeredAlert {
+  id?: string;
+  alert_id: string;
+  wallet_address: string;
+  pool_id: string;
+  pool_name: string;
+  metric: string;
+  condition: string;
+  value: number;
+  current_value: number;
+  triggered_at: number;
+  read: boolean;
+}
+
+export interface DbUserPreferences {
+  wallet_address: string;
+  active_tab: string;
+  jupshield: boolean;
+  min_tvl: number;
+  min_volume: number;
+  safe_only: boolean;
+  farm_only: boolean;
+  pool_type: string;
+  sort_by: string;
+  updated_at?: string;
+}
+
+export interface DbPoolSnapshot {
+  id?: number;
+  pool_address: string;
+  pool_name: string;
+  protocol: string;
+  tvl: number;
+  volume: number;
+  apr: string;
+  fees: number;
+  score: number;
+  captured_at?: string;
+}
+
+export interface DbWalletBalance {
+  id?: number;
+  wallet_address: string;
+  balance_sol: number;
+  captured_at?: string;
 }

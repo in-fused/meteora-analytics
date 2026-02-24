@@ -21,6 +21,8 @@ interface PoolCardProps {
 
 export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
   const [copied, setCopied] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
   const togglingRef = useRef(false);
 
   const expandedPoolId = useAppState((s) => s.expandedPoolId);
@@ -61,6 +63,16 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
     };
   }, [isExpanded, addr]);
 
+  // Track if loading is taking too long (show retry message after 15s)
+  useEffect(() => {
+    if (!isExpanded || poolTransactions.length > 0) {
+      setLoadingTooLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingTooLong(true), 15_000);
+    return () => clearTimeout(timer);
+  }, [isExpanded, poolTransactions.length]);
+
   // Debounced click handler
   const handleToggle = useCallback(() => {
     if (togglingRef.current) return;
@@ -95,10 +107,14 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
     [addr]
   );
 
-  // Bins
+  // Bins — real on-chain data from DLMM SDK (fetched on pool expand)
   const bins = pool.bins && pool.bins.length > 0 ? pool.bins : [];
   const maxLiquidity = bins.length > 0 ? Math.max(...bins.map((b) => b.liquidity)) : 1;
   const totalLiquidity = bins.length > 0 ? bins.reduce((s, b) => s + b.liquidity, 0) : 1;
+  const hasRealBins = bins.length > 0; // All bins are now real (no more synthetic)
+  const activeBinIndex = pool.activeBin >= 0 && pool.activeBin < bins.length ? pool.activeBin : Math.floor(bins.length / 2);
+  const isDLMM = pool.protocol === 'Meteora DLMM';
+  const binsLoading = isExpanded && bins.length === 0 && isDLMM;
 
   // Opp type class
   const oppTypeClass = opp
@@ -199,6 +215,15 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
               {opp.oppType === 'hot' ? '🔥' : opp.oppType === 'active' ? '⚡' : '💡'} Opportunity
             </div>
             <div className="opp-reason-text">{opp.reason}</div>
+            {opp.suggestion && <div className="opp-suggestion">{opp.suggestion}</div>}
+            {opp.suggestionDetail && (
+              <button className="opp-detail-toggle" onClick={(e) => { e.stopPropagation(); setShowDetail(!showDetail); }}>
+                {showDetail ? 'Hide details' : 'Strategy details'}
+              </button>
+            )}
+            {showDetail && opp.suggestionDetail && (
+              <div className="opp-suggestion-detail">{opp.suggestionDetail}</div>
+            )}
           </div>
           <div className="opp-expand-hint">Click to expand</div>
         </div>
@@ -210,6 +235,10 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M2 12h20" /></svg>
                 Quick Deposit
               </button>
+              <a href={`https://jup.ag/swap/SOL-${pool.mintX}`} target="_blank" rel="noopener noreferrer" className="pool-action-btn" onClick={(e) => e.stopPropagation()}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                Swap
+              </a>
               <a href={poolUrl} target="_blank" rel="noopener noreferrer" className="pool-action-btn" onClick={(e) => e.stopPropagation()}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15,3 21,3 21,9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                 {dexName}
@@ -225,20 +254,21 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
             </div>
 
             {/* Liquidity chart */}
-            {bins.length > 0 && (
+            {bins.length > 0 ? (
               <div className="chart-section">
                 <div className="chart-header">
-                  <span className="chart-title">Liquidity Distribution (21 Bins)</span>
+                  <span className="chart-title">Liquidity Distribution ({bins.length} Bins)</span>
                   <div className="chart-legend">
                     <div className="legend-item"><div className="legend-dot liquidity" />Liquidity</div>
                     <div className="legend-item"><div className="legend-dot active" />Active Bin</div>
+                    <div className="legend-item" style={{ fontSize: 9, opacity: 0.7 }}>On-chain</div>
                   </div>
                 </div>
                 <div className="bins-container">
                   {bins.map((bin, i) => (
                     <div
                       key={bin.id}
-                      className={`bin ${i === pool.activeBin ? 'active-bin' : ''}`}
+                      className={`bin ${i === activeBinIndex ? 'active-bin' : ''}`}
                       style={{ height: `${(bin.liquidity / maxLiquidity) * 100}%` }}
                     >
                       <div className="bin-tooltip">
@@ -251,17 +281,22 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                 </div>
                 <div className="chart-axis">
                   <span className="axis-label">${formatPrice(bins[0].price)}</span>
-                  <span className="axis-label active">${formatPrice(bins[pool.activeBin]?.price ?? pool.currentPrice)}</span>
-                  <span className="axis-label">${formatPrice(bins[20]?.price ?? bins[bins.length - 1]?.price)}</span>
+                  <span className="axis-label active">${formatPrice(bins[activeBinIndex]?.price ?? pool.currentPrice)}</span>
+                  <span className="axis-label">${formatPrice(bins[bins.length - 1]?.price)}</span>
                 </div>
               </div>
-            )}
+            ) : binsLoading ? (
+              <div className="chart-section" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
+                <div className="loading-spinner" style={{ marginRight: 8 }} />
+                <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Loading on-chain bin data...</span>
+              </div>
+            ) : null}
 
             {/* Transaction feed */}
             <div className="pool-tx-section">
               <div className="pool-tx-header">
                 <span className="pool-tx-title"><span className={`status-dot ${wsConnected ? 'live' : ''}`} />Live Transactions</span>
-                <span className="pool-tx-status" style={{ fontSize: 10, color: 'var(--text-dim)' }}>{wsConnected ? '🟢 Connected' : '🔴 Connecting...'}</span>
+                <span className="pool-tx-status" style={{ fontSize: 10, color: 'var(--text-dim)' }}>{poolTransactions.length > 0 ? `${poolTransactions.length} txs` : (wsConnected ? 'Listening...' : 'Connecting...')}</span>
               </div>
               <div className="pool-tx-list">
                 {poolTransactions.length > 0 ? (
@@ -279,8 +314,16 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                   ))
                 ) : (
                   <div className="pool-tx-empty">
-                    <div className="loading-spinner" style={{ marginBottom: 8 }} />
-                    <span>Loading transactions...</span>
+                    {loadingTooLong ? (
+                      <>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>RPC connection issues — retrying automatically...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="loading-spinner" style={{ marginBottom: 8 }} />
+                        <span>Loading transactions...</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -364,20 +407,21 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
           </div>
 
           {/* Liquidity chart */}
-          {bins.length > 0 && (
+          {bins.length > 0 ? (
             <div className="chart-section">
               <div className="chart-header">
-                <span className="chart-title">Liquidity Distribution (21 Bins)</span>
+                <span className="chart-title">Liquidity Distribution ({bins.length} Bins)</span>
                 <div className="chart-legend">
                   <div className="legend-item"><div className="legend-dot liquidity" />Liquidity</div>
                   <div className="legend-item"><div className="legend-dot active" />Active Bin</div>
+                  <div className="legend-item" style={{ fontSize: 9, opacity: 0.7 }}>On-chain</div>
                 </div>
               </div>
               <div className="bins-container">
                 {bins.map((bin, i) => (
                   <div
                     key={bin.id}
-                    className={`bin ${i === pool.activeBin ? 'active-bin' : ''}`}
+                    className={`bin ${i === activeBinIndex ? 'active-bin' : ''}`}
                     style={{ height: `${(bin.liquidity / maxLiquidity) * 100}%` }}
                   >
                     <div className="bin-tooltip">
@@ -390,11 +434,16 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
               </div>
               <div className="chart-axis">
                 <span className="axis-label">${formatPrice(bins[0].price)}</span>
-                <span className="axis-label active">${formatPrice(bins[pool.activeBin]?.price ?? pool.currentPrice)}</span>
-                <span className="axis-label">${formatPrice(bins[20]?.price ?? bins[bins.length - 1]?.price)}</span>
+                <span className="axis-label active">${formatPrice(bins[activeBinIndex]?.price ?? pool.currentPrice)}</span>
+                <span className="axis-label">${formatPrice(bins[bins.length - 1]?.price)}</span>
               </div>
             </div>
-          )}
+          ) : binsLoading ? (
+            <div className="chart-section" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
+              <div className="loading-spinner" style={{ marginRight: 8 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Loading on-chain bin data...</span>
+            </div>
+          ) : null}
 
           {/* Transaction feed */}
           <div className="pool-tx-section">

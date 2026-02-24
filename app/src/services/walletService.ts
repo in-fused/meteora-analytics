@@ -2,6 +2,7 @@ import { CONFIG } from '@/config';
 import { useAppState } from '@/hooks/useAppState';
 import { shortenAddress } from '@/lib/utils';
 import { toastService } from '@/services/toastService';
+import { supabaseService } from '@/services/supabaseService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // WALLET SERVICE - Phantom, Solflare, Backpack integration
@@ -40,6 +41,9 @@ class WalletService {
 
         // Save for auto-connect
         localStorage.setItem('lp_wallet_provider', walletKey);
+
+        // Hydrate Supabase data for this wallet
+        supabaseService.hydrate();
 
         toastService.success('Connected', shortenAddress(publicKey));
         return true;
@@ -115,6 +119,7 @@ class WalletService {
             name: 'Phantom',
           });
           await this.fetchBalance();
+          supabaseService.hydrate();
         }
       } catch {
         // User hasn't trusted this site yet - don't show popup

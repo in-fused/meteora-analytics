@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import type {
   Pool, Opportunity, Alert, TriggeredAlert, AiSuggestion,
-  WalletState, ApiStatus, FilterState, PoolTransaction, SortField
+  WalletState, ApiStatus, FilterState, PoolTransaction, SortField, Bin
 } from '@/types';
+import { supabaseService } from '@/services/supabaseService';
 
 interface AppState {
   // Pool data
@@ -75,6 +76,7 @@ interface AppState {
   setAiSuggestions: (suggestions: AiSuggestion[]) => void;
   setPoolTransactions: (poolId: string, txs: PoolTransaction[]) => void;
   addPoolTransaction: (poolId: string, tx: PoolTransaction) => void;
+  setPoolBins: (poolId: string, bins: Bin[], activeBinIndex: number, activePrice: number) => void;
   setWsConnected: (connected: boolean) => void;
   setJupshieldEnabled: (enabled: boolean) => void;
   setLastRefresh: (ts: number) => void;
@@ -146,23 +148,56 @@ export const useAppState = create<AppState>((set, get) => ({
   setSources: (sources) => set({ sources }),
   setExpandedPoolId: (expandedPoolId) => set({ expandedPoolId }),
   setExpandedOppId: (expandedOppId) => set({ expandedOppId }),
-  setActiveTab: (activeTab) => set({ activeTab }),
+  setActiveTab: (activeTab) => {
+    const prev = get().activeTab;
+    // Free search results memory when leaving the search tab
+    if (prev === 'search-alerts' && activeTab !== 'search-alerts') {
+      set({ activeTab, searchResults: [] });
+    } else {
+      set({ activeTab });
+    }
+    supabaseService.debouncedSavePreferences();
+  },
   setIsInitializing: (isInitializing) => set({ isInitializing }),
   setLoadProgress: (loadProgress, loadMessage) => set({ loadProgress, loadMessage }),
   setShowWalletModal: (showWalletModal) => set({ showWalletModal }),
   setShowExecModal: (showExecModal) => set({ showExecModal }),
   setExecPool: (execPool) => set({ execPool }),
   setAlerts: (alerts) => set({ alerts }),
-  addAlert: (alert) => set((s) => ({ alerts: [...s.alerts, alert] })),
-  removeAlert: (id) => set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) })),
-  addTriggeredAlert: (alert) => set((s) => ({ triggeredAlerts: [alert, ...s.triggeredAlerts].slice(0, 50) })),
+  addAlert: (alert) => {
+    set((s) => ({ alerts: [...s.alerts, alert] }));
+    supabaseService.saveAlert(alert);
+  },
+  removeAlert: (id) => {
+    set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) }));
+    supabaseService.deleteAlert(id);
+  },
+  addTriggeredAlert: (alert) => {
+    set((s) => ({ triggeredAlerts: [alert, ...s.triggeredAlerts].slice(0, 50) }));
+    supabaseService.saveTriggeredAlert(alert);
+  },
   clearTriggeredAlerts: () => set({ triggeredAlerts: [] }),
-  markTriggeredAlertsRead: () => set((s) => ({
-    triggeredAlerts: s.triggeredAlerts.map(a => ({ ...a, read: true })),
-  })),
+  markTriggeredAlertsRead: () => {
+    set((s) => ({
+      triggeredAlerts: s.triggeredAlerts.map(a => ({ ...a, read: true })),
+    }));
+    supabaseService.markTriggeredAlertsRead();
+  },
   setAiSuggestions: (aiSuggestions) => set({ aiSuggestions }),
   setPoolTransactions: (poolId, txs) =>
-    set((s) => ({ poolTransactions: { ...s.poolTransactions, [poolId]: txs } })),
+    set((s) => {
+      const updated = { ...s.poolTransactions, [poolId]: txs };
+      // Cap to 8 tracked pools max — evict oldest entries beyond that
+      const keys = Object.keys(updated);
+      if (keys.length > 8) {
+        const activeIds = new Set([s.expandedPoolId, s.expandedOppId].filter(Boolean));
+        for (const k of keys) {
+          if (Object.keys(updated).length <= 8) break;
+          if (!activeIds.has(k) && k !== poolId) delete updated[k];
+        }
+      }
+      return { poolTransactions: updated };
+    }),
   addPoolTransaction: (poolId, tx) =>
     set((s) => ({
       poolTransactions: {
@@ -170,42 +205,78 @@ export const useAppState = create<AppState>((set, get) => ({
         [poolId]: [tx, ...(s.poolTransactions[poolId] || [])].slice(0, 15),
       },
     })),
+  setPoolBins: (poolId, bins, activeBinIndex, activePrice) =>
+    set((s) => {
+      const update = (p: Pool) =>
+        p.id === poolId
+          ? { ...p, bins, activeBin: activeBinIndex, currentPrice: activePrice }
+          : p;
+      return {
+        pools: s.pools.map(update),
+        filteredPools: s.filteredPools.map(update),
+        opportunities: s.opportunities.map(update) as Opportunity[],
+      };
+    }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
-  setJupshieldEnabled: (jupshieldEnabled) => set({ jupshieldEnabled }),
+  setJupshieldEnabled: (jupshieldEnabled) => {
+    set({ jupshieldEnabled });
+    supabaseService.debouncedSavePreferences();
+  },
   setLastRefresh: (lastRefresh) => set({ lastRefresh }),
   setWallet: (wallet) => set((s) => ({ wallet: { ...s.wallet, ...wallet } })),
   setApiStatus: (api, status) =>
     set((s) => ({ apiStatus: { ...s.apiStatus, [api]: status } })),
-  setFilters: (filters) =>
-    set((s) => ({ filters: { ...s.filters, ...filters } })),
+  setFilters: (filters) => {
+    set((s) => ({ filters: { ...s.filters, ...filters } }));
+    supabaseService.debouncedSavePreferences();
+  },
   setSearchResults: (searchResults) => set({ searchResults }),
 
-  // Toggle pool with mutual exclusion
+  // Toggle pool with mutual exclusion + memory cleanup
   togglePool: (poolId) => {
-    const { expandedPoolId } = get();
+    const { expandedPoolId, poolTransactions } = get();
     if (expandedPoolId === poolId) {
-      set({ expandedPoolId: null });
+      // Collapsing — evict transactions to free memory
+      const cleaned = { ...poolTransactions };
+      delete cleaned[poolId];
+      set({ expandedPoolId: null, poolTransactions: cleaned });
     } else {
-      set({ expandedPoolId: poolId, expandedOppId: null });
+      // Expanding — also evict the previously expanded pool's txs
+      const cleaned = { ...poolTransactions };
+      if (expandedPoolId) delete cleaned[expandedPoolId];
+      set({ expandedPoolId: poolId, expandedOppId: null, poolTransactions: cleaned });
     }
   },
 
   toggleOpp: (oppId) => {
-    const { expandedOppId } = get();
+    const { expandedOppId, poolTransactions } = get();
     if (expandedOppId === oppId) {
-      set({ expandedOppId: null });
+      const cleaned = { ...poolTransactions };
+      delete cleaned[oppId];
+      set({ expandedOppId: null, poolTransactions: cleaned });
     } else {
-      set({ expandedOppId: oppId, expandedPoolId: null });
+      const cleaned = { ...poolTransactions };
+      if (expandedOppId) delete cleaned[expandedOppId];
+      set({ expandedOppId: oppId, expandedPoolId: null, poolTransactions: cleaned });
     }
   },
 
-  // Check alerts against current pool data
+  // Check alerts against current pool data (with deduplication)
   checkAlerts: () => {
-    const { alerts, pools, addTriggeredAlert } = get();
+    const { alerts, pools, triggeredAlerts, addTriggeredAlert } = get();
     if (alerts.length === 0 || pools.length === 0) return;
+
+    // Prevent the same alert from firing more than once per 10 minutes
+    const recentlyTriggered = new Set(
+      triggeredAlerts
+        .filter(t => Date.now() - t.triggeredAt < 600_000)
+        .map(t => t.id)
+    );
 
     for (const alert of alerts) {
       if (!alert.enabled) continue;
+      if (recentlyTriggered.has(alert.id)) continue;
+
       const pool = pools.find(p => p.id === alert.poolId);
       if (!pool) continue;
 

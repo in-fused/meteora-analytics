@@ -1,18 +1,46 @@
 import { CONFIG } from '@/config';
 import type { Pool } from '@/types';
-import { calculateSafety, calculateScore, generateBins, isHotPool } from '@/lib/utils';
+import { calculateSafety, calculateScore, isHotPool } from '@/lib/utils';
 import { useAppState } from '@/hooks/useAppState';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DATA SERVICE - Fetches and processes pool data from all sources
+// DATA SERVICE — Fetches and processes pool data from all sources
+//
+// All RPC calls go through the server proxy which uses:
+//   - Helius Gatekeeper beta (4.6-7.8x faster RPC)
+//   - Circuit breakers per upstream API
+//   - LRU caching with stale-serve fallback
 // ═══════════════════════════════════════════════════════════════════════════
+
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      // If server returns 503 (circuit breaker open), respect retryAfter
+      if (response.status === 503 && attempt < retries) {
+        const data = await response.json().catch(() => ({}));
+        const wait = Math.min((data.retryAfter || 3) * 1000, 5000);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('fetchWithRetry exhausted');
+}
 
 export const dataService = {
   async fetchJupiterTokens(): Promise<void> {
     const store = useAppState.getState();
     try {
-      const r = await fetch(CONFIG.JUPITER_TOKENS);
-      if (!r.ok) throw new Error('Jupiter API failed');
+      const r = await fetchWithRetry(CONFIG.JUPITER_TOKENS);
       const tokens = await r.json();
       const tokenList: unknown[] = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
       const verified = new Set(store.verifiedTokens);
@@ -40,11 +68,29 @@ export const dataService = {
       const sources: string[] = [];
 
       // Fetch DLMM, DAMM v2, and Raydium CLMM in parallel
-      const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
-        fetch(CONFIG.METEORA_DLMM).then(r => { if (!r.ok) throw new Error(`DLMM HTTP ${r.status}`); return r.json(); }),
-        fetch(CONFIG.METEORA_DAMM_V2).then(r => { if (!r.ok) throw new Error(`DAMM v2 HTTP ${r.status}`); return r.json(); }),
-        fetch(CONFIG.RAYDIUM_CLMM).then(r => { if (!r.ok) throw new Error(`Raydium HTTP ${r.status}`); return r.json(); }),
+      // DLMM can be 150MB and very slow — give it a 15s client-side timeout
+      // so DAMM/Raydium results show immediately while DLMM loads in background
+      const dlmmWithTimeout = Promise.race([
+        fetchWithRetry(CONFIG.METEORA_DLMM, undefined, 1).then(r => r.json()),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('DLMM timeout (15s)')), 15_000)),
       ]);
+
+      const [dlmmResult, dammResult, raydiumResult] = await Promise.allSettled([
+        dlmmWithTimeout,
+        fetchWithRetry(CONFIG.METEORA_DAMM_V2).then(r => r.json()),
+        fetchWithRetry(CONFIG.RAYDIUM_CLMM).then(r => r.json()),
+      ]);
+
+      // Log per-source failures for debugging
+      if (dlmmResult.status === 'rejected') {
+        console.warn('[DataService] DLMM fetch failed:', dlmmResult.reason?.message || dlmmResult.reason);
+      }
+      if (dammResult.status === 'rejected') {
+        console.warn('[DataService] DAMM fetch failed:', dammResult.reason?.message || dammResult.reason);
+      }
+      if (raydiumResult.status === 'rejected') {
+        console.warn('[DataService] Raydium fetch failed:', raydiumResult.reason?.message || raydiumResult.reason);
+      }
 
       // Process DLMM
       if (dlmmResult.status === 'fulfilled' && Array.isArray(dlmmResult.value)) {
@@ -60,6 +106,30 @@ export const dataService = {
           }
         }
         sources.push(`DLMM:${dlmmPools.length}`);
+        store.setApiStatus('meteora', true);
+      } else {
+        // DLMM failed — try DexScreener as Meteora-specific fallback
+        console.log('[DataService] DLMM unavailable, trying DexScreener for Meteora pools...');
+        try {
+          const dxr = await fetch('https://api.dexscreener.com/latest/dex/search?q=meteora');
+          if (dxr.ok) {
+            const dx = await dxr.json();
+            const dxPools = (dx.pairs ?? [])
+              .filter((p: any) => p.dexId === 'meteora' && p.liquidity?.usd > 100)
+              .slice(0, 200)
+              .map((p: any) => this.processDexScreener(p, store.verifiedTokens));
+            for (const p of dxPools) {
+              if (!seenAddresses.has(p.address)) {
+                seenAddresses.add(p.address);
+                allPools.push(p);
+              }
+            }
+            if (dxPools.length) {
+              sources.push(`DexScreener-DLMM:${dxPools.length}`);
+              store.setApiStatus('meteora', true);
+            }
+          }
+        } catch { /* DexScreener fallback failed too */ }
       }
 
       // Process DAMM v2
@@ -123,8 +193,6 @@ export const dataService = {
     } catch (err) {
       console.error('[DataService] fetchPools error:', err);
       store.setApiStatus('meteora', false);
-      // Retry after 10 seconds on failure
-      setTimeout(() => this.fetchPools(), 10000);
     }
   },
 
@@ -167,8 +235,8 @@ export const dataService = {
       fees, feeBps: parseFloat(raw.base_fee_percentage) || 0,
       binStep,
       currentPrice, safety, score,
-      bins: generateBins(currentPrice),
-      activeBin: parseInt(raw.active_id) || 10,
+      bins: [],  // Real bins fetched via DLMM SDK on pool expand
+      activeBin: 0,
       icon1: raw.name?.split('/')[0]?.trim().slice(0, 4) || '?',
       icon2: raw.name?.split('/')[1]?.trim().slice(0, 4) || '?',
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
@@ -217,7 +285,7 @@ export const dataService = {
       feeBps: parseFloat(p.base_fee) || 0,
       feeTvlRatio: parseFloat(p.fee_tvl_ratio) || 0,
       binStep: 1, currentPrice, safety, score,
-      bins: generateBins(currentPrice), activeBin: 10,
+      bins: [], activeBin: 0,
       icon1: (p.token_a_symbol || name.split(/[-\/]/)[0] || '?').trim().slice(0, 4),
       icon2: (p.token_b_symbol || name.split(/[-\/]/)[1] || '?').trim().slice(0, 4),
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
@@ -258,7 +326,7 @@ export const dataService = {
       tvl, volume, apr: apr.toFixed(2), fees,
       feeBps: parseFloat(p.feeRate) || 0.25,
       binStep: 1, currentPrice, safety, score,
-      bins: generateBins(currentPrice), activeBin: 10,
+      bins: [], activeBin: 0,
       icon1: symbolA.slice(0, 4), icon2: symbolB.slice(0, 4),
       volumeToTvl: tvl > 0 ? volume / tvl : 0,
       feeTvlRatio,
@@ -288,7 +356,7 @@ export const dataService = {
       tvl, volume: vol, apr: apr.toFixed(2), fees: vol * 0.003,
       feeBps: 0.3, binStep: 1,
       currentPrice: parseFloat(p.priceUsd) || 1, safety, score,
-      bins: generateBins(parseFloat(p.priceUsd) || 1), activeBin: 10,
+      bins: [], activeBin: 0,
       icon1: (p.baseToken?.symbol || '?').slice(0, 4),
       icon2: (p.quoteToken?.symbol || '?').slice(0, 4),
       icon1Url: p.baseToken?.info?.imageUrl,

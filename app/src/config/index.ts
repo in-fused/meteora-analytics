@@ -15,26 +15,31 @@ export const CONFIG = {
   // Meteora API endpoints (via proxy)
   METEORA_DLMM: '/api/proxy/dlmm',
   METEORA_DAMM_V2: '/api/proxy/damm',
-  METEORA_PROGRAM: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
+  METEORA_DLMM_PROGRAM: '9y5u1v31x1787u493xj2476k9x27288591f9k3792181',
 
   // Raydium Concentrated Liquidity Pools
   RAYDIUM_CLMM: '/api/proxy/raydium',
+  RAYDIUM_CLMM_PROGRAM: 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK',
 
-  // Jupiter Token Verification (via proxy)
+  // Jupiter (authenticated via server proxy)
   JUPITER_PRICE: 'https://api.jup.ag/price/v3/price',
   JUPITER_TOKENS: '/api/proxy/jupiter-tokens',
   JUPITER_ULTRA_API: 'https://api.jup.ag/ultra/v1',
 
-  // Helius RPC (via proxy)
+  // Helius RPC (via server proxy — server uses Gatekeeper beta internally)
   HELIUS_RPC: '/api/helius/rpc',
   HELIUS_BATCH: '/api/helius/batch',
 
-  // WebSocket
+  // DLMM SDK endpoints (server-side on-chain reads)
+  POOL_BINS: (address: string) => `/api/pool/${address}/bins`,
+  POOL_INFO: (address: string) => `/api/pool/${address}/info`,
+
+  // WebSocket (server handles Enhanced WS → standard fallback internally)
   WS_URL: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
   WS_RECONNECT_DELAY: 3000,
-  MAX_ERRORS: 3,
+  MAX_ERRORS: 5,
 
-  // Refresh intervals (optimized)
+  // Refresh intervals
   REFRESH_INTERVAL: 60000,  // 60 seconds
   FAST_REFRESH: 30000,      // 30 seconds
 
@@ -53,6 +58,10 @@ export const CONFIG = {
     USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
     JUP: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
   } as Record<string, string>,
+
+  // Supabase
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'https://gdcjtkzxyafvexaaghgh.supabase.co',
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkY2p0a3p4eWFmdmV4YWFnaGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMjM3MDYsImV4cCI6MjA4NjU5OTcwNn0.UQxbRBt1mR-vOOiU68Rt59Drre2gTNGQK__SlEc36wY',
 
   // Platform fee
   PLATFORM_FEE_BPS: 10, // 0.1%

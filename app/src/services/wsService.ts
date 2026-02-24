@@ -15,8 +15,8 @@ import type { PoolTransaction, TxType, Bin } from '@/types';
 
 type WsState = 'disconnected' | 'connecting' | 'connected';
 
-const POLL_INTERVAL_MS = 5000;
-const FETCH_COOLDOWN_MS = 4000;
+const POLL_INTERVAL_MS = 4000;
+const FETCH_COOLDOWN_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const MAX_SEEN_SIGNATURES = 150;
 
@@ -36,7 +36,12 @@ class WSService {
   /** Start the WebSocket connection (called once at app init). */
   connect(): void {
     if (this.state !== 'disconnected') return;
-    if (CONFIG.IS_MOBILE) return; // Mobile uses polling only
+    if (CONFIG.IS_MOBILE) {
+      // Mobile uses polling only — mark as "connected" so UI shows correct status
+      const store = useAppState.getState();
+      store.setWsConnected(true);
+      return;
+    }
     this.connectWebSocket();
   }
 
@@ -256,28 +261,7 @@ class WSService {
     try {
       const tx = data.transaction;
       if (!tx?.transaction?.signatures?.[0]) return null;
-
-      const signature = tx.transaction.signatures[0];
-      const timestamp = (tx.blockTime || Math.floor(Date.now() / 1000)) * 1000;
-
-      const logs: string[] = tx.meta?.logMessages || [];
-      let type: TxType = 'swap';
-      let amount = '0';
-
-      for (const log of logs) {
-        if (log.includes('AddLiquidity') || log.includes('Deposit')) { type = 'add'; break; }
-        if (log.includes('RemoveLiquidity') || log.includes('Withdraw')) { type = 'remove'; break; }
-        if (log.includes('Swap')) { type = 'swap'; break; }
-      }
-
-      const preBalances = tx.meta?.preBalances || [];
-      const postBalances = tx.meta?.postBalances || [];
-      if (preBalances.length > 0 && postBalances.length > 0) {
-        const diff = Math.abs(postBalances[0] - preBalances[0]) / 1e9;
-        if (diff > 0.001) amount = diff.toFixed(4);
-      }
-
-      return { signature, type, amount, timestamp };
+      return this.parseTransactionInner(tx, tx.transaction.signatures[0]);
     } catch {
       return null;
     }
@@ -316,9 +300,10 @@ class WSService {
       const signatures = sigData.result || [];
       if (signatures.length === 0) return;
 
-      // Prefer unseen signatures, fall back to recent ones
+      // Only fetch transactions we haven't seen yet — skip redundant batch RPCs
       const newSigs = signatures.filter((s: any) => !this.seenSignatures.has(s.signature));
-      const sigsToFetch = newSigs.length > 0 ? newSigs.slice(0, 8) : signatures.slice(0, 5);
+      if (newSigs.length === 0) return; // No new activity on this pool
+      const sigsToFetch = newSigs.slice(0, 8);
 
       // Step 2: Batch fetch transaction details
       const batchResponse = await fetch(CONFIG.HELIUS_BATCH, {
@@ -336,13 +321,17 @@ class WSService {
 
       const batchData = await batchResponse.json();
 
-      const txs: PoolTransaction[] = (Array.isArray(batchData) ? batchData : [])
-        .filter((r: any) => r.result)
+      const batchResults = (Array.isArray(batchData) ? batchData : []).filter((r: any) => r.result);
+
+      // Mark ALL fetched signatures as seen (even filtered ones) to avoid re-fetching
+      for (const r of batchResults) {
+        const sig = r.result?.transaction?.signatures?.[0];
+        if (sig) this.seenSignatures.add(sig);
+      }
+
+      const txs: PoolTransaction[] = batchResults
         .map((r: any) => this.parseTransaction(r.result))
         .filter((tx): tx is PoolTransaction => tx !== null);
-
-      // Mark as seen
-      txs.forEach(tx => this.seenSignatures.add(tx.signature));
 
       // Cap seen set to prevent memory growth
       if (this.seenSignatures.size > MAX_SEEN_SIGNATURES) {
@@ -376,26 +365,81 @@ class WSService {
 
   private parseTransaction(tx: any): PoolTransaction | null {
     if (!tx?.transaction?.signatures?.[0]) return null;
+    return this.parseTransactionInner(tx, tx.transaction.signatures[0]);
+  }
 
-    const signature = tx.transaction.signatures[0];
+  /** Shared parser for both HTTP-fetched and WS-pushed transactions.
+   *  Uses token balance changes (preTokenBalances/postTokenBalances) to get
+   *  real amounts instead of relying on SOL native balance diffs. */
+  private parseTransactionInner(tx: any, signature: string): PoolTransaction | null {
     const timestamp = (tx.blockTime || Math.floor(Date.now() / 1000)) * 1000;
 
+    // Detect transaction type from program logs
     const logs: string[] = tx.meta?.logMessages || [];
     let type: TxType = 'swap';
-    let amount = '0';
-
     for (const log of logs) {
       if (log.includes('AddLiquidity') || log.includes('Deposit')) { type = 'add'; break; }
       if (log.includes('RemoveLiquidity') || log.includes('Withdraw')) { type = 'remove'; break; }
       if (log.includes('Swap')) { type = 'swap'; break; }
     }
 
-    const preBalances = tx.meta?.preBalances || [];
-    const postBalances = tx.meta?.postBalances || [];
-    if (preBalances.length > 0 && postBalances.length > 0) {
-      const diff = Math.abs(postBalances[0] - preBalances[0]) / 1e9;
-      if (diff > 0.001) amount = diff.toFixed(4);
+    let amount = '0';
+
+    // 1. Primary: token balance changes (accurate for DeFi pool transactions)
+    const preTokenBalances: any[] = tx.meta?.preTokenBalances || [];
+    const postTokenBalances: any[] = tx.meta?.postTokenBalances || [];
+
+    let maxChange = 0;
+
+    // Check all post-balances against their pre counterparts
+    for (const post of postTokenBalances) {
+      const pre = preTokenBalances.find(
+        (p: any) => p.accountIndex === post.accountIndex && p.mint === post.mint
+      );
+      const preAmt = pre ? parseFloat(pre.uiTokenAmount?.uiAmountString || '0') : 0;
+      const postAmt = parseFloat(post.uiTokenAmount?.uiAmountString || '0');
+      const diff = Math.abs(postAmt - preAmt);
+      if (diff > maxChange) maxChange = diff;
     }
+
+    // Check pre-balances that vanished in post (full withdrawal / account close)
+    for (const pre of preTokenBalances) {
+      const post = postTokenBalances.find(
+        (p: any) => p.accountIndex === pre.accountIndex && p.mint === pre.mint
+      );
+      if (!post) {
+        const preAmt = parseFloat(pre.uiTokenAmount?.uiAmountString || '0');
+        if (preAmt > maxChange) maxChange = preAmt;
+      }
+    }
+
+    if (maxChange > 0.001) {
+      amount = maxChange.toFixed(4);
+    }
+
+    // 2. Fallback: SOL native balance change (for SOL-only transactions)
+    if (amount === '0') {
+      const preBalances = tx.meta?.preBalances || [];
+      const postBalances = tx.meta?.postBalances || [];
+      if (preBalances.length > 1 && postBalances.length > 1) {
+        // Check non-fee-payer accounts for larger SOL movements
+        // Account 0 is the fee payer — its change includes the tx fee (~0.000005 SOL)
+        for (let i = 1; i < Math.min(preBalances.length, postBalances.length); i++) {
+          const diff = Math.abs(postBalances[i] - preBalances[i]) / 1e9;
+          if (diff > 0.001 && diff > parseFloat(amount || '0')) {
+            amount = diff.toFixed(4);
+          }
+        }
+      }
+      // Last resort: fee payer diff (minus estimated tx fee)
+      if (amount === '0' && preBalances.length > 0 && postBalances.length > 0) {
+        const diff = Math.abs(postBalances[0] - preBalances[0]) / 1e9;
+        if (diff > 0.01) amount = diff.toFixed(4); // Higher threshold to skip tx fees
+      }
+    }
+
+    // 3. Filter non-substantial: skip if amount rounds to $0.00
+    if (amount === '0' || parseFloat(amount) < 0.01) return null;
 
     return { signature, type, amount, timestamp };
   }

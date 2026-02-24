@@ -43,8 +43,34 @@ const HELIUS_RPC_FALLBACK = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KE
 const SOLANA_PUBLIC_RPC = 'https://api.mainnet-beta.solana.com';
 const ANKR_SOLANA_RPC = 'https://rpc.ankr.com/solana';
 
-// Solana connection for DLMM SDK (reuses Helius RPC)
-const solanaConnection = new Connection(HELIUS_RPC_FALLBACK, 'confirmed');
+// Solana connection for DLMM SDK — uses Gatekeeper beta with fallback chain
+// The standard Helius endpoint may reject the API key (401), so we use a custom
+// fetch that tries: Gatekeeper beta → Standard → Public Solana → Ankr
+const solanaConnection = new Connection(HELIUS_RPC, {
+  commitment: 'confirmed',
+  fetch: async (url, options) => {
+    // Try Gatekeeper beta first (primary — key works here)
+    try {
+      const resp = await globalThis.fetch(url, { ...options, signal: AbortSignal.timeout(12_000) });
+      if (resp.ok) return resp;
+      if (resp.status !== 429) throw new Error(`HTTP ${resp.status}`);
+    } catch (err) {
+      // Fall through to next endpoint
+    }
+    // Try standard Helius
+    try {
+      const resp = await globalThis.fetch(HELIUS_RPC_FALLBACK, { ...options, signal: AbortSignal.timeout(12_000) });
+      if (resp.ok) return resp;
+    } catch {}
+    // Try public Solana RPC
+    try {
+      const resp = await globalThis.fetch(SOLANA_PUBLIC_RPC, { ...options, signal: AbortSignal.timeout(15_000) });
+      if (resp.ok) return resp;
+    } catch {}
+    // Last resort: Ankr
+    return globalThis.fetch(ANKR_SOLANA_RPC, { ...options, signal: AbortSignal.timeout(15_000) });
+  },
+});
 
 // Enhanced WebSockets — Geyser-powered, server-side filtering, LaserStream infra
 const HELIUS_ENHANCED_WS = `wss://atlas-mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -935,15 +961,22 @@ app.get('/api/pool/:address/bins', async (req, res) => {
     const binsData = await dlmm.getBinsAroundActiveBin(35, 35);
 
     // Transform bins into chart-friendly format
-    const bins = (binsData?.bins || []).map(bin => ({
-      id: bin.binId,
-      price: parseFloat(bin.price) || 0,
-      xAmount: bin.xAmount?.toString() || '0',
-      yAmount: bin.yAmount?.toString() || '0',
-      liquidity: parseFloat(bin.xAmount?.toString() || '0') + parseFloat(bin.yAmount?.toString() || '0'),
-      supply: bin.supply?.toString() || '0',
-      isActive: bin.binId === activeBin.binId,
-    }));
+    // Use pricePerToken (human-readable) instead of price (per lamport)
+    // Use supply (LP token supply, denomination-neutral) for liquidity metric
+    const bins = (binsData?.bins || []).map(bin => {
+      const supply = parseFloat(bin.supply?.toString() || '0');
+      const xAmt = parseFloat(bin.xAmount?.toString() || '0');
+      const yAmt = parseFloat(bin.yAmount?.toString() || '0');
+      return {
+        id: bin.binId,
+        price: parseFloat(bin.pricePerToken || bin.price) || 0,
+        xAmount: bin.xAmount?.toString() || '0',
+        yAmount: bin.yAmount?.toString() || '0',
+        liquidity: supply > 0 ? supply : (xAmt + yAmt),
+        supply: bin.supply?.toString() || '0',
+        isActive: bin.binId === activeBin.binId,
+      };
+    });
 
     // Get dynamic fee info
     let dynamicFee = null;
@@ -954,7 +987,7 @@ app.get('/api/pool/:address/bins', async (req, res) => {
     const result = {
       activeBin: {
         binId: activeBin.binId,
-        price: parseFloat(activeBin.price) || 0,
+        price: parseFloat(activeBin.pricePerToken || activeBin.price) || 0,
         pricePerToken: activeBin.pricePerToken || activeBin.price,
       },
       bins,
@@ -994,7 +1027,7 @@ app.get('/api/pool/:address/info', async (req, res) => {
     const result = {
       activeBin: {
         binId: activeBin.binId,
-        price: parseFloat(activeBin.price) || 0,
+        price: parseFloat(activeBin.pricePerToken || activeBin.price) || 0,
       },
       binStep: dlmm.lbPair?.binStep || 0,
       feeInfo: feeInfo ? {

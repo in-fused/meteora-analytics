@@ -284,17 +284,14 @@ class WSService {
   async fetchPoolTransactions(poolAddress: string): Promise<void> {
     if (!poolAddress || poolAddress !== this.activePool) return;
 
-    // Cooldown: don't refetch the same pool within FETCH_COOLDOWN_MS
+    // Cooldown with exponential backoff on errors
+    // Normal: 4s between fetches. After 5+ errors: 10s, 20s, 40s, 60s max
     const now = Date.now();
-    if (now - this.lastFetchTime < FETCH_COOLDOWN_MS) return;
+    const cooldown = this.errorCount > 5
+      ? Math.min(10_000 * Math.pow(2, this.errorCount - 6), 60_000)
+      : FETCH_COOLDOWN_MS;
+    if (now - this.lastFetchTime < cooldown) return;
     this.lastFetchTime = now;
-
-    if (this.errorCount > 5) {
-      // Exponential backoff instead of permanent stop — allows recovery
-      const backoffMs = Math.min(10_000 * Math.pow(2, this.errorCount - 6), 60_000);
-      if (now - this.lastFetchTime < backoffMs) return;
-      console.warn(`[WS] RPC errors, backing off (${Math.round(backoffMs / 1000)}s intervals)`);
-    }
 
     try {
       // Step 1: Get recent signatures for this pool address
@@ -401,16 +398,23 @@ class WSService {
 
   // ── DLMM SDK Bin Fetching ─────────────────────────────────────────────
 
-  /** Fetch real on-chain bin data for a DLMM pool via the SDK endpoint. */
-  async fetchPoolBins(poolAddress: string): Promise<void> {
+  /** Fetch real on-chain bin data for a DLMM pool via the SDK endpoint.
+   *  Retries up to 2 times with backoff if the server SDK call fails. */
+  async fetchPoolBins(poolAddress: string, attempt = 0): Promise<void> {
     if (!poolAddress || poolAddress !== this.activePool) return;
 
     try {
       const response = await fetch(CONFIG.POOL_BINS(poolAddress));
       if (!response.ok) {
         // Non-DLMM pools (Raydium, DAMM) won't have SDK bins — that's fine
-        if (response.status !== 500) return;
-        console.warn('[WS] Failed to fetch SDK bins:', response.status);
+        if (response.status === 400) return; // invalid address
+        // Server SDK error — retry with backoff
+        if (attempt < 2) {
+          console.warn(`[WS] SDK bins HTTP ${response.status}, retrying in ${(attempt + 1) * 3}s...`);
+          setTimeout(() => this.fetchPoolBins(poolAddress, attempt + 1), (attempt + 1) * 3000);
+        } else {
+          console.warn('[WS] SDK bins failed after retries:', response.status);
+        }
         return;
       }
 
@@ -422,8 +426,6 @@ class WSService {
         const pool = store.pools.find(p => p.address === poolAddress);
         if (!pool) return;
 
-        // Transform SDK bins into the chart Bin[] format
-        const maxLiq = Math.max(...data.bins.map((b: any) => b.liquidity || 0), 1);
         const activeBinId = data.activeBin.binId;
 
         const bins: Bin[] = data.bins
@@ -444,8 +446,13 @@ class WSService {
         store.setPoolBins(pool.id, bins, activeBinIndex >= 0 ? activeBinIndex : Math.floor(bins.length / 2), data.activeBin.price);
       }
     } catch (err) {
-      // SDK bin fetch is best-effort — synthetic bins remain as fallback
-      console.warn('[WS] fetchPoolBins error:', err);
+      // Network error — retry with backoff
+      if (attempt < 2) {
+        console.warn(`[WS] fetchPoolBins error, retrying in ${(attempt + 1) * 3}s:`, err);
+        setTimeout(() => this.fetchPoolBins(poolAddress, attempt + 1), (attempt + 1) * 3000);
+      } else {
+        console.warn('[WS] fetchPoolBins failed after retries:', err);
+      }
     }
   }
 

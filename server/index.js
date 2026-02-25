@@ -144,7 +144,7 @@ const CACHE_TTLS = {
   raydium: 30_000,      // 30s — Raydium CLMM pools
   jupiter: 300_000,     // 5min — token list rarely changes
   balance: 10_000,      // 10s
-  signatures: 5_000,    // 5s — recent transactions
+  signatures: 2_000,    // 2s — recent transactions (match client poll cadence)
   tx: 60_000,           // 1min — finalized tx details don't change
   analytics: 30_000,    // 30s — legacy endpoint
 };
@@ -951,13 +951,25 @@ app.get('/api/pool/:address/bins', async (req, res) => {
   if (cached) return res.json(cached);
 
   try {
-    const dlmm = await getDlmmInstance(address);
+    // Timeout guard: SDK calls make multiple RPC requests and can hang under load.
+    // Abort after 8s to prevent Fly.io 502 gateway timeouts.
+    const sdkWork = (async () => {
+      const dlmm = await getDlmmInstance(address);
 
-    // Get active bin (real-time price from chain)
-    const activeBin = await dlmm.getActiveBin();
+      // Get active bin (real-time price from chain)
+      const activeBin = await dlmm.getActiveBin();
 
-    // Get bins around active bin (±35 bins for a nice chart)
-    const binsData = await dlmm.getBinsAroundActiveBin(35, 35);
+      // Get bins around active bin (±35 bins for a nice chart)
+      const binsData = await dlmm.getBinsAroundActiveBin(35, 35);
+
+      return { dlmm, activeBin, binsData };
+    })();
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('SDK timeout (8s)')), 8_000)
+    );
+
+    const { dlmm, activeBin, binsData } = await Promise.race([sdkWork, timeout]);
 
     // Transform bins into chart-friendly format
     // Use pricePerToken (human-readable) instead of price (per lamport)
@@ -1015,8 +1027,17 @@ app.get('/api/pool/:address/info', async (req, res) => {
   if (cached) return res.json(cached);
 
   try {
-    const dlmm = await getDlmmInstance(address);
-    const activeBin = await dlmm.getActiveBin();
+    const sdkWork = (async () => {
+      const dlmm = await getDlmmInstance(address);
+      const activeBin = await dlmm.getActiveBin();
+      return { dlmm, activeBin };
+    })();
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('SDK timeout (8s)')), 8_000)
+    );
+
+    const { dlmm, activeBin } = await Promise.race([sdkWork, timeout]);
 
     let feeInfo = null;
     try {

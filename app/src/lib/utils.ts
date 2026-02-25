@@ -199,9 +199,10 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
     const fees1h = p.fees1h ?? 0;
     const feeTvl = p.feeTvlRatio ?? 0;
     const apr = parseFloat(p.apr);
-    const hasHourlyData = fees1h > 0;
+    const isDLMM = p.protocol === 'Meteora DLMM';
+    const isCLMM = p.protocol === 'Raydium CLMM';
 
-    // Tier 1: Fee spike detection (HOT)
+    // Tier 1: Fee spike detection (HOT) — DLMM pools with hourly fee data
     if (p.isHot && fees1h > 0 && p.tvl > 5000) {
       oppScore += 50;
       oppType = 'hot';
@@ -209,7 +210,7 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
       reason = `FEE SPIKE: 1h fees ${formatNumber(fees1h)} → projected ${formatNumber(projected)}/day`;
     }
 
-    // Tier 2: Active fee generation
+    // Tier 2: Active fee generation — DLMM pools with high fee/TVL
     if (fees1h > 0 && p.tvl > 0 && (fees1h / p.tvl) > 0.0005) {
       oppScore += 35;
       if (!reason) {
@@ -218,8 +219,8 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
       }
     }
 
-    // Tier 2b: Volume surge (Raydium-fair — doesn't require hourly fee data)
-    if (!hasHourlyData && p.volumeToTvl > 0.5 && p.tvl > 5000) {
+    // Tier 2b: Volume surge — all pool types (not gated by hourly data availability)
+    if (p.volumeToTvl > 0.5 && p.tvl > 5000) {
       oppScore += 30;
       if (!reason) {
         oppType = 'active';
@@ -227,9 +228,8 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
       }
     }
 
-    // Tier 3: High volume/TVL ratio (lowered threshold for pools without hourly data)
-    const volTvlThreshold = hasHourlyData ? 0.3 : 0.2;
-    if (p.volumeToTvl > volTvlThreshold && p.tvl > 10000) {
+    // Tier 3: High volume/TVL ratio — same threshold for all pool types
+    if (p.volumeToTvl > 0.2 && p.tvl > 10000) {
       oppScore += 20;
       if (!reason) reason = `HIGH VOLUME: ${(p.volumeToTvl * 100).toFixed(0)}% vol/TVL ratio`;
     }
@@ -256,6 +256,11 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
     if (feeTvl > 0.005) {
       oppScore += 8;
       if (!reason) reason = `EFFICIENT: ${(feeTvl * 100).toFixed(2)}% fee/TVL ratio`;
+    }
+
+    // Protocol bonus: DLMM and CLMM are concentrated liquidity — better for active LPs
+    if (isDLMM || isCLMM) {
+      oppScore += 5;
     }
 
     // Must have at least one signal

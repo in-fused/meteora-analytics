@@ -185,8 +185,10 @@ function generatePoolSuggestion(
 }
 
 export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
-  // Only consider safe pools with some activity
-  const candidates = filteredPools.filter(p => p.safety === 'safe' && p.tvl > 1000);
+  // Consider safe pools + warning pools with meaningful TVL (likely legitimate)
+  const candidates = filteredPools.filter(p =>
+    p.safety !== 'danger' && p.tvl > 1000
+  );
 
   // Score each candidate across multiple opportunity signals
   const scored: { pool: Pool; oppScore: number; reason: string; oppType: OppType }[] = [];
@@ -272,8 +274,32 @@ export function detectOpportunities(filteredPools: Pool[]): Opportunity[] {
   // Sort by opportunity score (highest first), then by pool score
   scored.sort((a, b) => b.oppScore - a.oppScore || b.pool.score - a.pool.score);
 
+  // Ensure protocol diversity: pick top from each protocol, then fill remaining slots
+  const byProtocol: Record<string, typeof scored> = {};
+  for (const s of scored) {
+    const proto = s.pool.protocol;
+    if (!byProtocol[proto]) byProtocol[proto] = [];
+    byProtocol[proto].push(s);
+  }
+  const diverse: typeof scored = [];
+  // Take top 4 from each protocol that has candidates
+  for (const proto of Object.keys(byProtocol)) {
+    diverse.push(...byProtocol[proto].slice(0, 4));
+  }
+  // Fill remaining slots up to 15 from overall ranking (skip already-included)
+  const included = new Set(diverse.map(d => d.pool.id));
+  for (const s of scored) {
+    if (diverse.length >= 15) break;
+    if (!included.has(s.pool.id)) {
+      diverse.push(s);
+      included.add(s.pool.id);
+    }
+  }
+  // Re-sort the diverse set by oppScore
+  diverse.sort((a, b) => b.oppScore - a.oppScore || b.pool.score - a.pool.score);
+
   // Take top 15, generate per-pool suggestions
-  return scored.slice(0, 15).map(({ pool, reason, oppType }) => {
+  return diverse.slice(0, 15).map(({ pool, reason, oppType }) => {
     const { short, detail } = generatePoolSuggestion(pool, oppType);
     return {
       ...pool,

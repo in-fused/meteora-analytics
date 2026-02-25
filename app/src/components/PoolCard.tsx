@@ -315,9 +315,7 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                 ) : (
                   <div className="pool-tx-empty">
                     {loadingTooLong ? (
-                      <>
-                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>RPC connection issues — retrying automatically...</span>
-                      </>
+                      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>No recent activity on this pool — watching for new transactions...</span>
                     ) : (
                       <>
                         <div className="loading-spinner" style={{ marginBottom: 8 }} />

@@ -63,13 +63,13 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
     };
   }, [isExpanded, addr]);
 
-  // Track if loading is taking too long (show retry message after 15s)
+  // Track if loading is taking too long (show message after 10s)
   useEffect(() => {
     if (!isExpanded || poolTransactions.length > 0) {
       setLoadingTooLong(false);
       return;
     }
-    const timer = setTimeout(() => setLoadingTooLong(true), 15_000);
+    const timer = setTimeout(() => setLoadingTooLong(true), 10_000);
     return () => clearTimeout(timer);
   }, [isExpanded, poolTransactions.length]);
 
@@ -449,7 +449,7 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
           <div className="pool-tx-section">
             <div className="pool-tx-header">
               <span className="pool-tx-title"><span className={`status-dot ${wsConnected ? 'live' : ''}`} />Live Transactions</span>
-              <span className="pool-tx-status" style={{ fontSize: 10, color: 'var(--text-dim)' }}>{wsConnected ? '🟢 Connected' : '🔴 Connecting...'}</span>
+              <span className="pool-tx-status" style={{ fontSize: 10, color: 'var(--text-dim)' }}>{poolTransactions.length > 0 ? `${poolTransactions.length} txs` : (wsConnected ? 'Listening...' : 'Connecting...')}</span>
             </div>
             <div className="pool-tx-list">
               {poolTransactions.length > 0 ? (
@@ -467,8 +467,14 @@ export function PoolCard({ pool, rank, isOpp = false }: PoolCardProps) {
                 ))
               ) : (
                 <div className="pool-tx-empty">
-                  <div className="loading-spinner" style={{ marginBottom: 8 }} />
-                  <span>Loading transactions...</span>
+                  {loadingTooLong ? (
+                    <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>No recent activity on this pool — watching for new transactions...</span>
+                  ) : (
+                    <>
+                      <div className="loading-spinner" style={{ marginBottom: 8 }} />
+                      <span>Loading transactions...</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>
